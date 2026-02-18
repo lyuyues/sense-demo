@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <title>SENSE - Sensory Exploration</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Particle canvas (background layer for all scenes) -->
+  <canvas id="particle-canvas"></canvas>
+
+  <!-- Welcome Screen -->
+  <div id="screen-welcome" class="screen active">
+    <div class="welcome-content">
+      <div class="welcome-character">
+        <div class="cat-welcome">
+          <div class="cat-ear cat-ear-l"></div>
+          <div class="cat-ear cat-ear-r"></div>
+          <div class="cat-face">
+            <div class="cat-eye cat-eye-l"><div class="cat-pupil"></div></div>
+            <div class="cat-eye cat-eye-r"><div class="cat-pupil"></div></div>
+            <div class="cat-nose"></div>
+            <div class="cat-mouth"></div>
+          </div>
+          <div class="cat-body-welcome"></div>
+          <div class="cat-tail"></div>
+        </div>
+      </div>
+      <h1>Let's Explore!</h1>
+      <p class="welcome-subtitle">Help the kitten find what feels just right</p>
+      <button id="btn-start" class="btn-primary bounce-hover">
+        Start
+      </button>
+    </div>
+  </div>
+
+  <!-- Scene 1: Auditory -->
+  <div id="screen-auditory" class="screen">
+    <div class="scene-header">
+      <div class="scene-progress">
+        <div class="progress-fill" style="width:12.5%"></div>
+      </div>
+      <div class="scene-title">Listen to the music box</div>
+    </div>
+    <div class="scene-container" id="container-auditory">
+      <div class="scene-bg auditory-bg">
+        <div class="floating-notes" id="floating-notes"></div>
+        <div class="sound-source" id="sound-source">
+          <div class="music-box-body">
+            <div class="music-box-lid"></div>
+            <div class="music-box-base"></div>
+            <div class="music-box-crank"></div>
+          </div>
+          <div class="sound-rings" id="sound-rings">
+            <div class="ring r1"></div>
+            <div class="ring r2"></div>
+            <div class="ring r3"></div>
+          </div>
+        </div>
+        <div class="avatar draggable" id="avatar-auditory" data-scene="auditory">
+          <div class="cat-avatar">
+            <div class="cat-a-ear cat-a-ear-l"></div>
+            <div class="cat-a-ear cat-a-ear-r"></div>
+            <div class="cat-a-face">
+              <div class="cat-a-eye cat-a-eye-l"><div class="cat-a-pupil"></div></div>
+              <div class="cat-a-eye cat-a-eye-r"><div class="cat-a-pupil"></div></div>
+              <div class="cat-a-mouth"></div>
+            </div>
+          </div>
+          <svg class="hold-ring-svg" id="hold-ring-auditory" viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="55"/>
+            <circle class="ring-fill" cx="60" cy="60" r="55"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="scene-hint" id="hint-auditory">
+      <span class="hand-pointer">👆</span> Drag the kitten closer or farther from the music
+    </div>
+  </div>
+
+  <!-- Scene 2: Visual -->
+  <div id="screen-visual" class="screen">
+    <div class="scene-header">
+      <div class="scene-progress">
+        <div class="progress-fill" style="width:37.5%"></div>
+      </div>
+      <div class="scene-title">Find the right brightness</div>
+    </div>
+    <div class="scene-container" id="container-visual">
+      <div class="scene-bg visual-bg" id="visual-bg">
+        <div class="garden-bg">
+          <div class="bg-flower bf1">🌱</div>
+          <div class="bg-flower bf2">🌱</div>
+          <div class="bg-flower bf3">🌱</div>
+          <div class="bg-flower bf4">🌱</div>
+          <div class="bg-flower bf5">🌱</div>
+          <div class="bg-flower bf6">🌱</div>
+        </div>
+        <div class="visual-target" id="visual-target">
+          <div class="big-flower">
+            <div class="big-flower-glow"></div>
+            <div class="big-flower-icon">🌸</div>
+          </div>
+        </div>
+        <div class="avatar draggable" id="avatar-visual" data-scene="visual">
+          <div class="cat-avatar">
+            <div class="cat-a-ear cat-a-ear-l"></div>
+            <div class="cat-a-ear cat-a-ear-r"></div>
+            <div class="cat-a-face">
+              <div class="cat-a-eye cat-a-eye-l"><div class="cat-a-pupil"></div></div>
+              <div class="cat-a-eye cat-a-eye-r"><div class="cat-a-pupil"></div></div>
+              <div class="cat-a-mouth"></div>
+            </div>
+          </div>
+          <svg class="hold-ring-svg" id="hold-ring-visual" viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="55"/>
+            <circle class="ring-fill" cx="60" cy="60" r="55"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="scene-hint" id="hint-visual">
+      <span class="hand-pointer">👆</span> Drag the kitten to find comfortable colors
+    </div>
+  </div>
+
+  <!-- Scene 3: Spatial -->
+  <div id="screen-spatial" class="screen">
+    <div class="scene-header">
+      <div class="scene-progress">
+        <div class="progress-fill" style="width:62.5%"></div>
+      </div>
+      <div class="scene-title">Meet a new friend</div>
+    </div>
+    <div class="scene-container" id="container-spatial">
+      <div class="scene-bg spatial-bg">
+        <div class="park-bg">
+          <div class="grass"></div>
+          <div class="cloud c1">☁️</div>
+          <div class="cloud c2">☁️</div>
+        </div>
+        <div class="npc-character" id="npc-character">
+          <div class="dog-avatar">
+            <div class="dog-ear dog-ear-l"></div>
+            <div class="dog-ear dog-ear-r"></div>
+            <div class="dog-face">
+              <div class="dog-eye dog-eye-l"><div class="dog-pupil"></div></div>
+              <div class="dog-eye dog-eye-r"><div class="dog-pupil"></div></div>
+              <div class="dog-nose"></div>
+              <div class="dog-tongue hidden"></div>
+            </div>
+            <div class="dog-tail"></div>
+          </div>
+          <div class="npc-reaction" id="npc-reaction"></div>
+          <div class="heart-particles" id="heart-particles"></div>
+        </div>
+        <div class="avatar draggable" id="avatar-spatial" data-scene="spatial">
+          <div class="cat-avatar">
+            <div class="cat-a-ear cat-a-ear-l"></div>
+            <div class="cat-a-ear cat-a-ear-r"></div>
+            <div class="cat-a-face">
+              <div class="cat-a-eye cat-a-eye-l"><div class="cat-a-pupil"></div></div>
+              <div class="cat-a-eye cat-a-eye-r"><div class="cat-a-pupil"></div></div>
+              <div class="cat-a-mouth"></div>
+            </div>
+          </div>
+          <svg class="hold-ring-svg" id="hold-ring-spatial" viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="55"/>
+            <circle class="ring-fill" cx="60" cy="60" r="55"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="scene-hint" id="hint-spatial">
+      <span class="hand-pointer">👆</span> Drag the kitten to say hello to the puppy
+    </div>
+  </div>
+
+  <!-- Scene 4: Temporal -->
+  <div id="screen-temporal" class="screen">
+    <div class="scene-header">
+      <div class="scene-progress">
+        <div class="progress-fill" style="width:87.5%"></div>
+      </div>
+      <div class="scene-title">Watch the magic light</div>
+    </div>
+    <div class="scene-container" id="container-temporal">
+      <div class="scene-bg temporal-bg">
+        <div class="starfield" id="starfield"></div>
+        <div class="temporal-target" id="temporal-target">
+          <div class="magic-bell">
+            <div class="bell-body">🔔</div>
+            <div class="bell-glow"></div>
+          </div>
+        </div>
+        <!-- The traveling light orb -->
+        <div class="light-orb" id="light-orb"></div>
+        <div class="avatar draggable" id="avatar-temporal" data-scene="temporal">
+          <div class="cat-avatar">
+            <div class="cat-a-ear cat-a-ear-l"></div>
+            <div class="cat-a-ear cat-a-ear-r"></div>
+            <div class="cat-a-face">
+              <div class="cat-a-eye cat-a-eye-l"><div class="cat-a-pupil"></div></div>
+              <div class="cat-a-eye cat-a-eye-r"><div class="cat-a-pupil"></div></div>
+              <div class="cat-a-mouth"></div>
+            </div>
+          </div>
+          <svg class="hold-ring-svg" id="hold-ring-temporal" viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="55"/>
+            <circle class="ring-fill" cx="60" cy="60" r="55"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="scene-hint" id="hint-temporal">
+      <span class="hand-pointer">👆</span> Drag the kitten — watch the magic light fly!
+    </div>
+  </div>
+
+  <!-- Celebration overlay -->
+  <div id="celebration" class="celebration hidden">
+    <canvas id="confetti-canvas"></canvas>
+    <div class="celebration-emoji">🎉</div>
+  </div>
+
+  <!-- Results Screen -->
+  <div id="screen-results" class="screen">
+    <div class="results-content">
+      <div class="results-icon">⭐</div>
+      <h1>All Done!</h1>
+      <p class="results-subtitle">Here's what the kitten likes</p>
+      <div class="results-grid" id="results-grid"></div>
+      <div class="results-data" id="results-data"></div>
+      <button id="btn-restart" class="btn-primary bounce-hover">
+        Play Again
+      </button>
+      <button id="btn-export" class="btn-secondary">
+        Export Data
+      </button>
+    </div>
+  </div>
+
+  <!-- Hold confirmation overlay -->
+  <div id="hold-overlay" class="hold-overlay hidden">
+    <div class="hold-text">Stay still... 🐾</div>
+    <div class="hold-progress-bar">
+      <div class="hold-progress-fill" id="hold-progress-fill"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
