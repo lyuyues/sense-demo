@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
   <title>SENSE - Sensory Exploration</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
   <!-- Particle canvas (background layer for all scenes) -->
@@ -31,6 +31,9 @@
       <p class="welcome-subtitle">Help the kitten find what feels just right</p>
       <button id="btn-start" class="btn-primary bounce-hover">
         Start
+      </button>
+      <button id="btn-skip" class="btn-secondary" style="margin-top:0.8rem; font-size:0.85rem;">
+        Skip to Video (Demo)
       </button>
     </div>
   </div>
@@ -232,13 +235,148 @@
       <h1>All Done!</h1>
       <p class="results-subtitle">Here's what the kitten likes</p>
       <div class="results-grid" id="results-grid"></div>
-      <div class="results-data" id="results-data"></div>
-      <button id="btn-restart" class="btn-primary bounce-hover">
+      <div class="results-data hidden" id="results-data"></div>
+      <button id="btn-watch-video" class="btn-primary bounce-hover">
+        Watch Your Video
+      </button>
+      <button id="btn-restart" class="btn-secondary">
         Play Again
       </button>
       <button id="btn-export" class="btn-secondary">
         Export Data
       </button>
+    </div>
+  </div>
+
+  <!-- Stage 2: Processing Transition -->
+  <div id="screen-processing" class="screen">
+    <div class="processing-content">
+      <div class="processing-icon">🎬</div>
+      <h1>Creating Your Video</h1>
+      <div class="processing-steps" id="processing-steps">
+        <div class="processing-step" id="step-spatial">
+          <span class="step-dot active"></span>
+          <span>Selecting scene based on comfort level...</span>
+        </div>
+        <div class="processing-step" id="step-audio">
+          <span class="step-dot"></span>
+          <span>Adjusting sounds...</span>
+        </div>
+        <div class="processing-step" id="step-visual">
+          <span class="step-dot"></span>
+          <span>Setting brightness...</span>
+        </div>
+        <div class="processing-step" id="step-ready">
+          <span class="step-dot"></span>
+          <span>Ready!</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stage 2: Video Playback -->
+  <div id="screen-video" class="screen">
+    <div class="video-fullscreen">
+      <video id="sense-video" playsinline preload="auto">
+        <source src="video/base_medium.mp4" type="video/mp4">
+      </video>
+      <!-- YouTube-style bottom control bar -->
+      <div class="video-controls" id="video-controls">
+        <!-- Progress bar (full width, top of bar) -->
+        <div class="vc-progress-wrap" id="timeline-track">
+          <div class="vc-progress-bg"></div>
+          <div class="vc-progress-fill" id="timeline-progress"></div>
+          <div class="vc-progress-thumb" id="timeline-thumb"></div>
+          <!-- Segment markers -->
+          <div class="vc-marker" style="left:22%"></div>
+          <div class="vc-marker" style="left:42%"></div>
+          <div class="vc-marker" style="left:61%"></div>
+          <div class="vc-marker" style="left:81%"></div>
+        </div>
+        <!-- Controls row -->
+        <div class="vc-row">
+          <div class="vc-left">
+            <button class="vc-btn" id="vc-play-pause">▶</button>
+            <span class="vc-time" id="timeline-time">0:00 / 0:00</span>
+          </div>
+          <div class="vc-right">
+            <!-- FAB trigger integrated into bar -->
+            <button class="vc-btn vc-btn-sm" id="fab-dot">⚙</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- YouTube-style center play/pause overlay -->
+      <div class="video-play-overlay" id="video-play-overlay">
+        <div class="play-overlay-icon" id="play-overlay-icon">▶</div>
+      </div>
+
+      <!-- Settings panel (anchored to ⚙ in control bar) -->
+      <div class="fab-control" id="fab-control">
+        <div class="fab-panel hidden" id="fab-panel">
+          <div class="fab-section">
+            <div class="fab-level-label">Level</div>
+            <div class="fab-levels">
+              <button class="fab-level" data-level="1" title="Gentle — more filtered">🛡</button>
+              <button class="fab-level active" data-level="2" title="Baseline — child's own">●</button>
+              <button class="fab-level" data-level="3" title="Challenge — closer to real">🎯</button>
+            </div>
+          </div>
+          <div class="fab-divider"></div>
+          <div class="fab-section">
+            <button class="fab-btn fab-btn-sm" id="fab-profile-toggle">ⓘ Profile</button>
+          </div>
+          <!-- Sensory profile (hidden by default) -->
+          <div class="fab-profile hidden" id="fab-profile">
+            <div class="profile-row">
+              <span class="profile-icon">🔊</span>
+              <div class="profile-bar"><div class="profile-bar-fill" id="bar-auditory"></div></div>
+              <span class="profile-label" id="label-auditory">—</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-icon">🔆</span>
+              <div class="profile-bar"><div class="profile-bar-fill" id="bar-visual"></div></div>
+              <span class="profile-label" id="label-visual">—</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-icon">👤</span>
+              <div class="profile-bar"><div class="profile-bar-fill" id="bar-spatial"></div></div>
+              <span class="profile-label" id="label-spatial">—</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-icon">⏱</span>
+              <div class="profile-bar"><div class="profile-bar-fill" id="bar-temporal"></div></div>
+              <span class="profile-label" id="label-temporal">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S2 pause overlay -->
+      <div class="s2-pause-overlay hidden" id="s2-pause-overlay">
+        <div class="s2-pause-card">
+          <p class="s2-pause-title">How is your child feeling?</p>
+          <p class="s2-pause-subtitle">Choose a level for the rest of the video</p>
+          <div class="s2-level-options">
+            <button class="s2-level-btn" data-level="1">
+              <span class="s2-level-icon">🛡</span>
+              <span class="s2-level-name">Gentle</span>
+              <span class="s2-level-desc">More filtered</span>
+            </button>
+            <button class="s2-level-btn selected" data-level="2">
+              <span class="s2-level-icon">●</span>
+              <span class="s2-level-name">Child's Own</span>
+              <span class="s2-level-desc">Baseline</span>
+            </button>
+            <button class="s2-level-btn" data-level="3">
+              <span class="s2-level-icon">🎯</span>
+              <span class="s2-level-name">Challenge</span>
+              <span class="s2-level-desc">Closer to real</span>
+            </button>
+          </div>
+          <button class="s2-continue-btn" id="s2-continue">Continue ▶</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -250,6 +388,6 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

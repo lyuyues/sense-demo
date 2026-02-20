@@ -112,37 +112,74 @@ function initAudio() {
   if (state.audioCtx) return;
   state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-  state.oscillator = state.audioCtx.createOscillator();
-  state.oscillator.type = 'sine';
-  state.oscillator.frequency.value = 440;
+  // Music box synthesis: repeating plucked notes through lowpass filter
+  // Create a short melody buffer that loops
+  const ctx = state.audioCtx;
+  const sampleRate = ctx.sampleRate;
+  const notes = [523.25, 659.25, 783.99, 659.25, 523.25, 783.99, 880, 783.99]; // C5 E5 G5 melody
+  const noteDuration = 0.3; // seconds per note
+  const totalDuration = notes.length * noteDuration;
+  const bufferLength = sampleRate * totalDuration;
+  const buffer = ctx.createBuffer(1, bufferLength, sampleRate);
+  const data = buffer.getChannelData(0);
+
+  // Synthesize music box: each note = sine + harmonics with fast exponential decay
+  for (let n = 0; n < notes.length; n++) {
+    const freq = notes[n];
+    const startSample = Math.floor(n * noteDuration * sampleRate);
+    const numSamples = Math.floor(noteDuration * sampleRate);
+    for (let i = 0; i < numSamples; i++) {
+      const t = i / sampleRate;
+      const decay = Math.exp(-t * 4); // moderate decay for more sustained tone
+      // Fundamental + harmonics 2-6 for bright metallic timbre (more high freq content)
+      const sample = decay * (
+        0.35 * Math.sin(2 * Math.PI * freq * t) +
+        0.25 * Math.sin(2 * Math.PI * freq * 2 * t) +
+        0.15 * Math.sin(2 * Math.PI * freq * 3 * t) +
+        0.10 * Math.sin(2 * Math.PI * freq * 4 * t) +
+        0.08 * Math.sin(2 * Math.PI * freq * 5 * t) +
+        0.07 * Math.sin(2 * Math.PI * freq * 6 * t)
+      );
+      data[startSample + i] = sample;
+    }
+  }
+
+  state.musicBoxBuffer = buffer;
+  state.musicBoxSource = null;
 
   state.filterNode = state.audioCtx.createBiquadFilter();
   state.filterNode.type = 'lowpass';
-  state.filterNode.frequency.value = 2000;
-  state.filterNode.Q.value = 1;
+  state.filterNode.frequency.value = 4000;
+  state.filterNode.Q.value = 4;
 
   state.gainNode = state.audioCtx.createGain();
   state.gainNode.gain.value = 0;
 
-  state.oscillator2 = state.audioCtx.createOscillator();
-  state.oscillator2.type = 'sine';
-  state.oscillator2.frequency.value = 554.37;
-
-  state.oscillator.connect(state.filterNode);
-  state.oscillator2.connect(state.filterNode);
   state.filterNode.connect(state.gainNode);
   state.gainNode.connect(state.audioCtx.destination);
 
-  state.oscillator.start();
-  state.oscillator2.start();
+  // Start looping music box
+  _startMusicBoxLoop();
+}
+
+function _startMusicBoxLoop() {
+  if (state.musicBoxSource) { try { state.musicBoxSource.stop(); } catch(e) {} }
+  state.musicBoxSource = state.audioCtx.createBufferSource();
+  state.musicBoxSource.buffer = state.musicBoxBuffer;
+  state.musicBoxSource.loop = true;
+  state.musicBoxSource.connect(state.filterNode);
+  state.musicBoxSource.start();
 }
 
 function setAudioFromDistance(d) {
   if (!state.audioCtx || !state.filterNode) return;
-  const cutoff = 4000 - d * 3800;
+  // Lowpass filter: d=0 (close) → 8000 Hz (bright), d=1 (far) → 200 Hz (muffled)
+  // Logarithmic mapping for perceptually uniform change
+  const minFreq = 200, maxFreq = 8000;
+  const cutoff = maxFreq * Math.pow(minFreq / maxFreq, d);
   state.filterNode.frequency.setTargetAtTime(cutoff, state.audioCtx.currentTime, 0.1);
-  const vol = Math.max(0, 1 - d * 1.2) * 0.3;
-  state.gainNode.gain.setTargetAtTime(vol, state.audioCtx.currentTime, 0.1);
+  // Volume fixed
+  state.gainNode.gain.setTargetAtTime(0.25, state.audioCtx.currentTime, 0.1);
 }
 
 function stopAudio() {
@@ -210,10 +247,10 @@ function setVisualFromDistance(d) {
   const bg = document.getElementById('visual-bg');
   if (!bg) return;
 
-  // Overall scene: saturation + brightness shift
-  const sat = 0.3 + (1 - d) * 1.4;
+  // Visual dimension: brightness only (not saturation)
+  // Decision: Jiang & Liu 2025 (JADD) — brightness and saturation are neurologically dissociable
   const bright = 0.4 + (1 - d) * 0.8;
-  bg.style.filter = `saturate(${sat}) brightness(${bright})`;
+  bg.style.filter = `brightness(${bright})`;
 
   // Background flowers: bloom/wilt based on distance
   const flowers = bg.querySelectorAll('.bg-flower');
@@ -591,9 +628,9 @@ function confirmPreference() {
       result.label = d < 0.3 ? 'High tolerance' : d < 0.6 ? 'Medium tolerance' : 'Low tolerance';
       break;
     case 'visual':
-      result.parameter = 'saturationLevel';
+      result.parameter = 'brightnessLevel';
       result.value = d;
-      result.label = d < 0.3 ? 'Vivid preference' : d < 0.6 ? 'Balanced' : 'Muted preference';
+      result.label = d < 0.3 ? 'Bright OK' : d < 0.6 ? 'Moderate' : 'Dim preferred';
       break;
     case 'spatial':
       result.parameter = 'comfortableDistance';
@@ -627,9 +664,16 @@ function confirmPreference() {
 // NAVIGATION
 // ============================================================
 function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active');
+    s.classList.remove('fade-in');
+  });
   const screen = document.getElementById(id);
-  screen.classList.add('active', 'fade-in');
+  screen.classList.add('active');
+  // Skip fade-in for video screen (transform breaks absolute positioning)
+  if (id !== 'screen-video') {
+    screen.classList.add('fade-in');
+  }
 }
 
 function nextScene() {
@@ -786,6 +830,239 @@ function onDragEnd() {
 }
 
 // ============================================================
+// STAGE 2: VIDEO PLAYBACK
+// ============================================================
+
+const videoState = {
+  currentLevel: 2,    // 1=protection, 2=baseline, 3=challenge
+  audioCtxVideo: null,
+  sourceNode: null,
+  filterNodeVideo: null,
+  gainNodeVideo: null,
+  s2PauseTriggered: false,
+  isDraggingFab: false,
+  fabExpanded: false,
+  // Segment boundaries (fraction of total duration)
+  segmentBoundaries: [0.22, 0.42, 0.61, 0.81],
+  // S2 ends at first boundary
+  s2PausePoint: 0.22,
+};
+
+// --- Tri-level parameter scaling ---
+function getLevelMultiplier(level) {
+  // Level 1 (protection): push params toward safe (multiply distance by 1.5, clamp to 1)
+  // Level 2 (baseline): child's own (1.0)
+  // Level 3 (challenge): push toward reality (multiply distance by 0.5)
+  return { 1: 1.5, 2: 1.0, 3: 0.5 }[level] || 1.0;
+}
+
+function getScaledParams(level) {
+  const mult = getLevelMultiplier(level);
+  const r = state.results;
+  // normalizedDistance: 0 = close/high tolerance, 1 = far/low tolerance
+  const audDist = r.auditory ? Math.min(1, r.auditory.normalizedDistance * mult) : 0.5;
+  const visDist = r.visual ? Math.min(1, r.visual.normalizedDistance * mult) : 0.5;
+  const tempDist = r.temporal ? Math.min(1, r.temporal.normalizedDistance * mult) : 0.5;
+
+  return {
+    // Audio: lowpass cutoff (close=bright, far=muffled)
+    audioCutoff: 8000 * Math.pow(200 / 8000, audDist),
+    audioVolume: 0.3 + (1 - audDist) * 0.7,
+    // Visual: brightness (CSS filter)
+    brightness: 0.5 + (1 - visDist) * 0.5,  // 0.5 (dim) to 1.0 (full)
+    // Temporal: pause duration at escalation points (ms)
+    pauseDuration: 300 + tempDist * 2500,
+  };
+}
+
+// --- Apply real-time audio filtering via Web Audio API ---
+function initVideoAudio() {
+  const video = document.getElementById('sense-video');
+  if (videoState.audioCtxVideo) return;
+
+  videoState.audioCtxVideo = new (window.AudioContext || window.webkitAudioContext)();
+  videoState.sourceNode = videoState.audioCtxVideo.createMediaElementSource(video);
+
+  videoState.filterNodeVideo = videoState.audioCtxVideo.createBiquadFilter();
+  videoState.filterNodeVideo.type = 'lowpass';
+  videoState.filterNodeVideo.Q.value = 1;
+
+  videoState.gainNodeVideo = videoState.audioCtxVideo.createGain();
+
+  videoState.sourceNode.connect(videoState.filterNodeVideo);
+  videoState.filterNodeVideo.connect(videoState.gainNodeVideo);
+  videoState.gainNodeVideo.connect(videoState.audioCtxVideo.destination);
+}
+
+function applyVideoFilters(level) {
+  const params = getScaledParams(level);
+  const video = document.getElementById('sense-video');
+
+  // Audio
+  if (videoState.filterNodeVideo) {
+    const ctx = videoState.audioCtxVideo;
+    videoState.filterNodeVideo.frequency.setTargetAtTime(params.audioCutoff, ctx.currentTime, 0.1);
+    videoState.gainNodeVideo.gain.setTargetAtTime(params.audioVolume, ctx.currentTime, 0.1);
+  }
+
+  // Visual: CSS brightness filter on video element
+  video.style.filter = `brightness(${params.brightness})`;
+}
+
+// --- Update sensory profile display ---
+function updateProfileDisplay(level) {
+  const r = state.results;
+  const mult = getLevelMultiplier(level);
+
+  const dims = [
+    { key: 'auditory', labels: ['Comfortable', 'Moderate', 'Sensitive'] },
+    { key: 'visual',   labels: ['Bright OK', 'Moderate', 'Dim preferred'] },
+    { key: 'spatial',  labels: ['Close', 'Medium', 'Distant'] },
+    { key: 'temporal', labels: ['Quick', 'Moderate', 'Slow'] },
+  ];
+
+  dims.forEach(dim => {
+    const bar = document.getElementById(`bar-${dim.key}`);
+    const label = document.getElementById(`label-${dim.key}`);
+    if (!bar || !label) return;
+    const d = r[dim.key] ? Math.min(1, r[dim.key].normalizedDistance * mult) : 0.5;
+    const pct = (1 - d) * 100;
+    bar.style.width = pct + '%';
+    const idx = d < 0.33 ? 0 : d < 0.66 ? 1 : 2;
+    label.textContent = dim.labels[idx];
+  });
+}
+
+// --- Timeline update ---
+function updateTimeline() {
+  const video = document.getElementById('sense-video');
+  if (!video || !video.duration) return;
+  const pct = (video.currentTime / video.duration) * 100;
+  const prog = document.getElementById('timeline-progress');
+  const thumb = document.getElementById('timeline-thumb');
+  const timeLabel = document.getElementById('timeline-time');
+  if (prog) prog.style.width = pct + '%';
+  if (thumb) thumb.style.left = pct + '%';
+  if (timeLabel) {
+    const cur = formatTime(video.currentTime);
+    const tot = formatTime(video.duration);
+    timeLabel.textContent = `${cur} / ${tot}`;
+  }
+
+  // S2 pause check
+  if (!videoState.s2PauseTriggered && video.currentTime / video.duration >= videoState.s2PausePoint) {
+    videoState.s2PauseTriggered = true;
+    video.pause();
+    document.getElementById('s2-pause-overlay').classList.remove('hidden');
+    document.querySelector('.video-fullscreen').classList.add('paused');
+  }
+}
+
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
+// --- Settings panel toggle (from ⚙ in control bar) ---
+function toggleFab() {
+  const panel = document.getElementById('fab-panel');
+  videoState.fabExpanded = !videoState.fabExpanded;
+  panel.classList.toggle('hidden', !videoState.fabExpanded);
+}
+
+// --- Start Stage 2 ---
+function startStage2() {
+  showScreen('screen-processing');
+  spawnParticles({ color: '147,130,255', count: 15, speed: 0.2, size: 3 });
+
+  // Animate processing steps
+  const steps = ['step-spatial', 'step-audio', 'step-visual', 'step-ready'];
+  steps.forEach((id, i) => {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.add('active');
+        el.querySelector('.step-dot').classList.add('active');
+      }
+      // Mark previous as done
+      if (i > 0) {
+        const prev = document.getElementById(steps[i - 1]);
+        if (prev) prev.querySelector('.step-dot').classList.add('done');
+      }
+    }, 600 * (i + 1));
+  });
+
+  // Transition to video after processing animation
+  setTimeout(() => {
+    showScreen('screen-video');
+    spawnParticles({ color: '255,255,255', count: 0, speed: 0, size: 0 }); // no particles during video
+    initVideoPlayback();
+  }, 600 * (steps.length + 1));
+}
+
+function initVideoPlayback() {
+  const video = document.getElementById('sense-video');
+  const fullscreen = document.querySelector('.video-fullscreen');
+
+  // Select base video based on spatial distance
+  // Note: near/far are 8s single-segment only; medium is the full 36s narrative
+  // For demo, always use medium to show the complete story
+  const spatialDist = state.results.spatial ? state.results.spatial.normalizedDistance : 0.5;
+  let spatialLevel = 'medium';
+  if (spatialDist < 0.33) spatialLevel = 'near';
+  else if (spatialDist > 0.66) spatialLevel = 'far';
+
+  // Check if full narrative exists for this level, fallback to medium
+  video.onerror = () => {
+    if (spatialLevel !== 'medium') {
+      spatialLevel = 'medium';
+      video.src = 'video/base_medium.mp4';
+      video.load();
+    }
+  };
+  video.src = `video/base_${spatialLevel}.mp4`;
+  video.load();
+
+  // Init audio processing
+  initVideoAudio();
+
+  // Apply initial filters (baseline = level 2)
+  videoState.currentLevel = 2;
+  videoState.s2PauseTriggered = false;
+  applyVideoFilters(2);
+  updateProfileDisplay(2);
+
+  // Timeline update loop
+  video.addEventListener('timeupdate', updateTimeline);
+  video.addEventListener('ended', () => {
+    fullscreen.classList.add('paused');
+    document.getElementById('play-overlay-icon').textContent = '↺';
+  });
+
+  // Update play/pause button in control bar
+  video.addEventListener('play', () => {
+    const btn = document.getElementById('vc-play-pause');
+    if (btn) btn.textContent = '⏸';
+  });
+  video.addEventListener('pause', () => {
+    const btn = document.getElementById('vc-play-pause');
+    if (btn) btn.textContent = '▶';
+  });
+
+  // Start playing
+  video.play().then(() => {
+    fullscreen.classList.remove('paused');
+    if (videoState.audioCtxVideo && videoState.audioCtxVideo.state === 'suspended') {
+      videoState.audioCtxVideo.resume();
+    }
+  }).catch(() => {
+    // Autoplay blocked — show play button
+    fullscreen.classList.add('paused');
+  });
+}
+
+// ============================================================
 // INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -815,11 +1092,119 @@ document.addEventListener('DOMContentLoaded', () => {
     URL.revokeObjectURL(url);
   });
 
-  // Touch
+  // --- Stage 2: Watch Video button ---
+  document.getElementById('btn-watch-video').addEventListener('click', startStage2);
+
+  // --- Skip to Stage 2 (demo shortcut) ---
+  document.getElementById('btn-skip').addEventListener('click', () => {
+    // Set default results (medium for all dimensions)
+    state.results = {
+      auditory:  { normalizedDistance: 0.4, parameter: 'frequencyCutoff', value: 2000, label: 'Medium tolerance' },
+      visual:    { normalizedDistance: 0.4, parameter: 'brightnessLevel', value: 0.4, label: 'Moderate' },
+      spatial:   { normalizedDistance: 0.5, parameter: 'comfortableDistance', value: 0.5, label: 'Medium distance' },
+      temporal:  { normalizedDistance: 0.4, parameter: 'bufferLatency', value: 1300, label: 'Moderate pace' },
+    };
+    startStage2();
+  });
+
+  // --- Stage 2: Play/Pause (click video OR control bar button) ---
+  function togglePlayPause() {
+    const video = document.getElementById('sense-video');
+    const fullscreen = document.querySelector('.video-fullscreen');
+    const icon = document.getElementById('play-overlay-icon');
+    if (video.paused || video.ended) {
+      if (video.ended) { video.currentTime = 0; videoState.s2PauseTriggered = false; }
+      video.play();
+      fullscreen.classList.remove('paused');
+      if (icon) { icon.textContent = '⏸'; }
+    } else {
+      video.pause();
+      fullscreen.classList.add('paused');
+      if (icon) { icon.textContent = '▶'; }
+    }
+    // Flash overlay icon
+    if (icon) {
+      icon.classList.remove('flash');
+      void icon.offsetWidth;
+      icon.classList.add('flash');
+    }
+  }
+
+  const playOverlay = document.getElementById('video-play-overlay');
+  if (playOverlay) playOverlay.addEventListener('click', togglePlayPause);
+
+  const vcPlayBtn = document.getElementById('vc-play-pause');
+  if (vcPlayBtn) vcPlayBtn.addEventListener('click', togglePlayPause);
+
+  // --- Stage 2: Timeline seek ---
+  const timelineTrack = document.getElementById('timeline-track');
+  if (timelineTrack) {
+    timelineTrack.addEventListener('click', (e) => {
+      const video = document.getElementById('sense-video');
+      if (!video.duration) return;
+      const rect = timelineTrack.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      video.currentTime = pct * video.duration;
+    });
+  }
+
+  // --- Stage 2: Settings (⚙) toggle ---
+  const fabDot = document.getElementById('fab-dot');
+  if (fabDot) fabDot.addEventListener('click', toggleFab);
+
+  // --- Stage 2: Level selection (FAB) ---
+  document.querySelectorAll('.fab-level').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const level = parseInt(btn.dataset.level);
+      videoState.currentLevel = level;
+      document.querySelectorAll('.fab-level').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      applyVideoFilters(level);
+      updateProfileDisplay(level);
+    });
+  });
+
+  // --- Stage 2: Profile toggle ---
+  const profileToggle = document.getElementById('fab-profile-toggle');
+  if (profileToggle) {
+    profileToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('fab-profile').classList.toggle('hidden');
+    });
+  }
+
+  // --- Stage 2: S2 pause level selection ---
+  document.querySelectorAll('.s2-level-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.s2-level-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      const level = parseInt(btn.dataset.level);
+      videoState.currentLevel = level;
+      // Sync with FAB buttons
+      document.querySelectorAll('.fab-level').forEach(b => {
+        b.classList.toggle('active', parseInt(b.dataset.level) === level);
+      });
+    });
+  });
+
+  const s2Continue = document.getElementById('s2-continue');
+  if (s2Continue) {
+    s2Continue.addEventListener('click', () => {
+      document.getElementById('s2-pause-overlay').classList.add('hidden');
+      const video = document.getElementById('sense-video');
+      applyVideoFilters(videoState.currentLevel);
+      updateProfileDisplay(videoState.currentLevel);
+      video.play();
+      document.querySelector('.video-fullscreen').classList.remove('paused');
+    });
+  }
+
+  // Touch (Stage 1 drag)
   document.addEventListener('touchstart', onDragStart, { passive: false });
   document.addEventListener('touchmove', onDragMove, { passive: false });
   document.addEventListener('touchend', onDragEnd);
-  // Mouse
+  // Mouse (Stage 1 drag)
   document.addEventListener('mousedown', onDragStart);
   document.addEventListener('mousemove', onDragMove);
   document.addEventListener('mouseup', onDragEnd);
