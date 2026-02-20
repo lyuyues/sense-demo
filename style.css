@@ -762,7 +762,7 @@ html, body { width: 100%; height: 100%; overflow: hidden;
 .freeze-overlay {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
-  z-index: 45; pointer-events: none;
+  z-index: 45; pointer-events: auto; cursor: pointer;
 }
 .freeze-overlay.hidden { display: none; }
 .freeze-indicator {
@@ -778,3 +778,4 @@ html, body { width: 100%; height: 100%; overflow: hidden;
 .freeze-icon { font-size: 1.8rem; }
 .freeze-label { color: rgba(255,255,255,0.9); font-size: 0.85rem; font-weight: 600; }
 .freeze-countdown { color: #ffd93d; font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.freeze-hint { color: rgba(255,255,255,0.4); font-size: 0.7rem; margin-top: 0.2rem; }

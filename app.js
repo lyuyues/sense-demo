@@ -1008,15 +1008,29 @@ function triggerFreezeFrame(index) {
     if (remaining <= 0) clearInterval(countdownInterval);
   }, 100);
 
-  // Auto-resume after pause duration
-  setTimeout(() => {
+  function resumeFromFreeze() {
     clearInterval(countdownInterval);
     videoState.freezeActive = false;
     if (overlay) overlay.classList.add('hidden');
-    video.play();
+    video.play().catch(() => {
+      // Browser blocked auto-play — show tap hint, user can tap video to resume
+      console.warn('[SENSE] Auto-resume blocked, waiting for user tap');
+      document.querySelector('.video-fullscreen').classList.add('paused');
+    });
     document.querySelector('.video-fullscreen').classList.remove('paused');
     console.log(`[SENSE] Freeze frame #${index + 1} ended — resuming`);
-  }, duration);
+  }
+
+  // Auto-resume after pause duration
+  setTimeout(resumeFromFreeze, duration);
+
+  // Fallback: tap overlay to resume immediately
+  if (overlay) {
+    overlay.onclick = () => {
+      clearTimeout();
+      resumeFromFreeze();
+    };
+  }
 }
 
 function formatTime(s) {
