@@ -846,6 +846,10 @@ const videoState = {
   segmentBoundaries: [0.22, 0.42, 0.61, 0.81],
   // S2 ends at first boundary
   s2PausePoint: 0.22,
+  // Temporal freeze frame: escalation points at S1→S2, S2→S3, S3→S4 boundaries
+  escalationPoints: [0.22, 0.42, 0.61],
+  freezeTriggered: {},   // {index: true} — tracks which points already fired
+  freezeActive: false,   // true while a freeze is in progress
 };
 
 // --- Tri-level parameter scaling ---
@@ -949,13 +953,70 @@ function updateTimeline() {
     timeLabel.textContent = `${cur} / ${tot}`;
   }
 
-  // S2 pause check
+  // S2 pause check (caregiver level selection)
   if (!videoState.s2PauseTriggered && video.currentTime / video.duration >= videoState.s2PausePoint) {
     videoState.s2PauseTriggered = true;
     video.pause();
     document.getElementById('s2-pause-overlay').classList.remove('hidden');
     document.querySelector('.video-fullscreen').classList.add('paused');
+    return; // don't also trigger freeze frame at the same point
   }
+
+  // Temporal freeze frame at escalation points
+  if (!videoState.freezeActive && videoState.s2PauseTriggered) {
+    const progress = video.currentTime / video.duration;
+    for (let i = 0; i < videoState.escalationPoints.length; i++) {
+      const ep = videoState.escalationPoints[i];
+      // Trigger if we crossed this point and haven't triggered it yet
+      // Use a small window (±1%) to catch the event
+      if (!videoState.freezeTriggered[i] && progress >= ep && progress < ep + 0.02) {
+        // Skip the first escalation point (0.22) — that's handled by S2 pause
+        if (i === 0) { videoState.freezeTriggered[i] = true; continue; }
+        videoState.freezeTriggered[i] = true;
+        triggerFreezeFrame(i);
+        break;
+      }
+    }
+  }
+}
+
+function triggerFreezeFrame(index) {
+  const video = document.getElementById('sense-video');
+  const overlay = document.getElementById('freeze-overlay');
+  const params = getScaledParams(videoState.currentLevel);
+  const duration = params.pauseDuration; // 300–2800ms
+
+  videoState.freezeActive = true;
+  video.pause();
+
+  // Show freeze indicator
+  if (overlay) {
+    const countdown = overlay.querySelector('.freeze-countdown');
+    if (countdown) countdown.textContent = `${(duration / 1000).toFixed(1)}s`;
+    overlay.classList.remove('hidden');
+  }
+
+  console.log(`[SENSE] Freeze frame #${index + 1} at ${(video.currentTime).toFixed(1)}s — pausing ${duration}ms`);
+
+  // Countdown update
+  const startTime = Date.now();
+  const countdownInterval = setInterval(() => {
+    const elapsed = Date.now() - startTime;
+    const remaining = Math.max(0, duration - elapsed);
+    const countdown = overlay ? overlay.querySelector('.freeze-countdown') : null;
+    if (countdown) countdown.textContent = `${(remaining / 1000).toFixed(1)}s`;
+    if (remaining <= 0) clearInterval(countdownInterval);
+  }, 100);
+
+  // Auto-resume after pause duration
+  setTimeout(() => {
+    clearInterval(countdownInterval);
+    videoState.freezeActive = false;
+    if (overlay) overlay.classList.add('hidden');
+    video.play();
+    document.querySelector('.video-fullscreen').classList.remove('paused');
+    console.log(`[SENSE] Freeze frame #${index + 1} ended — resuming`);
+  }, duration);
 }
 
 function formatTime(s) {
@@ -1030,6 +1091,8 @@ function initVideoPlayback() {
   // Apply initial filters (baseline = level 2)
   videoState.currentLevel = 2;
   videoState.s2PauseTriggered = false;
+  videoState.freezeTriggered = {};
+  videoState.freezeActive = false;
   applyVideoFilters(2);
   updateProfileDisplay(2);
 
@@ -1113,7 +1176,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fullscreen = document.querySelector('.video-fullscreen');
     const icon = document.getElementById('play-overlay-icon');
     if (video.paused || video.ended) {
-      if (video.ended) { video.currentTime = 0; videoState.s2PauseTriggered = false; }
+      if (video.ended) { video.currentTime = 0; videoState.s2PauseTriggered = false; videoState.freezeTriggered = {}; videoState.freezeActive = false; }
       video.play();
       fullscreen.classList.remove('paused');
       if (icon) { icon.textContent = '⏸'; }

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
   <title>SENSE - Sensory Exploration</title>
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <!-- Particle canvas (background layer for all scenes) -->
@@ -377,6 +377,15 @@
           <button class="s2-continue-btn" id="s2-continue">Continue ▶</button>
         </div>
       </div>
+
+      <!-- Temporal freeze frame overlay -->
+      <div class="freeze-overlay hidden" id="freeze-overlay">
+        <div class="freeze-indicator">
+          <div class="freeze-icon">⏸</div>
+          <div class="freeze-label">Preparing...</div>
+          <div class="freeze-countdown">0.0s</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -388,6 +397,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
