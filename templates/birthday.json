@@ -17,7 +17,7 @@
     {"type": "friend", "id": "friend1", "asset": "assets/friend1.svg", "label": "Friend", "dimension": "spatial"},
     {"type": "friend", "id": "friend2", "asset": "assets/friend2.svg", "label": "Friend", "dimension": "spatial"},
     {"type": "friend", "id": "friend3", "asset": "assets/friend3.svg", "label": "Friend", "dimension": "spatial"},
-    {"type": "speaker", "id": "speaker1", "asset": "assets/speaker.svg", "label": "Party Sounds", "dimension": "auditory", "audioLayer": "bgm"},
+    {"type": "music", "id": "music1", "asset": "assets/music_note.png", "label": "Music", "dimension": "auditory", "audioLayer": "bgm"},
     {"type": "microphone", "id": "mic1", "asset": "assets/microphone.svg", "label": "Voices", "dimension": "auditory", "audioLayer": "voice"},
     {"type": "bell", "id": "bell1", "asset": "assets/bell.svg", "label": "Sounds", "dimension": "auditory", "audioLayer": "sfx"},
     {"type": "balloon", "id": "balloon1", "asset": "assets/balloon.svg", "label": "Balloon", "dimension": "decoration"},

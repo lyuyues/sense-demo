@@ -125,7 +125,7 @@ html, body {
   display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
 }
 .photo-thumb {
-  width: 72px; height: 72px; border-radius: 50%;
+  width: 120px; height: 120px; border-radius: 50%;
   object-fit: cover; border: 1.5px solid #ddd;
   background: #f0f0ee;
 }
@@ -547,9 +547,8 @@ html, body {
 /* Avatar element */
 .avatar-element { z-index: 10; pointer-events: inherit; }
 .avatar-frame {
-  width: 140px; height: 140px; border-radius: 50%;
-  border: 2px solid #2c2c2c; overflow: hidden;
-  background: #f0f0ee;
+  width: 100%; height: 100%;
+  background: transparent;
 }
 .avatar-img {
   width: 100%; height: 100%; object-fit: cover;

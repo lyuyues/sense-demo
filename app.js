@@ -46,6 +46,7 @@ const ANIMATION_MAP = {
   microphone: 'speakerPulse',
   bell: 'presentShake',
   lamp: 'cakeGlow',
+  music: 'speakerPulse',
   slide: null,
   swing: 'swingMotion',
   ball: 'ballBounce',
@@ -283,13 +284,75 @@ document.getElementById('btn-capture-scene').addEventListener('click', () => {
   document.getElementById('btn-photo-next').disabled = false;
 });
 
-document.getElementById('btn-photo-next').addEventListener('click', () => {
+// API server for photo conversion (local dev or same origin)
+const API_BASE = location.hostname === 'localhost' || location.hostname.startsWith('192.168')
+  ? location.origin
+  : ''; // On GitHub Pages, no conversion available
+
+document.getElementById('btn-photo-next').addEventListener('click', async () => {
   stopCamera();
+
+  // Show processing state
+  const btn = document.getElementById('btn-photo-next');
+  btn.textContent = 'Converting...';
+  btn.disabled = true;
+
+  // Convert child photo to crayon avatar
+  if (state.childPhoto && API_BASE) {
+    try {
+      const resp = await fetch(API_BASE + '/api/convert-avatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: state.childPhoto }),
+      });
+      const data = await resp.json();
+      if (data.image) state.childPhoto = data.image;
+    } catch (e) {
+      console.warn('Avatar conversion failed, using original photo:', e);
+    }
+  }
+
+  // Convert scene photo to crayon background
+  if (state.scenePhoto && API_BASE) {
+    try {
+      const resp = await fetch(API_BASE + '/api/convert-background', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: state.scenePhoto }),
+      });
+      const data = await resp.json();
+      if (data.image) state.scenePhoto = data.image;
+    } catch (e) {
+      console.warn('Background conversion failed, using original photo:', e);
+    }
+  }
+
+  btn.textContent = 'Next';
+  btn.disabled = false;
   goToPhase('event');
 });
 
-document.getElementById('btn-photo-skip').addEventListener('click', () => {
+document.getElementById('btn-photo-skip').addEventListener('click', async () => {
   stopCamera();
+
+  // If child photo was taken, still convert it
+  if (state.childPhoto && API_BASE) {
+    const btn = document.getElementById('btn-photo-skip');
+    btn.textContent = 'Converting...';
+    try {
+      const resp = await fetch(API_BASE + '/api/convert-avatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: state.childPhoto }),
+      });
+      const data = await resp.json();
+      if (data.image) state.childPhoto = data.image;
+    } catch (e) {
+      console.warn('Avatar conversion failed:', e);
+    }
+    btn.textContent = 'Skip';
+  }
+
   goToPhase('event');
 });
 
@@ -478,7 +541,7 @@ function setCanvasSubPhase(subPhase) {
   elementLayer.style.zIndex = '3';
   elementLayer.style.pointerEvents = 'auto';
   hideTouchCrayon();
-  hideColorHint();
+  hideColorHint(); swapAvatarImage(false);
 
   // Remove tappable/animated hints
   document.querySelectorAll('.canvas-element').forEach(el => {
@@ -507,7 +570,7 @@ function setCanvasSubPhase(subPhase) {
       elementLayer.style.pointerEvents = 'none';
       setTimeout(updateCrayonCursor, 50);
       // Show coloring hint on avatar after it loads
-      setTimeout(showColorHint, 1500);
+      swapAvatarImage(true); setTimeout(showColorHint, 1500);
       break;
 
     case 'animate':
@@ -567,18 +630,19 @@ function autoPlaceAvatar() {
     el.innerHTML = `<img src="${avatarSrc}" onerror="this.src='assets/avatar.svg'" style="background:transparent" />`;
   }
 
-  // Avatar same as before
-  el.style.width = '200px';
-  el.style.height = '200px';
-
-  layer.appendChild(el);
-
-  // Place at bottom-center of canvas
+  // Avatar proportional to canvas height (~40%)
   const container = document.getElementById('canvas-container');
   const cW = container.offsetWidth;
   const cH = container.offsetHeight;
-  el.style.left = (cW / 2 - 100) + 'px';
-  el.style.top = (cH * 0.55) + 'px';
+  const avatarSize = Math.round(cH * 0.4);
+  el.style.width = avatarSize + 'px';
+  el.style.height = avatarSize + 'px';
+
+  layer.appendChild(el);
+
+  // Place at bottom-center
+  el.style.left = (cW / 2 - avatarSize / 2) + 'px';
+  el.style.top = (cH - avatarSize - 10) + 'px';
 
   makeDraggable(el);
 
@@ -818,6 +882,91 @@ function sayHi(friendId) {
   audio.play().catch(() => {});
 }
 
+// --- Ambient background music loop ---
+let ambientGain = null;
+let ambientPlaying = false;
+let ambientVolume = 0.1; // default medium-low
+
+function startAmbientLoop() {
+  if (ambientPlaying) return;
+  if (!state.audioCtx) {
+    state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  const ctx = state.audioCtx;
+  ctx.resume().then(() => {
+    ambientPlaying = true;
+
+    // Create a pleasant looping ambient: gentle chords + soft noise
+    ambientGain = ctx.createGain();
+    ambientGain.gain.value = ambientVolume;
+    ambientGain.connect(ctx.destination);
+
+    // Chord pad: C major (C4 E4 G4) with triangle waves
+    const notes = [261.63, 329.63, 392.00];
+    notes.forEach(freq => {
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      // Gentle vibrato
+      const lfo = ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = 2 + Math.random();
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 1.5;
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      lfo.start();
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 800;
+
+      osc.connect(filter);
+      filter.connect(ambientGain);
+      osc.start();
+
+      // Store for cleanup
+      if (!state._ambientOscs) state._ambientOscs = [];
+      state._ambientOscs.push(osc, lfo);
+    });
+
+    // Soft noise layer (room tone)
+    const bufSize = ctx.sampleRate * 2;
+    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) d[i] = (Math.random() * 2 - 1) * 0.3;
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+    noise.loop = true;
+    const nFilter = ctx.createBiquadFilter();
+    nFilter.type = 'lowpass';
+    nFilter.frequency.value = 400;
+    const nGain = ctx.createGain();
+    nGain.gain.value = 0.3;
+    noise.connect(nFilter);
+    nFilter.connect(nGain);
+    nGain.connect(ambientGain);
+    noise.start();
+    if (!state._ambientOscs) state._ambientOscs = [];
+    state._ambientOscs.push(noise);
+  });
+}
+
+function setAmbientVolume(vol) {
+  ambientVolume = vol;
+  if (ambientGain) {
+    ambientGain.gain.setTargetAtTime(vol, state.audioCtx.currentTime, 0.1);
+  }
+}
+
+function stopAmbientLoop() {
+  if (state._ambientOscs) {
+    state._ambientOscs.forEach(o => { try { o.stop(); } catch(e) {} });
+    state._ambientOscs = [];
+  }
+  ambientPlaying = false;
+}
+
 // --- Lamp pull cord ---
 let lampBrightness = 0; // 0-5 levels
 
@@ -891,10 +1040,13 @@ function applyLampBrightness() {
 function playPlacementFeedback(elemDef) {
   const layer = elemDef.audioLayer || elemDef.dimension;
 
-  if (layer === 'auditory' || elemDef.audioLayer) {
-    // Play the instrument's sound
+  if (elemDef.audioLayer === 'bgm') {
+    // Start looping party ambient sound
+    startAmbientLoop();
+  } else if (layer === 'auditory' || elemDef.audioLayer) {
+    // Play the instrument's sound once
     const audioLayer = elemDef.audioLayer || elemDef.type;
-    playMusicalNote(2, audioLayer); // play at medium level
+    playMusicalNote(2, audioLayer);
   }
 
   if (elemDef.dimension === 'spatial' || elemDef.type === 'friend') {
@@ -1227,9 +1379,28 @@ function redrawColorStrokes() {
   ctx.globalCompositeOperation = 'source-over';
 }
 
+// --- Swap avatar between colored and lineart (white clothes) ---
+function swapAvatarImage(toLineart) {
+  const avatar = document.getElementById('avatar-main');
+  if (!avatar) return;
+  const img = avatar.querySelector('img');
+  if (!img) return;
+
+  if (toLineart) {
+    // Store original src
+    avatar.dataset.originalSrc = img.src;
+    img.src = 'assets/test_avatar_lineart.png?v=' + Date.now();
+  } else {
+    // Restore original
+    if (avatar.dataset.originalSrc) {
+      img.src = avatar.dataset.originalSrc;
+    }
+  }
+}
+
 // --- Color hint on avatar ---
 function showColorHint() {
-  hideColorHint();
+  hideColorHint(); swapAvatarImage(false);
   const avatar = document.getElementById('avatar-main');
   if (!avatar) return;
 
@@ -1249,7 +1420,7 @@ function showColorHint() {
   // Remove hint on first canvas touch
   const canvas = document.getElementById('color-canvas');
   const removeHint = () => {
-    hideColorHint();
+    hideColorHint(); swapAvatarImage(false);
     canvas.removeEventListener('pointerdown', removeHint);
   };
   canvas.addEventListener('pointerdown', removeHint);
@@ -1479,37 +1650,91 @@ function spawnGlowParticle(el, clientX, clientY, level) {
 
 // --- Audio element setup (unchanged logic) ---
 function setupAudioElement(el) {
+  const audioLayer = el.dataset.audiolayer || el.dataset.type;
+  const isBGM = (audioLayer === 'bgm' || audioLayer === 'speaker');
+
   el.classList.add('audio-adjustable');
-  updateNoteDisplay(el);
 
-  el._audioClickHandler && el.removeEventListener('pointerdown', el._audioClickHandler);
+  if (isBGM) {
+    // --- BGM elements: continuous loop + tap to cycle volume (like lamp) ---
+    if (!el.dataset.bgmLevel) el.dataset.bgmLevel = '3'; // start at medium
+    updateBGMDisplay(el);
 
-  el._audioClickHandler = (e) => {
-    e.stopPropagation();
-    e.preventDefault();
+    // Start the ambient loop if not already playing
+    startAmbientLoop();
+    setAmbientVolume(BGM_VOLUME_LEVELS[parseInt(el.dataset.bgmLevel)]);
 
-    let count = parseInt(el.dataset.noteCount) || 0;
-    count = (count + 1) % (MAX_NOTES + 1);
-    el.dataset.noteCount = count;
+    el._audioClickHandler && el.removeEventListener('pointerdown', el._audioClickHandler);
 
-    if (count > 0) {
+    el._audioClickHandler = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+
+      let level = parseInt(el.dataset.bgmLevel) || 3;
+      level = (level + 1) % BGM_VOLUME_LEVELS.length;
+      el.dataset.bgmLevel = level;
+
+      setAmbientVolume(BGM_VOLUME_LEVELS[level]);
       spawnFlyingNote(el, e.clientX, e.clientY);
-      const audioLayer = el.dataset.audiolayer || el.dataset.type;
-      playMusicalNote(count - 1, audioLayer);
       bounceElement(el);
-    } else {
-      stopAudio();
-      el.style.animation = '';
-    }
+      updateBGMDisplay(el);
 
+      // Dance speed proportional to volume
+      if (level > 0) {
+        const speed = 0.8 - (level / (BGM_VOLUME_LEVELS.length - 1)) * 0.4;
+        el.style.animation = `speakerDance ${speed}s ease-in-out infinite`;
+      } else {
+        el.style.animation = '';
+      }
+
+      const placed = state.placedElements.find(p => p.id === el.id);
+      if (placed) placed.volumeLevel = level;
+
+      logEvent('bgm_volume_tap', { id: el.id, level, volume: BGM_VOLUME_LEVELS[level] });
+    };
+    el.addEventListener('pointerdown', el._audioClickHandler);
+  } else {
+    // --- Non-BGM audio elements: keep original note-tap behavior ---
     updateNoteDisplay(el);
 
-    const placed = state.placedElements.find(p => p.id === el.id);
-    if (placed) placed.volumeLevel = count;
+    el._audioClickHandler && el.removeEventListener('pointerdown', el._audioClickHandler);
 
-    logEvent('audio_note_tap', { id: el.id, noteCount: count });
-  };
-  el.addEventListener('pointerdown', el._audioClickHandler);
+    el._audioClickHandler = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+
+      let count = parseInt(el.dataset.noteCount) || 0;
+      count = (count + 1) % (MAX_NOTES + 1);
+      el.dataset.noteCount = count;
+
+      if (count > 0) {
+        spawnFlyingNote(el, e.clientX, e.clientY);
+        playMusicalNote(count - 1, audioLayer);
+        bounceElement(el);
+      } else {
+        stopAudio();
+        el.style.animation = '';
+      }
+
+      updateNoteDisplay(el);
+
+      const placed = state.placedElements.find(p => p.id === el.id);
+      if (placed) placed.volumeLevel = count;
+
+      logEvent('audio_note_tap', { id: el.id, noteCount: count });
+    };
+    el.addEventListener('pointerdown', el._audioClickHandler);
+  }
+}
+
+function updateBGMDisplay(el) {
+  el.querySelector('.bgm-indicator')?.remove();
+
+  const level = parseInt(el.dataset.bgmLevel) || 0;
+  const badge = document.createElement('div');
+  badge.className = 'brightness-indicator'; // reuse lamp badge style
+  badge.textContent = BGM_VOLUME_EMOJIS[level];
+  el.appendChild(badge);
 }
 
 function updateNoteDisplay(el) {
@@ -1571,6 +1796,10 @@ function bounceElement(el) {
   el.classList.add('note-bounce');
   setTimeout(() => el.classList.remove('note-bounce'), 300);
 }
+
+// BGM volume levels for tap-to-cycle (like lamp brightness)
+const BGM_VOLUME_LEVELS = [0, 0.04, 0.08, 0.12, 0.18, 0.25];
+const BGM_VOLUME_EMOJIS = ['🔇', '🔈', '🔈', '🔉', '🔉', '🔊'];
 
 // Musical note scales per audio layer
 const BGM_NOTES = [261.63, 293.66, 329.63, 392.00, 523.25];     // C4-C5, melodic
