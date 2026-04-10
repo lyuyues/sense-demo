@@ -535,13 +535,16 @@ function setCanvasSubPhase(subPhase) {
   btnNext.classList.remove('hidden');
   colorCanvas.style.pointerEvents = 'none';
   colorCanvas.classList.remove('drawing-mode');
-  // Keep color strokes visible: above bg, below elements, no blend mode
-  colorCanvas.style.zIndex = '2';
   colorCanvas.style.mixBlendMode = 'normal';
   elementLayer.style.zIndex = '3';
   elementLayer.style.pointerEvents = 'auto';
   hideTouchCrayon();
   hideColorHint();
+
+  // Merge color strokes onto avatar image so coloring moves with character
+  mergeColorOntoAvatar();
+  // After merge, reset color canvas z-index (strokes are now on avatar)
+  colorCanvas.style.zIndex = '2';
 
   // Remove tappable/animated hints
   document.querySelectorAll('.canvas-element').forEach(el => {
@@ -1377,6 +1380,55 @@ function redrawColorStrokes() {
     }
   }
   ctx.globalCompositeOperation = 'source-over';
+}
+
+// --- Merge color canvas strokes onto avatar image ---
+function mergeColorOntoAvatar() {
+  const avatar = document.getElementById('avatar-main');
+  if (!avatar) return;
+  const avatarImg = avatar.querySelector('img');
+  if (!avatarImg) return;
+
+  const colorCanvas = document.getElementById('color-canvas');
+  const container = document.getElementById('canvas-container');
+
+  // Get avatar position relative to canvas
+  const cRect = container.getBoundingClientRect();
+  const aRect = avatar.getBoundingClientRect();
+  const ax = aRect.left - cRect.left;
+  const ay = aRect.top - cRect.top;
+  const aw = aRect.width;
+  const ah = aRect.height;
+
+  // Scale to canvas pixel coordinates
+  const scaleX = colorCanvas.width / cRect.width;
+  const scaleY = colorCanvas.height / cRect.height;
+  const sx = ax * scaleX;
+  const sy = ay * scaleY;
+  const sw = aw * scaleX;
+  const sh = ah * scaleY;
+
+  // Create a temp canvas to composite avatar + color strokes
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = Math.round(sw);
+  tempCanvas.height = Math.round(sh);
+  const ctx = tempCanvas.getContext('2d');
+
+  // Draw avatar image first
+  ctx.drawImage(avatarImg, 0, 0, tempCanvas.width, tempCanvas.height);
+
+  // Draw the color strokes clipped to avatar region on top
+  ctx.drawImage(colorCanvas,
+    Math.round(sx), Math.round(sy), Math.round(sw), Math.round(sh),
+    0, 0, tempCanvas.width, tempCanvas.height
+  );
+
+  // Replace avatar img src with merged result
+  avatarImg.src = tempCanvas.toDataURL('image/png');
+
+  // Clear the avatar region from color canvas (strokes now on avatar)
+  const colorCtx = colorCanvas.getContext('2d');
+  colorCtx.clearRect(Math.round(sx), Math.round(sy), Math.round(sw), Math.round(sh));
 }
 
 // --- Swap avatar between colored and lineart (white clothes) ---
