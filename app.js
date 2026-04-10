@@ -205,7 +205,7 @@ document.getElementById('btn-test-drum').addEventListener('click', () => {
 document.getElementById('btn-skip').addEventListener('click', () => {
   // Skip to canvas with birthday template, use test avatar
   state.eventType = 'birthday';
-  state.childPhoto = 'assets/test_avatar.png?v=' + Date.now();
+  state.childPhoto = 'assets/test_avatar_lineart.png?v=' + Date.now();
   loadTemplate('birthday').then(() => {
     goToPhase('canvas');
   });
@@ -541,7 +541,7 @@ function setCanvasSubPhase(subPhase) {
   elementLayer.style.zIndex = '3';
   elementLayer.style.pointerEvents = 'auto';
   hideTouchCrayon();
-  hideColorHint(); swapAvatarImage(false);
+  hideColorHint();
 
   // Remove tappable/animated hints
   document.querySelectorAll('.canvas-element').forEach(el => {
@@ -570,7 +570,7 @@ function setCanvasSubPhase(subPhase) {
       elementLayer.style.pointerEvents = 'none';
       setTimeout(updateCrayonCursor, 50);
       // Show coloring hint on avatar after it loads
-      swapAvatarImage(true); setTimeout(showColorHint, 1500);
+      setTimeout(showColorHint, 1500);
       break;
 
     case 'animate':
@@ -1400,7 +1400,7 @@ function swapAvatarImage(toLineart) {
 
 // --- Color hint on avatar ---
 function showColorHint() {
-  hideColorHint(); swapAvatarImage(false);
+  hideColorHint();
   const avatar = document.getElementById('avatar-main');
   if (!avatar) return;
 
@@ -1420,7 +1420,7 @@ function showColorHint() {
   // Remove hint on first canvas touch
   const canvas = document.getElementById('color-canvas');
   const removeHint = () => {
-    hideColorHint(); swapAvatarImage(false);
+    hideColorHint();
     canvas.removeEventListener('pointerdown', removeHint);
   };
   canvas.addEventListener('pointerdown', removeHint);
