@@ -205,7 +205,7 @@ document.getElementById('btn-test-drum').addEventListener('click', () => {
 document.getElementById('btn-skip').addEventListener('click', () => {
   // Skip to canvas with birthday template, use test avatar
   state.eventType = 'birthday';
-  state.childPhoto = 'assets/test_avatar_lineart.png?v=' + Date.now();
+  state.childPhoto = 'assets/test_avatar.png?v=' + Date.now();
   loadTemplate('birthday').then(() => {
     goToPhase('canvas');
   });
@@ -1389,7 +1389,7 @@ function swapAvatarImage(toLineart) {
   if (toLineart) {
     // Store original src
     avatar.dataset.originalSrc = img.src;
-    img.src = 'assets/test_avatar_lineart.png?v=' + Date.now();
+    img.src = 'assets/test_avatar.png?v=' + Date.now();
   } else {
     // Restore original
     if (avatar.dataset.originalSrc) {
@@ -1415,9 +1415,23 @@ function showColorHint() {
   `;
   hint.style.left = (rect.left + rect.width / 2) + 'px';
   hint.style.top = (rect.top - 10) + 'px';
+  hint.style.pointerEvents = 'auto';
+  hint.style.cursor = 'pointer';
   document.body.appendChild(hint);
 
-  // Remove hint on first canvas touch
+  // Tap "Color me!" → swap avatar to lineart, then remove hint
+  hint.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    // Swap to lineart
+    const img = avatar.querySelector('img');
+    if (img) {
+      avatar.dataset.originalSrc = img.src;
+      img.src = 'assets/test_avatar_lineart.png?v=' + Date.now();
+    }
+    hideColorHint();
+  });
+
+  // Also remove hint on canvas touch (without swapping)
   const canvas = document.getElementById('color-canvas');
   const removeHint = () => {
     hideColorHint();
