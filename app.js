@@ -898,60 +898,35 @@ function startAmbientLoop() {
   const ctx = state.audioCtx;
   ctx.resume().then(() => {
     ambientPlaying = true;
+    state._ambientNodes = [];
 
-    // Create a pleasant looping ambient: gentle chords + soft noise
     ambientGain = ctx.createGain();
     ambientGain.gain.value = ambientVolume;
     ambientGain.connect(ctx.destination);
 
-    // Chord pad: C major (C4 E4 G4) with triangle waves
-    const notes = [261.63, 329.63, 392.00];
-    notes.forEach(freq => {
-      const osc = ctx.createOscillator();
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      // Gentle vibrato
-      const lfo = ctx.createOscillator();
-      lfo.type = 'sine';
-      lfo.frequency.value = 2 + Math.random();
-      const lfoGain = ctx.createGain();
-      lfoGain.gain.value = 1.5;
-      lfo.connect(lfoGain);
-      lfoGain.connect(osc.frequency);
-      lfo.start();
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.value = 800;
-
-      osc.connect(filter);
-      filter.connect(ambientGain);
-      osc.start();
-
-      // Store for cleanup
-      if (!state._ambientOscs) state._ambientOscs = [];
-      state._ambientOscs.push(osc, lfo);
-    });
-
-    // Soft noise layer (room tone)
+    // Pink noise — softer than white noise, like gentle rain/air
     const bufSize = ctx.sampleRate * 2;
     const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) d[i] = (Math.random() * 2 - 1) * 0.3;
+    // Pink noise approximation
+    let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
+    for (let i = 0; i < bufSize; i++) {
+      const white = Math.random() * 2 - 1;
+      b0 = 0.99886 * b0 + white * 0.0555179;
+      b1 = 0.99332 * b1 + white * 0.0750759;
+      b2 = 0.96900 * b2 + white * 0.1538520;
+      b3 = 0.86650 * b3 + white * 0.3104856;
+      b4 = 0.55000 * b4 + white * 0.5329522;
+      b5 = -0.7616 * b5 - white * 0.0168980;
+      d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.05;
+      b6 = white * 0.115926;
+    }
     const noise = ctx.createBufferSource();
     noise.buffer = noiseBuf;
     noise.loop = true;
-    const nFilter = ctx.createBiquadFilter();
-    nFilter.type = 'lowpass';
-    nFilter.frequency.value = 400;
-    const nGain = ctx.createGain();
-    nGain.gain.value = 0.3;
-    noise.connect(nFilter);
-    nFilter.connect(nGain);
-    nGain.connect(ambientGain);
+    noise.connect(ambientGain);
     noise.start();
-    if (!state._ambientOscs) state._ambientOscs = [];
-    state._ambientOscs.push(noise);
+    state._ambientNodes.push(noise);
   });
 }
 
@@ -963,9 +938,13 @@ function setAmbientVolume(vol) {
 }
 
 function stopAmbientLoop() {
-  if (state._ambientOscs) {
-    state._ambientOscs.forEach(o => { try { o.stop(); } catch(e) {} });
-    state._ambientOscs = [];
+  if (state._ambientNodes) {
+    state._ambientNodes.forEach(n => { try { n.stop(); } catch(e) {} });
+    state._ambientNodes = [];
+  }
+  if (ambientGain) {
+    ambientGain.disconnect();
+    ambientGain = null;
   }
   ambientPlaying = false;
 }
