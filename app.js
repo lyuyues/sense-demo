@@ -1382,53 +1382,63 @@ function redrawColorStrokes() {
   ctx.globalCompositeOperation = 'source-over';
 }
 
-// --- Merge color canvas strokes onto avatar image ---
+// --- Merge color strokes onto avatar as internal overlay canvas ---
 function mergeColorOntoAvatar() {
-  const avatar = document.getElementById('avatar-main');
-  if (!avatar) return;
-  const avatarImg = avatar.querySelector('img');
-  if (!avatarImg) return;
+  try {
+    const avatar = document.getElementById('avatar-main');
+    if (!avatar) return;
 
-  const colorCanvas = document.getElementById('color-canvas');
-  const container = document.getElementById('canvas-container');
+    const colorCanvas = document.getElementById('color-canvas');
+    const container = document.getElementById('canvas-container');
 
-  // Get avatar position relative to canvas
-  const cRect = container.getBoundingClientRect();
-  const aRect = avatar.getBoundingClientRect();
-  const ax = aRect.left - cRect.left;
-  const ay = aRect.top - cRect.top;
-  const aw = aRect.width;
-  const ah = aRect.height;
+    // Get avatar position relative to canvas container
+    const cRect = container.getBoundingClientRect();
+    const aRect = avatar.getBoundingClientRect();
+    const ax = aRect.left - cRect.left;
+    const ay = aRect.top - cRect.top;
+    const aw = aRect.width;
+    const ah = aRect.height;
 
-  // Scale to canvas pixel coordinates
-  const scaleX = colorCanvas.width / cRect.width;
-  const scaleY = colorCanvas.height / cRect.height;
-  const sx = ax * scaleX;
-  const sy = ay * scaleY;
-  const sw = aw * scaleX;
-  const sh = ah * scaleY;
+    // Scale to color-canvas pixel coordinates
+    const scaleX = colorCanvas.width / cRect.width;
+    const scaleY = colorCanvas.height / cRect.height;
+    const sx = Math.round(ax * scaleX);
+    const sy = Math.round(ay * scaleY);
+    const sw = Math.round(aw * scaleX);
+    const sh = Math.round(ah * scaleY);
 
-  // Create a temp canvas to composite avatar + color strokes
-  const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = Math.round(sw);
-  tempCanvas.height = Math.round(sh);
-  const ctx = tempCanvas.getContext('2d');
+    if (sw <= 0 || sh <= 0) return;
 
-  // Draw avatar image first
-  ctx.drawImage(avatarImg, 0, 0, tempCanvas.width, tempCanvas.height);
+    // Remove any old overlay
+    avatar.querySelector('.avatar-color-overlay')?.remove();
 
-  // Draw the color strokes clipped to avatar region on top
-  ctx.drawImage(colorCanvas,
-    Math.round(sx), Math.round(sy), Math.round(sw), Math.round(sh),
-    0, 0, tempCanvas.width, tempCanvas.height
-  );
+    // Create a canvas inside the avatar element to hold the color strokes
+    const overlay = document.createElement('canvas');
+    overlay.className = 'avatar-color-overlay';
+    overlay.width = sw;
+    overlay.height = sh;
+    overlay.style.position = 'absolute';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.pointerEvents = 'none';
+    overlay.style.zIndex = '2';
 
-  // Replace avatar img src with merged result
-  avatarImg.src = tempCanvas.toDataURL('image/png');
+    const ctx = overlay.getContext('2d');
+    // Copy color strokes from the avatar's region on the global canvas
+    ctx.drawImage(colorCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
 
-  // Clear the avatar region from color canvas (strokes now on avatar)
-  const colorCtx = colorCanvas.getContext('2d');
-  colorCtx.clearRect(Math.round(sx), Math.round(sy), Math.round(sw), Math.round(sh));
+    avatar.appendChild(overlay);
+
+    // Clear avatar region from global color canvas
+    const colorCtx = colorCanvas.getContext('2d');
+    colorCtx.clearRect(sx, sy, sw, sh);
+
+    console.log('Merged color onto avatar overlay:', { sx, sy, sw, sh });
+  } catch (e) {
+    console.warn('mergeColorOntoAvatar failed:', e);
+  }
 }
 
 // --- Swap avatar between colored and lineart (white clothes) ---
