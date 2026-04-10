@@ -2048,42 +2048,15 @@ function _playSFX(ctx, noteIndex) {
 // ============================================================
 function initAudio() {
   if (state.audioCtx) {
-    // iOS: resume suspended context
     if (state.audioCtx.state === 'suspended') {
       state.audioCtx.resume();
     }
     return;
   }
   state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-  // iOS: must resume after creation
   if (state.audioCtx.state === 'suspended') {
     state.audioCtx.resume();
   }
-
-  // Music box tone: two sine oscillators
-  state.oscillator = state.audioCtx.createOscillator();
-  state.oscillator.type = 'sine';
-  state.oscillator.frequency.value = 523.25; // C5
-
-  state.oscillator2 = state.audioCtx.createOscillator();
-  state.oscillator2.type = 'sine';
-  state.oscillator2.frequency.value = 659.25; // E5
-
-  state.filterNode = state.audioCtx.createBiquadFilter();
-  state.filterNode.type = 'lowpass';
-  state.filterNode.frequency.value = 2000;
-
-  state.gainNode = state.audioCtx.createGain();
-  state.gainNode.gain.value = 0;
-
-  state.oscillator.connect(state.filterNode);
-  state.oscillator2.connect(state.filterNode);
-  state.filterNode.connect(state.gainNode);
-  state.gainNode.connect(state.audioCtx.destination);
-
-  state.oscillator.start();
-  state.oscillator2.start();
 }
 
 // Pre-init audio on first user touch (iOS requirement)
@@ -2093,18 +2066,11 @@ document.addEventListener('touchstart', function initAudioOnTouch() {
 }, { once: true });
 
 function updateAudioForSize(size) {
-  initAudio();
-  const t = Math.max(0, Math.min(1, (size - 40) / 260));
-  const volume = 0.05 + t * 0.35;
-  const filterFreq = 300 + t * 7700;
-  state.gainNode.gain.setTargetAtTime(volume, state.audioCtx.currentTime, 0.08);
-  state.filterNode.frequency.setTargetAtTime(filterFreq, state.audioCtx.currentTime, 0.08);
+  // No longer used — kept as stub for compatibility
 }
 
 function stopAudio() {
-  if (state.gainNode) {
-    state.gainNode.gain.setTargetAtTime(0, state.audioCtx.currentTime, 0.15);
-  }
+  // No longer used — kept as stub for compatibility
 }
 
 // ============================================================
