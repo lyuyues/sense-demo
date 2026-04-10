@@ -1,0 +1,38 @@
+{
+  "id": "birthday",
+  "name": "Birthday Party",
+  "icon": "🎂",
+  "backgroundImage": "assets/sample_livingroom_crayon.png",
+  "background": {
+    "shapes": [
+      {"type": "rect", "x": 0, "y": 0, "w": 800, "h": 600, "fill": "none", "stroke": "#ccc", "label": "room"},
+      {"type": "rect", "x": 0, "y": 400, "w": 800, "h": 200, "fill": "none", "stroke": "#aaa", "label": "floor"},
+      {"type": "rect", "x": 250, "y": 250, "w": 300, "h": 150, "fill": "none", "stroke": "#999", "label": "table"},
+      {"type": "rect", "x": 50, "y": 50, "w": 150, "h": 120, "fill": "none", "stroke": "#bbb", "label": "window1"},
+      {"type": "rect", "x": 600, "y": 50, "w": 150, "h": 120, "fill": "none", "stroke": "#bbb", "label": "window2"},
+      {"type": "rect", "x": 350, "y": 10, "w": 100, "h": 30, "fill": "none", "stroke": "#ddd", "label": "banner"}
+    ]
+  },
+  "elements": [
+    {"type": "friend", "id": "friend1", "asset": "assets/friend1.svg", "label": "Friend", "dimension": "spatial"},
+    {"type": "friend", "id": "friend2", "asset": "assets/friend2.svg", "label": "Friend", "dimension": "spatial"},
+    {"type": "friend", "id": "friend3", "asset": "assets/friend3.svg", "label": "Friend", "dimension": "spatial"},
+    {"type": "speaker", "id": "speaker1", "asset": "assets/speaker.svg", "label": "Party Sounds", "dimension": "auditory", "audioLayer": "bgm"},
+    {"type": "microphone", "id": "mic1", "asset": "assets/microphone.svg", "label": "Voices", "dimension": "auditory", "audioLayer": "voice"},
+    {"type": "bell", "id": "bell1", "asset": "assets/bell.svg", "label": "Sounds", "dimension": "auditory", "audioLayer": "sfx"},
+    {"type": "balloon", "id": "balloon1", "asset": "assets/balloon.svg", "label": "Balloon", "dimension": "decoration"},
+    {"type": "cake", "id": "cake1", "asset": "assets/cake.svg", "label": "Cake", "dimension": "decoration"},
+    {"type": "present", "id": "present1", "asset": "assets/present.svg", "label": "Present", "dimension": "decoration"},
+    {"type": "lamp", "id": "lamp1", "asset": "assets/lamp_pull.png", "label": "Light", "dimension": "visual"}
+  ],
+  "animations": {
+    "friend": ["wave"],
+    "speaker": ["pulse"],
+    "microphone": ["pulse"],
+    "bell": ["shake"],
+    "balloon": ["float"],
+    "cake": ["glow"],
+    "present": ["shake"],
+    "lights": ["twinkle"]
+  }
+}

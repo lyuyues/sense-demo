@@ -1,0 +1,8 @@
+assets_crayon_backup/
+assets/test_characters/
+assets/test_backgrounds/
+assets/sample_livingroom_watercolor.png
+cert.pem
+key.pem
+generate_assets.py
+.DS_Store

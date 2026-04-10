@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Head -->
+  <circle cx="50" cy="30" r="20" fill="#FFDAB9" stroke="#E8C9A0" stroke-width="1.5"/>
+  <!-- Hair -->
+  <path d="M 30 25 Q 35 8 50 10 Q 65 8 70 25" fill="#8B4513" stroke="none"/>
+  <!-- Eyes -->
+  <circle cx="43" cy="28" r="3" fill="#333"/>
+  <circle cx="57" cy="28" r="3" fill="#333"/>
+  <!-- Smile -->
+  <path d="M 42 36 Q 50 43 58 36" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Body (blue outfit) -->
+  <rect x="35" y="50" width="30" height="30" rx="5" fill="#4A90D9" stroke="#3A7BC8" stroke-width="1.5"/>
+  <!-- Arms -->
+  <rect x="22" y="52" width="13" height="8" rx="4" fill="#4A90D9"/>
+  <rect x="65" y="52" width="13" height="8" rx="4" fill="#4A90D9"/>
+  <!-- Legs -->
+  <rect x="38" y="80" width="10" height="14" rx="4" fill="#4A90D9"/>
+  <rect x="52" y="80" width="10" height="14" rx="4" fill="#4A90D9"/>
+  <!-- Shoes -->
+  <ellipse cx="43" cy="95" rx="7" ry="4" fill="#333"/>
+  <ellipse cx="57" cy="95" rx="7" ry="4" fill="#333"/>
+</svg>

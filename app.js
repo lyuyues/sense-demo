@@ -1,1288 +1,2570 @@
 // ============================================================
-// SENSE 2D Sensory Elicitation Demo — Enhanced
+// SENSE Canvas-Based Demo — app.js
+// Complete rewrite: canvas + drag-drop + coloring + animate
 // ============================================================
-
-const HOLD_DURATION = 3000;
-const SCENES = ['auditory', 'visual', 'spatial', 'temporal'];
-const RING_CIRCUMFERENCE = 2 * Math.PI * 55; // matches SVG r=55
 
 // --- State ---
 const state = {
-  currentScene: -1,
-  results: {},
-  isDragging: false,
-  dragAvatar: null,
-  dragOffset: { x: 0, y: 0 },
-  lastPos: { x: 0, y: 0 },
-  stillStart: null,
+  phase: 'welcome',
+  canvasSubPhase: 'place-self',
+  eventType: null,
+  template: null,
+  childPhoto: null,
+  scenePhoto: null,
+  placedElements: [],
+  colorStrokes: [],
+  animatedElements: new Set(),
+  interactionLog: [],
+  selectedColor: '#FF6B6B',
+  brushSize: 4,
+  isEraser: false,
+  sessionStart: Date.now(),
+  phaseStartTime: Date.now(),
+  phaseDurations: {},
+  // Audio
   audioCtx: null,
-  oscillator: null,
-  oscillator2: null,
   gainNode: null,
   filterNode: null,
-  confirmed: false,
-  interactionLog: [],
-  pawCounter: 0,
+  oscillator: null,
+  oscillator2: null,
+  // Camera
+  cameraStream: null,
+  // Canvas drawing state
+  painting: false,
+  currentStroke: null,
 };
 
-// ============================================================
-// PARTICLES — background canvas
-// ============================================================
-const particleCanvas = document.getElementById('particle-canvas');
-const pCtx = particleCanvas.getContext('2d');
-let particles = [];
-
-const SCENE_PARTICLES = {
-  welcome: { color: '255,255,255', count: 30, speed: 0.3, size: 3 },
-  auditory: { color: '147,130,255', count: 25, speed: 0.4, size: 3 },
-  visual: { color: '255,200,100', count: 20, speed: 0.25, size: 4 },
-  spatial: { color: '255,255,255', count: 15, speed: 0.15, size: 3 },
-  temporal: { color: '255,215,0', count: 0, speed: 0, size: 0 }, // stars handled separately
-  results: { color: '255,255,255', count: 20, speed: 0.3, size: 3 },
+// --- Animation map: element type → CSS animation name OR sprite frames ---
+const ANIMATION_MAP = {
+  friend: 'friendWave',
+  speaker: 'speakerPulse',
+  musicbox: 'speakerPulse',
+  balloon: 'balloonFloat',
+  cake: 'cakeGlow',
+  present: 'presentShake',
+  lights: 'lightsTwinkle',
+  microphone: 'speakerPulse',
+  bell: 'presentShake',
+  lamp: 'cakeGlow',
+  slide: null,
+  swing: 'swingMotion',
+  ball: 'ballBounce',
+  dog: 'dogWag',
+  bench: null,
+  tree: 'treeSway',
 };
 
-function resizeCanvas() {
-  particleCanvas.width = window.innerWidth;
-  particleCanvas.height = window.innerHeight;
-  const cc = document.getElementById('confetti-canvas');
-  if (cc) { cc.width = window.innerWidth; cc.height = window.innerHeight; }
+// Sprite frame animations (AI-generated keyframes)
+const SPRITE_FRAMES = {
+  friend1: ['assets/friend1.png', 'assets/friend1_wave1.png', 'assets/friend1_wave2.png', 'assets/friend1_wave3.png'],
+};
+
+// Active sprite animations
+const activeSpriteAnims = {};
+
+function startSpriteAnimation(el, intervalMs) {
+  const elId = el.id;
+  // Find which sprite set to use based on the element's original asset
+  const placed = state.placedElements.find(p => p.id === elId);
+  if (!placed) return false;
+
+  // Check if we have sprite frames for this element type+id
+  // Extract original element id (e.g., "friend1" from "placed-friend1-1234567")
+  const match = elId.match(/placed-(\w+)-/);
+  if (!match) return false;
+  const baseId = match[1];
+  const frames = SPRITE_FRAMES[baseId];
+  if (!frames || frames.length < 2) return false;
+
+  // Stop existing animation
+  stopSpriteAnimation(elId);
+
+  let frameIdx = 0;
+  const img = el.querySelector('img');
+  if (!img) return false;
+
+  // Preload all frames
+  const cacheBust = Date.now();
+  const frameUrls = frames.map(f => f + '?v=' + cacheBust);
+  frameUrls.forEach(url => { const i = new Image(); i.src = url; });
+
+  const tick = () => {
+    frameIdx = (frameIdx + 1) % frameUrls.length;
+    img.src = frameUrls[frameIdx];
+  };
+
+  const timer = setInterval(tick, intervalMs / frameUrls.length);
+  activeSpriteAnims[elId] = timer;
+  return true;
 }
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
 
-function spawnParticles(config) {
-  particles = [];
-  for (let i = 0; i < config.count; i++) {
-    particles.push({
-      x: Math.random() * particleCanvas.width,
-      y: Math.random() * particleCanvas.height,
-      vx: (Math.random() - 0.5) * config.speed,
-      vy: -Math.random() * config.speed - 0.1,
-      size: Math.random() * config.size + 1,
-      alpha: Math.random() * 0.5 + 0.2,
-      color: config.color,
-    });
+function stopSpriteAnimation(elId) {
+  if (activeSpriteAnims[elId]) {
+    clearInterval(activeSpriteAnims[elId]);
+    delete activeSpriteAnims[elId];
   }
 }
 
-function animateParticles() {
-  pCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
-  particles.forEach(p => {
-    p.x += p.vx;
-    p.y += p.vy;
-    if (p.y < -10) { p.y = particleCanvas.height + 10; p.x = Math.random() * particleCanvas.width; }
-    if (p.x < -10) p.x = particleCanvas.width + 10;
-    if (p.x > particleCanvas.width + 10) p.x = -10;
-    p.alpha += (Math.random() - 0.5) * 0.02;
-    p.alpha = Math.max(0.1, Math.min(0.6, p.alpha));
-    pCtx.beginPath();
-    pCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-    pCtx.fillStyle = `rgba(${p.color},${p.alpha})`;
-    pCtx.fill();
+function stopAllSpriteAnimations() {
+  Object.keys(activeSpriteAnims).forEach(id => stopSpriteAnimation(id));
+}
+
+// --- Sub-phase config ---
+const SUB_PHASES = [
+  { id: 'place-self', instruction: '', dotIndex: 0 },
+  { id: 'color', instruction: 'Color your picture!', dotIndex: 0 },
+  { id: 'add-elements', instruction: 'Add friends and things!', dotIndex: 1 },
+  { id: 'animate', instruction: 'Drum time!', dotIndex: 2 },
+];
+
+// ============================================================
+// LOGGING
+// ============================================================
+function logEvent(event, data = {}) {
+  state.interactionLog.push({
+    timestamp: Date.now(),
+    elapsed: Date.now() - state.sessionStart,
+    phase: state.phase,
+    subPhase: state.canvasSubPhase,
+    event,
+    ...data,
   });
-  requestAnimationFrame(animateParticles);
 }
-spawnParticles(SCENE_PARTICLES.welcome);
-animateParticles();
 
 // ============================================================
-// STARS — for temporal scene
+// SCREEN NAVIGATION
 // ============================================================
-function createStars() {
-  const field = document.getElementById('starfield');
-  if (!field) return;
-  field.innerHTML = '';
-  for (let i = 0; i < 60; i++) {
-    const star = document.createElement('div');
-    star.className = 'star';
-    star.style.left = Math.random() * 100 + '%';
-    star.style.top = Math.random() * 100 + '%';
-    star.style.width = (Math.random() * 3 + 1) + 'px';
-    star.style.height = star.style.width;
-    star.style.animationDelay = Math.random() * 3 + 's';
-    star.style.animationDuration = (1.5 + Math.random() * 2) + 's';
-    field.appendChild(star);
+function goToPhase(phase) {
+  // Record duration of previous phase
+  const now = Date.now();
+  state.phaseDurations[state.phase] = (state.phaseDurations[state.phase] || 0) + (now - state.phaseStartTime);
+  state.phaseStartTime = now;
+
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active', 'fade-in');
+  });
+  const screen = document.getElementById(`screen-${phase}`);
+  if (screen) {
+    screen.classList.add('active', 'fade-in');
+  }
+  state.phase = phase;
+  logEvent('phase_change', { phase });
+
+  // Phase-specific init
+  if (phase === 'photo') initPhotoScreen();
+  if (phase === 'canvas') initCanvasScreen();
+  if (phase === 'processing') runProcessing();
+  if (phase === 'drum') setupAnimatePhase();
+  if (phase === 'video') {
+    // Clean up canvas state
+    stopAllSpriteAnimations();
+    const cc = document.getElementById('canvas-container');
+    if (cc) { cc.style.transform = ''; cc.style.filter = ''; }
+    initVideoPlayer();
   }
 }
 
 // ============================================================
-// AUDIO
+// WELCOME SCREEN
 // ============================================================
-function initAudio() {
-  if (state.audioCtx) return;
-  state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+document.getElementById('btn-start').addEventListener('click', () => {
+  goToPhase('photo');
+});
 
-  // Music box synthesis: repeating plucked notes through lowpass filter
-  // Create a short melody buffer that loops
-  const ctx = state.audioCtx;
-  const sampleRate = ctx.sampleRate;
-  const notes = [523.25, 659.25, 783.99, 659.25, 523.25, 783.99, 880, 783.99]; // C5 E5 G5 melody
-  const noteDuration = 0.3; // seconds per note
-  const totalDuration = notes.length * noteDuration;
-  const bufferLength = sampleRate * totalDuration;
-  const buffer = ctx.createBuffer(1, bufferLength, sampleRate);
-  const data = buffer.getChannelData(0);
+// Sound test button — also initializes shared AudioContext for iPad
+document.getElementById('btn-sound-test').addEventListener('click', () => {
+  try {
+    // Create and store a shared AudioContext
+    if (!state.audioCtx) {
+      state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
 
-  // Synthesize music box: each note = sine + harmonics with fast exponential decay
-  for (let n = 0; n < notes.length; n++) {
-    const freq = notes[n];
-    const startSample = Math.floor(n * noteDuration * sampleRate);
-    const numSamples = Math.floor(noteDuration * sampleRate);
-    for (let i = 0; i < numSamples; i++) {
-      const t = i / sampleRate;
-      const decay = Math.exp(-t * 4); // moderate decay for more sustained tone
-      // Fundamental + harmonics 2-6 for bright metallic timbre (more high freq content)
-      const sample = decay * (
-        0.35 * Math.sin(2 * Math.PI * freq * t) +
-        0.25 * Math.sin(2 * Math.PI * freq * 2 * t) +
-        0.15 * Math.sin(2 * Math.PI * freq * 3 * t) +
-        0.10 * Math.sin(2 * Math.PI * freq * 4 * t) +
-        0.08 * Math.sin(2 * Math.PI * freq * 5 * t) +
-        0.07 * Math.sin(2 * Math.PI * freq * 6 * t)
+    const ctx = state.audioCtx;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 440;
+    gain.gain.value = 0.3;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    gain.gain.setTargetAtTime(0, ctx.currentTime + 0.3, 0.1);
+    osc.stop(ctx.currentTime + 0.5);
+    document.getElementById('btn-sound-test').textContent = '✅ Sound OK!';
+  } catch(e) {
+    document.getElementById('btn-sound-test').textContent = '❌ ' + e.message;
+  }
+});
+
+document.getElementById('btn-test-drum').addEventListener('click', () => {
+  goToPhase('drum');
+});
+
+document.getElementById('btn-skip').addEventListener('click', () => {
+  // Skip to canvas with birthday template, use test avatar
+  state.eventType = 'birthday';
+  state.childPhoto = 'assets/test_avatar.png?v=' + Date.now();
+  loadTemplate('birthday').then(() => {
+    goToPhase('canvas');
+  });
+});
+
+// ============================================================
+// PHOTO CAPTURE SCREEN
+// ============================================================
+async function initPhotoScreen() {
+  const hint = document.getElementById('photo-step-child').querySelector('.photo-prompt');
+  try {
+    hint.textContent = 'Requesting camera...';
+    state.cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+    });
+    const preview = document.getElementById('camera-preview');
+    preview.srcObject = state.cameraStream;
+    preview.onloadedmetadata = () => preview.play();
+    hint.textContent = 'Take a photo of yourself!';
+  } catch (e) {
+    hint.textContent = 'Camera not available: ' + e.message;
+    console.warn('Camera error:', e);
+  }
+}
+
+function captureFrame(targetKey) {
+  const video = document.getElementById('camera-preview');
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/png');
+}
+
+function stopCamera() {
+  if (state.cameraStream) {
+    state.cameraStream.getTracks().forEach(t => t.stop());
+    state.cameraStream = null;
+  }
+}
+
+document.getElementById('btn-capture-child').addEventListener('click', () => {
+  state.childPhoto = captureFrame();
+  const thumb = document.getElementById('preview-child');
+  thumb.src = state.childPhoto;
+  thumb.classList.remove('placeholder');
+  thumb.classList.add('captured');
+
+  // Switch to scene capture
+  document.getElementById('photo-step-child').classList.add('hidden');
+  document.getElementById('photo-step-scene').classList.remove('hidden');
+
+  // Try switching to rear camera
+  switchToRearCamera();
+});
+
+async function switchToRearCamera() {
+  try {
+    stopCamera();
+    state.cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+    });
+    document.getElementById('camera-preview').srcObject = state.cameraStream;
+  } catch (e) {
+    console.warn('Rear camera not available:', e);
+  }
+}
+
+document.getElementById('btn-capture-scene').addEventListener('click', () => {
+  state.scenePhoto = captureFrame();
+  const thumb = document.getElementById('preview-scene');
+  thumb.src = state.scenePhoto;
+  thumb.classList.remove('placeholder');
+  thumb.classList.add('captured');
+
+  document.getElementById('btn-photo-next').disabled = false;
+});
+
+document.getElementById('btn-photo-next').addEventListener('click', () => {
+  stopCamera();
+  goToPhase('event');
+});
+
+document.getElementById('btn-photo-skip').addEventListener('click', () => {
+  stopCamera();
+  goToPhase('event');
+});
+
+// ============================================================
+// EVENT SELECTION SCREEN
+// ============================================================
+document.querySelectorAll('.event-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const eventId = card.dataset.event;
+    document.querySelectorAll('.event-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    state.eventType = eventId;
+    loadTemplate(eventId).then(() => {
+      goToPhase('canvas');
+    });
+  });
+});
+
+async function loadTemplate(eventId) {
+  try {
+    const resp = await fetch(`templates/${eventId}.json`);
+    state.template = await resp.json();
+  } catch (e) {
+    console.error('Failed to load template:', e);
+    // Fallback minimal template
+    state.template = {
+      id: eventId,
+      background: { shapes: [] },
+      elements: [],
+      animations: {},
+    };
+  }
+}
+
+// ============================================================
+// CANVAS SCREEN
+// ============================================================
+function initCanvasScreen() {
+  const container = document.getElementById('canvas-container');
+  const bgCanvas = document.getElementById('bg-canvas');
+  const colorCanvas = document.getElementById('color-canvas');
+
+  // Lock canvas height on first init to prevent jumping when bottom bar changes
+  if (!container.dataset.locked) {
+    const rect = container.getBoundingClientRect();
+    container.style.height = rect.height + 'px';
+    container.style.flex = 'none';
+    container.dataset.locked = '1';
+  }
+
+  // Size canvases to container
+  resizeCanvases();
+
+  // Draw background: use scene photo if available, otherwise template shapes
+  const bgCtx = bgCanvas.getContext('2d');
+  const sceneImg = state.scenePhoto || (state.template && state.template.backgroundImage);
+  console.log('Background image:', sceneImg);
+  if (sceneImg) {
+    drawSceneAsLineart(bgCtx, sceneImg);
+  } else if (state.template) {
+    drawLineart(bgCtx, state.template);
+  }
+
+  // Setup coloring events
+  initColoring();
+
+  // Start with place-self sub-phase
+  setCanvasSubPhase('place-self');
+}
+
+function resizeCanvases() {
+  const container = document.getElementById('canvas-container');
+  const rect = container.getBoundingClientRect();
+  const w = Math.floor(rect.width);
+  const h = Math.floor(rect.height);
+
+  ['bg-canvas', 'color-canvas'].forEach(id => {
+    const c = document.getElementById(id);
+    c.width = w;
+    c.height = h;
+  });
+}
+
+window.addEventListener('resize', () => {
+  if (state.phase === 'canvas') {
+    resizeCanvases();
+    const bgCtx = document.getElementById('bg-canvas').getContext('2d');
+    const sceneImg = state.scenePhoto || (state.template && state.template.backgroundImage);
+    if (sceneImg) {
+      drawSceneAsLineart(bgCtx, sceneImg);
+    } else if (state.template) {
+      drawLineart(bgCtx, state.template);
+    }
+    redrawColorStrokes();
+  }
+});
+
+// --- Scene background drawing ---
+function drawSceneAsLineart(ctx, imgSrc) {
+  const canvas = ctx.canvas;
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+    const w = img.width * scale;
+    const h = img.height * scale;
+    const x = (canvas.width - w) / 2;
+    const y = (canvas.height - h) / 2;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Draw crayon background at reduced opacity so coloring shows on top
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.drawImage(img, x, y, w, h);
+    ctx.restore();
+  };
+  img.src = imgSrc + (imgSrc.includes('?') ? '&' : '?') + 'v=' + Date.now();
+}
+
+// --- Line-art rendering (fallback for templates without background image) ---
+function drawLineart(ctx, template) {
+  const canvas = ctx.canvas;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const scaleX = canvas.width / 800;
+  const scaleY = canvas.height / 600;
+
+  ctx.strokeStyle = '#d0d0d0';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([10, 6]);
+
+  for (const shape of template.background.shapes) {
+    ctx.beginPath();
+    if (shape.type === 'rect') {
+      ctx.rect(shape.x * scaleX, shape.y * scaleY, shape.w * scaleX, shape.h * scaleY);
+    } else if (shape.type === 'circle') {
+      ctx.arc(shape.cx * scaleX, shape.cy * scaleY, shape.r * Math.min(scaleX, scaleY), 0, Math.PI * 2);
+    } else if (shape.type === 'path') {
+      ctx.save();
+      ctx.scale(scaleX, scaleY);
+      try {
+        const p = new Path2D(shape.d);
+        ctx.stroke(p);
+      } catch (e) { /* ignore invalid paths */ }
+      ctx.restore();
+      continue;
+    }
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+}
+
+// --- Sub-phase management ---
+function setCanvasSubPhase(subPhase) {
+  state.canvasSubPhase = subPhase;
+  logEvent('sub_phase_change', { subPhase });
+
+  const config = SUB_PHASES.find(s => s.id === subPhase);
+  if (config) {
+    document.getElementById('canvas-instruction').textContent = config.instruction;
+    updatePhaseDots(config.dotIndex);
+  }
+
+  const palette = document.getElementById('element-palette');
+  const colorToolbar = document.getElementById('color-toolbar');
+  const animateBar = document.getElementById('animate-bar');
+  const btnNext = document.getElementById('btn-canvas-next');
+  const btnBack = document.getElementById('btn-canvas-back');
+  const colorCanvas = document.getElementById('color-canvas');
+  const elementLayer = document.getElementById('element-layer');
+
+  // Show/hide back button
+  const idx = SUB_PHASE_ORDER.indexOf(subPhase);
+  btnBack.classList.toggle('hidden', idx <= 0);
+
+  // Reset visibility
+  palette.classList.remove('hidden');
+  colorToolbar.classList.add('hidden');
+  animateBar.classList.add('hidden');
+  btnNext.classList.remove('hidden');
+  colorCanvas.style.pointerEvents = 'none';
+  colorCanvas.classList.remove('drawing-mode');
+  // Keep color strokes visible: above bg, below elements, no blend mode
+  colorCanvas.style.zIndex = '2';
+  colorCanvas.style.mixBlendMode = 'normal';
+  elementLayer.style.zIndex = '3';
+  elementLayer.style.pointerEvents = 'auto';
+  hideTouchCrayon();
+  hideColorHint();
+
+  // Remove tappable/animated hints
+  document.querySelectorAll('.canvas-element').forEach(el => {
+    el.classList.remove('tappable');
+  });
+
+  switch (subPhase) {
+    case 'place-self':
+      // Auto-place avatar and skip to color
+      autoPlaceAvatar();
+      setCanvasSubPhase('color');
+      return;
+
+    case 'add-elements':
+      renderElementPalette();
+      break;
+
+    case 'color':
+      palette.classList.add('hidden');
+      colorToolbar.classList.remove('hidden');
+      colorCanvas.style.pointerEvents = 'auto';
+      colorCanvas.classList.add('drawing-mode');
+      colorCanvas.style.zIndex = '10';
+      colorCanvas.style.mixBlendMode = 'multiply';
+      elementLayer.style.zIndex = '3';
+      elementLayer.style.pointerEvents = 'none';
+      setTimeout(updateCrayonCursor, 50);
+      // Show coloring hint on avatar after it loads
+      setTimeout(showColorHint, 1500);
+      break;
+
+    case 'animate':
+      // Go to separate drum screen
+      goToPhase('drum');
+      return;
+  }
+}
+
+function updatePhaseDots(activeIdx) {
+  document.querySelectorAll('.phase-dot').forEach((dot, i) => {
+    dot.classList.toggle('active', i === activeIdx);
+    dot.classList.toggle('done', i < activeIdx);
+  });
+}
+
+// --- Next / Back buttons ---
+const SUB_PHASE_ORDER = ['place-self', 'color', 'add-elements', 'animate'];
+
+document.getElementById('btn-canvas-next').addEventListener('click', () => {
+  const idx = SUB_PHASE_ORDER.indexOf(state.canvasSubPhase);
+  if (idx < SUB_PHASE_ORDER.length - 1) {
+    setCanvasSubPhase(SUB_PHASE_ORDER[idx + 1]);
+  }
+});
+
+document.getElementById('btn-canvas-back').addEventListener('click', () => {
+  const idx = SUB_PHASE_ORDER.indexOf(state.canvasSubPhase);
+  if (idx > 0) {
+    setCanvasSubPhase(SUB_PHASE_ORDER[idx - 1]);
+  }
+});
+
+// --- Animate done button ---
+document.getElementById('btn-animate-done').addEventListener('click', () => {
+  goToPhase('processing');
+});
+
+// ============================================================
+// AVATAR (Place Self)
+// ============================================================
+function autoPlaceAvatar() {
+  const layer = document.getElementById('element-layer');
+  // Don't double-place
+  if (document.getElementById('avatar-main')) return;
+
+  const el = document.createElement('div');
+  el.className = 'canvas-element avatar-element';
+  el.id = 'avatar-main';
+  el.dataset.type = 'avatar';
+  el.dataset.dimension = 'self';
+
+  const avatarSrc = state.childPhoto || ('assets/test_avatar.png?v=' + Date.now());
+  if (state.childPhoto && !state.childPhoto.includes('test_avatar')) {
+    el.innerHTML = `<div class="avatar-frame"><img src="${avatarSrc}" class="avatar-img" /></div>`;
+  } else {
+    el.innerHTML = `<img src="${avatarSrc}" onerror="this.src='assets/avatar.svg'" style="background:transparent" />`;
+  }
+
+  // Avatar same as before
+  el.style.width = '200px';
+  el.style.height = '200px';
+
+  layer.appendChild(el);
+
+  // Place at bottom-center of canvas
+  const container = document.getElementById('canvas-container');
+  const cW = container.offsetWidth;
+  const cH = container.offsetHeight;
+  el.style.left = (cW / 2 - 100) + 'px';
+  el.style.top = (cH * 0.55) + 'px';
+
+  makeDraggable(el);
+
+  state.placedElements.push({
+    id: el.id, type: 'avatar', dimension: 'self',
+    x: parseInt(el.style.left), y: parseInt(el.style.top),
+    width: 140, height: 140, timestamp: Date.now(),
+  });
+  logEvent('avatar_auto_placed');
+}
+
+function renderAvatarInPalette() {
+  const palette = document.getElementById('element-palette');
+  palette.innerHTML = '';
+
+  // If we have multiple avatar variations, show them all for selection
+  const avatarVariations = [
+    { src: 'assets/test_avatar.png', label: 'Standing' },
+    { src: 'assets/test_avatar_v1.png', label: 'Waving' },
+    { src: 'assets/test_avatar_v2.png', label: 'Sitting' },
+    { src: 'assets/test_avatar_v3.png', label: 'Jumping' },
+    { src: 'assets/test_avatar_v4.png', label: 'Party' },
+  ];
+
+  // Use child photo directly if available (no variations generated yet)
+  if (state.childPhoto && !state.childPhoto.includes('test_avatar')) {
+    const item = document.createElement('div');
+    item.className = 'palette-item';
+    item.innerHTML = `
+      <div class="palette-icon">
+        <img src="${state.childPhoto}" style="border-radius:50%;object-fit:cover;width:50px;height:50px;border:2px solid #2c2c2c;" />
+      </div>
+      <span class="palette-label">You</span>
+    `;
+    item.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      spawnAvatar(e);
+      palette.classList.add('hidden');
+    });
+    palette.appendChild(item);
+    return;
+  }
+
+  // Show variations
+  for (const v of avatarVariations) {
+    const item = document.createElement('div');
+    item.className = 'palette-item';
+    item.innerHTML = `
+      <div class="palette-icon">
+        <img src="${v.src}?v=${Date.now()}" style="background:transparent" />
+      </div>
+      <span class="palette-label">${v.label}</span>
+    `;
+    item.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      state.childPhoto = v.src + '?v=' + Date.now();
+      spawnAvatar(e);
+      palette.classList.add('hidden');
+    });
+    palette.appendChild(item);
+  }
+}
+
+function spawnAvatar(startEvent) {
+  const layer = document.getElementById('element-layer');
+  const el = document.createElement('div');
+  el.className = 'canvas-element avatar-element';
+  el.id = 'avatar-main';
+  el.dataset.type = 'avatar';
+  el.dataset.dimension = 'self';
+
+  if (state.childPhoto) {
+    el.innerHTML = `
+      <div class="avatar-frame">
+        <img src="${state.childPhoto}" class="avatar-img" />
+      </div>
+    `;
+  } else {
+    el.innerHTML = `<img src="assets/avatar.png" onerror="this.src='assets/avatar.svg'" />`;
+  }
+
+  layer.appendChild(el);
+
+  // Position at touch point
+  const cRect = layer.getBoundingClientRect();
+  el.style.left = (startEvent.clientX - cRect.left - 70) + 'px';
+  el.style.top = (startEvent.clientY - cRect.top - 70) + 'px';
+
+  makeDraggable(el);
+
+  state.placedElements.push({
+    id: el.id,
+    type: 'avatar',
+    dimension: 'self',
+    x: parseInt(el.style.left),
+    y: parseInt(el.style.top),
+    width: 140,
+    height: 140,
+    timestamp: Date.now(),
+  });
+
+  logEvent('avatar_placed');
+
+  // Start dragging immediately
+  startDrag(el, startEvent);
+}
+
+// ============================================================
+// ELEMENT PALETTE & SPAWNING
+// ============================================================
+function renderElementPalette() {
+  const palette = document.getElementById('element-palette');
+  palette.innerHTML = '';
+
+  if (!state.template) return;
+
+  for (const elemDef of state.template.elements) {
+    const item = document.createElement('div');
+    item.className = 'palette-item';
+
+    // Use PNG with SVG fallback, cache-bust
+    const pngSrc = elemDef.asset.replace('.svg', '.png') + '?v=' + Date.now();
+    const svgFallback = elemDef.asset;
+    item.innerHTML = `
+      <div class="palette-icon">
+        <img src="${pngSrc}" onerror="this.src='${svgFallback}'" />
+      </div>
+      <span class="palette-label">${elemDef.label}</span>
+    `;
+
+    // Tap to spawn element at center of canvas
+    item.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      // Init audio on first interaction (iOS)
+      if (!state.audioCtx) {
+        state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      state.audioCtx.resume();
+
+      // Spawn at center of canvas
+      const container = document.getElementById('canvas-container');
+      const rect = container.getBoundingClientRect();
+      const fakeEvent = {
+        clientX: rect.left + rect.width / 2 + (Math.random() - 0.5) * 100,
+        clientY: rect.top + rect.height / 2 + (Math.random() - 0.5) * 100,
+        pointerId: e.pointerId,
+      };
+      spawnElement(elemDef, fakeEvent);
+    });
+
+    palette.appendChild(item);
+  }
+}
+
+function spawnElement(elemDef, startEvent) {
+  const layer = document.getElementById('element-layer');
+  const el = document.createElement('div');
+  const uniqueId = `placed-${elemDef.id}-${Date.now()}`;
+  el.className = `canvas-element ${elemDef.type}-element`;
+  el.id = uniqueId;
+  el.dataset.type = elemDef.type;
+  el.dataset.dimension = elemDef.dimension || 'decoration';
+  if (elemDef.audioLayer) el.dataset.audiolayer = elemDef.audioLayer;
+
+  const pngSrc = elemDef.asset.replace('.svg', '.png') + '?v=' + Date.now();
+  el.innerHTML = `<img src="${pngSrc}" onerror="this.src='${elemDef.asset}'" draggable="false" />`;
+
+  // Size based on type
+  const sizes = {
+    friend: 250,
+    lamp: 250,
+    speaker: 150,
+    microphone: 150,
+    bell: 150,
+    balloon: 150,
+    cake: 180,
+    present: 150,
+    lights: 300, // wide
+  };
+  const s = sizes[elemDef.type] || 200;
+  if (elemDef.type === 'lights') {
+    el.style.width = s + 'px';
+    el.style.height = Math.round(s * 0.4) + 'px';
+  } else {
+    el.style.width = s + 'px';
+    el.style.height = s + 'px';
+  }
+
+  layer.appendChild(el);
+
+  // Position at touch point
+  const cRect = layer.getBoundingClientRect();
+  el.style.left = (startEvent.clientX - cRect.left - 70) + 'px';
+  el.style.top = (startEvent.clientY - cRect.top - 70) + 'px';
+
+  makeDraggable(el);
+
+  if (elemDef.resizable) {
+    makeResizable(el);
+  }
+
+  state.placedElements.push({
+    id: uniqueId,
+    type: elemDef.type,
+    dimension: elemDef.dimension || 'decoration',
+    x: parseInt(el.style.left),
+    y: parseInt(el.style.top),
+    width: 140,
+    height: 140,
+    timestamp: Date.now(),
+  });
+
+  logEvent('element_placed', { id: uniqueId, type: elemDef.type });
+
+  // Play feedback sound/effect on placement (slight delay for iOS audio init)
+  setTimeout(() => playPlacementFeedback(elemDef), 100);
+
+  // Add pull cord for lamp elements
+  if (elemDef.type === 'lamp') {
+    addPullCord(el);
+  }
+
+  // Start dragging immediately
+  startDrag(el, startEvent);
+}
+
+// --- Child voice "Hi!" via pre-recorded audio ---
+const hiGirlAudio = new Audio('assets/hi_girl.wav');
+const hiBoyAudio = new Audio('assets/hi_boy.wav');
+hiGirlAudio.preload = 'auto';
+hiBoyAudio.preload = 'auto';
+
+function sayHi(friendId) {
+  const isGirl = friendId === 'friend2';
+  const audio = isGirl ? hiGirlAudio : hiBoyAudio;
+  audio.currentTime = 0;
+  audio.play().catch(() => {});
+}
+
+// --- Lamp pull cord ---
+let lampBrightness = 0; // 0-5 levels
+
+function addPullCord(el) {
+  // Make lamp taller to fit cord inside
+  el.style.height = '220px';
+  el.style.overflow = 'visible';
+
+  const cord = document.createElement('div');
+  cord.className = 'pull-cord';
+  cord.innerHTML = `
+    <svg width="30" height="90" viewBox="0 0 30 90" class="cord-svg">
+      <line x1="15" y1="0" x2="15" y2="65" stroke="#888" stroke-width="2"/>
+      <circle cx="15" cy="72" r="8" fill="#eee" stroke="#888" stroke-width="1.5"/>
+    </svg>
+    <img src="assets/hand_grab.png" class="cord-hand-hint" draggable="false" />
+  `;
+  el.appendChild(cord);
+
+  let pullStartY = null;
+  const cordSvg = cord.querySelector('.cord-svg');
+  const handHint = cord.querySelector('.cord-hand-hint');
+
+  // Remove hand hint after first pull
+  cord.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    pullStartY = e.clientY;
+    cord.setPointerCapture(e.pointerId);
+    if (handHint) handHint.style.display = 'none';
+  });
+
+  cord.addEventListener('pointermove', (e) => {
+    if (pullStartY === null) return;
+    const dy = e.clientY - pullStartY;
+    const stretch = Math.max(0, Math.min(50, dy));
+    cordSvg.style.transform = `scaleY(${1 + stretch / 90})`;
+  });
+
+  cord.addEventListener('pointerup', (e) => {
+    if (pullStartY === null) return;
+    const dy = e.clientY - pullStartY;
+    pullStartY = null;
+
+    // Snap back
+    cordSvg.style.transition = 'transform 0.3s ease-out';
+    cordSvg.style.transform = 'scaleY(1)';
+    setTimeout(() => { cordSvg.style.transition = ''; }, 300);
+
+    if (dy > 25) {
+      lampBrightness = (lampBrightness + 1) % 6;
+      applyLampBrightness();
+
+      // Persistent glow based on brightness level
+      const glowIntensity = lampBrightness * 8;
+      el.style.filter = lampBrightness > 0
+        ? `drop-shadow(0 0 ${glowIntensity}px rgba(255,220,100,${lampBrightness * 0.15}))`
+        : 'none';
+
+      logEvent('lamp_pull', { brightness: lampBrightness });
+    }
+  });
+}
+
+function applyLampBrightness() {
+  const levels = [0.5, 0.65, 0.8, 0.9, 1.0, 1.1];
+  const brightness = levels[lampBrightness] || 0.5;
+  document.getElementById('canvas-container').style.filter = `brightness(${brightness})`;
+}
+
+function playPlacementFeedback(elemDef) {
+  const layer = elemDef.audioLayer || elemDef.dimension;
+
+  if (layer === 'auditory' || elemDef.audioLayer) {
+    // Play the instrument's sound
+    const audioLayer = elemDef.audioLayer || elemDef.type;
+    playMusicalNote(2, audioLayer); // play at medium level
+  }
+
+  if (elemDef.dimension === 'spatial' || elemDef.type === 'friend') {
+    // Say "Hi!" with gender-appropriate child voice
+    sayHi(elemDef.id);
+  }
+
+  if (elemDef.type === 'lamp') {
+    // Initial dim state — pull cord to brighten
+    applyLampBrightness();
+  }
+}
+
+// ============================================================
+// DRAG & DROP
+// ============================================================
+function makeDraggable(el) {
+  let tapStartX, tapStartY, tapStartTime, moved;
+
+  el.addEventListener('pointerdown', (e) => {
+    if (state.canvasSubPhase === 'color') return;
+    if (state.canvasSubPhase === 'animate') return;
+    if (state.canvasSubPhase === 'adjust') return; // Let audio/lights click handlers take over
+    e.preventDefault();
+    e.stopPropagation();
+    tapStartX = e.clientX;
+    tapStartY = e.clientY;
+    tapStartTime = Date.now();
+    moved = false;
+
+    // Dismiss any other open delete buttons
+    document.querySelectorAll('.delete-btn').forEach(b => b.remove());
+
+    startDrag(el, e, () => { moved = true; });
+  });
+
+  el.addEventListener('pointerup', (e) => {
+    if (state.canvasSubPhase === 'color' || state.canvasSubPhase === 'animate') return;
+    const dx = Math.abs(e.clientX - (tapStartX || 0));
+    const dy = Math.abs(e.clientY - (tapStartY || 0));
+    const dt = Date.now() - (tapStartTime || 0);
+
+    // Tap detection: minimal movement + short duration
+    if (!moved && dx < 10 && dy < 10 && dt < 300) {
+      showDeleteButton(el);
+    }
+  });
+}
+
+function showDeleteButton(el) {
+  // Remove existing delete buttons
+  document.querySelectorAll('.delete-btn').forEach(b => b.remove());
+
+  const btn = document.createElement('div');
+  btn.className = 'delete-btn';
+  btn.innerHTML = '&times;';
+  btn.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    // Remove from DOM
+    el.remove();
+    // Remove from state
+    state.placedElements = state.placedElements.filter(p => p.id !== el.id);
+    state.animatedElements.delete(el.id);
+    btn.remove();
+    logEvent('element_deleted', { id: el.id, type: el.dataset.type });
+  });
+
+  el.appendChild(btn);
+
+  // Auto-dismiss after 3 seconds
+  setTimeout(() => { if (btn.parentElement) btn.remove(); }, 3000);
+}
+
+function startDrag(el, e, onMoveCallback) {
+  const rect = el.getBoundingClientRect();
+  const offsetX = e.clientX - rect.left;
+  const offsetY = e.clientY - rect.top;
+
+  el.classList.add('dragging');
+  el.setPointerCapture(e.pointerId);
+
+  const onMove = (me) => {
+    if (onMoveCallback) onMoveCallback();
+    const container = document.getElementById('element-layer');
+    const cRect = container.getBoundingClientRect();
+    el.style.left = (me.clientX - cRect.left - offsetX) + 'px';
+    el.style.top = (me.clientY - cRect.top - offsetY) + 'px';
+  };
+
+  const onUp = () => {
+    el.classList.remove('dragging');
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', onUp);
+    updatePlacedElement(el);
+    logEvent('element_moved', {
+      id: el.id,
+      x: parseInt(el.style.left),
+      y: parseInt(el.style.top),
+    });
+  };
+
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onUp);
+}
+
+function updatePlacedElement(el) {
+  const placed = state.placedElements.find(p => p.id === el.id);
+  if (placed) {
+    placed.x = parseInt(el.style.left) || 0;
+    placed.y = parseInt(el.style.top) || 0;
+    placed.width = parseInt(el.style.width) || 80;
+    placed.height = parseInt(el.style.height) || 80;
+  }
+}
+
+// ============================================================
+// COLORING
+// ============================================================
+function initColoring() {
+  const canvas = document.getElementById('color-canvas');
+  const ctx = canvas.getContext('2d');
+
+  // Crayon brush: draw textured strokes
+  function drawCrayonSegment(ctx, x0, y0, x1, y1, color, size) {
+    const dist = Math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2);
+    if (dist < 1) return;
+
+    const angle = Math.atan2(y1 - y0, x1 - x0);
+    const perpX = Math.sin(angle);
+    const perpY = -Math.cos(angle);
+
+    // Multiple offset lines for rough crayon texture
+    const strokes = Math.max(3, Math.floor(size / 2));
+    for (let i = 0; i < strokes; i++) {
+      const offset = (Math.random() - 0.5) * size * 0.8;
+      const jitterX1 = (Math.random() - 0.5) * 1.5;
+      const jitterY1 = (Math.random() - 0.5) * 1.5;
+      const jitterX2 = (Math.random() - 0.5) * 1.5;
+      const jitterY2 = (Math.random() - 0.5) * 1.5;
+
+      ctx.beginPath();
+      ctx.moveTo(
+        x0 + perpX * offset + jitterX1,
+        y0 + perpY * offset + jitterY1
       );
-      data[startSample + i] = sample;
+      ctx.lineTo(
+        x1 + perpX * offset + jitterX2,
+        y1 + perpY * offset + jitterY2
+      );
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.random() * 1.5 + 0.5;
+      ctx.globalAlpha = 0.15 + Math.random() * 0.25;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+
+    // Scatter grain particles along the segment
+    const grainCount = Math.floor(dist * size * 0.05);
+    for (let i = 0; i < grainCount; i++) {
+      const t = Math.random();
+      const gx = x0 + (x1 - x0) * t + (Math.random() - 0.5) * size;
+      const gy = y0 + (y1 - y0) * t + (Math.random() - 0.5) * size;
+      const gr = Math.random() * 1.2 + 0.3;
+      ctx.beginPath();
+      ctx.arc(gx, gy, gr, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.08 + Math.random() * 0.15;
+      ctx.fill();
+    }
+
+    ctx.globalAlpha = 1.0;
+  }
+
+  let lastCrayonX = 0, lastCrayonY = 0;
+  let activePointerId = null;
+  let activeTouchCount = 0;
+
+  // Track touch count to cancel painting when second finger arrives
+  canvas.addEventListener('touchstart', (e) => {
+    activeTouchCount = e.touches.length;
+    if (activeTouchCount > 1 && state.painting) {
+      // Second finger down — cancel current stroke
+      state.painting = false;
+      activePointerId = null;
+      ctx.globalCompositeOperation = 'source-over';
+      // Discard the incomplete stroke
+      state.currentStroke = null;
+    }
+  }, { passive: true });
+
+  canvas.addEventListener('touchend', (e) => {
+    activeTouchCount = e.touches.length;
+  }, { passive: true });
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (state.canvasSubPhase !== 'color') return;
+    // Only track one finger — ignore if multi-touch
+    if (activePointerId !== null) return;
+    if (activeTouchCount > 1) return;
+    activePointerId = e.pointerId;
+    e.preventDefault();
+    state.painting = true;
+    showTouchCrayon(e.clientX, e.clientY);
+
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+    lastCrayonX = x;
+    lastCrayonY = y;
+
+    state.currentStroke = {
+      color: state.isEraser ? 'eraser' : state.selectedColor,
+      width: state.brushSize,
+      points: [{ x, y }],
+    };
+
+    if (state.isEraser) {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineWidth = state.brushSize * 4;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!state.painting || e.pointerId !== activePointerId) return;
+    moveTouchCrayon(e.clientX, e.clientY);
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+    if (state.isEraser) {
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    } else {
+      drawCrayonSegment(ctx, lastCrayonX, lastCrayonY, x, y, state.selectedColor, state.brushSize * 3);
+      lastCrayonX = x;
+      lastCrayonY = y;
+    }
+
+    if (state.currentStroke) {
+      state.currentStroke.points.push({ x, y });
+    }
+  });
+
+  canvas.addEventListener('pointerup', (e) => {
+    if (!state.painting || e.pointerId !== activePointerId) return;
+    state.painting = false;
+    activePointerId = null;
+    hideTouchCrayon();
+    ctx.globalCompositeOperation = 'source-over';
+
+    if (state.currentStroke && state.currentStroke.points.length > 1) {
+      state.colorStrokes.push(state.currentStroke);
+      logEvent('color_stroke', {
+        color: state.currentStroke.color,
+        width: state.currentStroke.width,
+        pointCount: state.currentStroke.points.length,
+      });
+    }
+    state.currentStroke = null;
+  });
+
+  canvas.addEventListener('pointerleave', (e) => {
+    if (state.painting && e.pointerId === activePointerId) {
+      state.painting = false;
+      activePointerId = null;
+      hideTouchCrayon();
+      ctx.globalCompositeOperation = 'source-over';
+      if (state.currentStroke) {
+        state.colorStrokes.push(state.currentStroke);
+      }
+      state.currentStroke = null;
+    }
+  });
+}
+
+function redrawColorStrokes() {
+  const canvas = document.getElementById('color-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  for (const stroke of state.colorStrokes) {
+    if (stroke.points.length < 2) continue;
+
+    if (stroke.color === 'eraser') {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      }
+      ctx.lineWidth = stroke.width * 4;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      // Rebuild crayon texture — simplified for redraw performance
+      for (let i = 1; i < stroke.points.length; i++) {
+        const p0 = stroke.points[i - 1];
+        const p1 = stroke.points[i];
+        const dist = Math.sqrt((p1.x - p0.x) ** 2 + (p1.y - p0.y) ** 2);
+        if (dist < 1) continue;
+        const angle = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+        const perpX = Math.sin(angle);
+        const perpY = -Math.cos(angle);
+        const size = stroke.width * 3;
+        const strokes = Math.max(2, Math.floor(size / 3));
+        for (let s = 0; s < strokes; s++) {
+          const off = (Math.random() - 0.5) * size * 0.8;
+          ctx.beginPath();
+          ctx.moveTo(p0.x + perpX * off, p0.y + perpY * off);
+          ctx.lineTo(p1.x + perpX * off, p1.y + perpY * off);
+          ctx.strokeStyle = stroke.color;
+          ctx.lineWidth = Math.random() * 1.5 + 0.5;
+          ctx.globalAlpha = 0.15 + Math.random() * 0.2;
+          ctx.lineCap = 'round';
+          ctx.stroke();
+        }
+      }
+      ctx.globalAlpha = 1.0;
     }
   }
-
-  state.musicBoxBuffer = buffer;
-  state.musicBoxSource = null;
-
-  state.filterNode = state.audioCtx.createBiquadFilter();
-  state.filterNode.type = 'lowpass';
-  state.filterNode.frequency.value = 4000;
-  state.filterNode.Q.value = 4;
-
-  state.gainNode = state.audioCtx.createGain();
-  state.gainNode.gain.value = 0;
-
-  state.filterNode.connect(state.gainNode);
-  state.gainNode.connect(state.audioCtx.destination);
-
-  // Start looping music box
-  _startMusicBoxLoop();
+  ctx.globalCompositeOperation = 'source-over';
 }
 
-function _startMusicBoxLoop() {
-  if (state.musicBoxSource) { try { state.musicBoxSource.stop(); } catch(e) {} }
-  state.musicBoxSource = state.audioCtx.createBufferSource();
-  state.musicBoxSource.buffer = state.musicBoxBuffer;
-  state.musicBoxSource.loop = true;
-  state.musicBoxSource.connect(state.filterNode);
-  state.musicBoxSource.start();
+// --- Color hint on avatar ---
+function showColorHint() {
+  hideColorHint();
+  const avatar = document.getElementById('avatar-main');
+  if (!avatar) return;
+
+  const rect = avatar.getBoundingClientRect();
+
+  const hint = document.createElement('div');
+  hint.className = 'color-hint-overlay';
+  hint.id = 'color-hint';
+  hint.innerHTML = `
+    <div class="color-hint-icon">🖍️</div>
+    <div class="color-hint-text">Color me!</div>
+  `;
+  hint.style.left = (rect.left + rect.width / 2) + 'px';
+  hint.style.top = (rect.top - 10) + 'px';
+  document.body.appendChild(hint);
+
+  // Remove hint on first canvas touch
+  const canvas = document.getElementById('color-canvas');
+  const removeHint = () => {
+    hideColorHint();
+    canvas.removeEventListener('pointerdown', removeHint);
+  };
+  canvas.addEventListener('pointerdown', removeHint);
 }
 
-function setAudioFromDistance(d) {
-  if (!state.audioCtx || !state.filterNode) return;
-  // Lowpass filter: d=0 (close) → 8000 Hz (bright), d=1 (far) → 200 Hz (muffled)
-  // Logarithmic mapping for perceptually uniform change
-  const minFreq = 200, maxFreq = 8000;
-  const cutoff = maxFreq * Math.pow(minFreq / maxFreq, d);
-  state.filterNode.frequency.setTargetAtTime(cutoff, state.audioCtx.currentTime, 0.1);
-  // Volume fixed
-  state.gainNode.gain.setTargetAtTime(0.25, state.audioCtx.currentTime, 0.1);
+function hideColorHint() {
+  document.getElementById('color-hint')?.remove();
 }
 
-function stopAudio() {
-  if (state.gainNode) state.gainNode.gain.setTargetAtTime(0, state.audioCtx.currentTime, 0.1);
+// --- Touch crayon (iPad/touch) ---
+const touchCrayon = document.getElementById('touch-crayon');
+let touchCrayonVisible = false;
+
+function initTouchCrayon() {
+  // Build the crayon DOM structure
+  touchCrayon.innerHTML = `
+    <div class="touch-crayon-label"></div>
+    <div class="touch-crayon-body"></div>
+    <div class="touch-crayon-tip"></div>
+  `;
+  updateTouchCrayonColor();
+}
+initTouchCrayon();
+
+function updateTouchCrayonColor() {
+  const body = touchCrayon.querySelector('.touch-crayon-body');
+  const tip = touchCrayon.querySelector('.touch-crayon-tip');
+  if (!body || !tip) return;
+  const color = state.isEraser ? '#ccc' : state.selectedColor;
+  body.style.background = color;
+  tip.style.borderTop = `10px solid ${color}`;
 }
 
-// Bell chime sound — synthesized
-function playBellChime() {
-  const ctx = state.audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-  if (!state.audioCtx) state.audioCtx = ctx;
-  if (ctx.state === 'suspended') ctx.resume();
+function showTouchCrayon(x, y) {
+  if (state.canvasSubPhase !== 'color') return;
+  touchCrayon.classList.remove('hidden');
+  touchCrayon.style.left = x + 'px';
+  touchCrayon.style.top = y + 'px';
+  // Tilt based on screen position: left half → left hand tilt, right half → right hand tilt
+  const isLeftHand = x < window.innerWidth / 2;
+  touchCrayon.style.transform = isLeftHand
+    ? 'translate(-32px, -52px) rotate(25deg)'   // left hand: tilt right
+    : 'translate(-8px, -52px) rotate(-25deg)';   // right hand: tilt left
+  touchCrayonVisible = true;
+}
 
-  // Two sine tones for a bell-like timbre
+function moveTouchCrayon(x, y) {
+  if (!touchCrayonVisible) return;
+  touchCrayon.style.left = x + 'px';
+  touchCrayon.style.top = y + 'px';
+}
+
+function hideTouchCrayon() {
+  touchCrayon.classList.add('hidden');
+  touchCrayonVisible = false;
+}
+
+// --- Crayon cursor (desktop) ---
+function updateCrayonCursor() {
+  const canvas = document.getElementById('color-canvas');
+  if (!canvas.classList.contains('drawing-mode')) return;
+
+  if (state.isEraser) {
+    canvas.style.cursor = 'url("data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">' +
+      '<rect x="10" y="10" width="28" height="28" rx="4" fill="#fff" stroke="#999" stroke-width="2" stroke-dasharray="4 2"/>' +
+      '<line x1="16" y1="16" x2="32" y2="32" stroke="#ccc" stroke-width="2"/>' +
+      '<line x1="32" y1="16" x2="16" y2="32" stroke="#ccc" stroke-width="2"/>' +
+      '</svg>'
+    ) + '") 24 24, crosshair';
+    return;
+  }
+
+  const color = state.selectedColor;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+    <rect x="14" y="2" width="12" height="32" rx="3" fill="${color}" stroke="#333" stroke-width="1.5" transform="rotate(-35 20 24)"/>
+    <rect x="14" y="2" width="12" height="6" rx="2" fill="#555" opacity="0.4" transform="rotate(-35 20 24)"/>
+    <polygon points="10,38 16,30 22,38" fill="${color}" stroke="#333" stroke-width="1" opacity="0.9" transform="rotate(-5 16 34)"/>
+  </svg>`;
+  canvas.style.cursor = `url("data:image/svg+xml,${encodeURIComponent(svg)}") 6 42, crosshair`;
+}
+
+// --- Color toolbar events ---
+document.querySelectorAll('.color-swatch').forEach(swatch => {
+  swatch.addEventListener('click', () => {
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+    swatch.classList.add('selected');
+    state.selectedColor = swatch.dataset.color;
+    state.isEraser = false;
+    document.getElementById('btn-eraser').classList.remove('active');
+    updateCrayonCursor();
+    updateTouchCrayonColor();
+  });
+});
+
+document.querySelectorAll('.brush-size').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.brush-size').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    state.brushSize = parseInt(btn.dataset.size);
+  });
+});
+
+document.getElementById('btn-undo').addEventListener('click', () => {
+  if (state.colorStrokes.length > 0) {
+    state.colorStrokes.pop();
+    redrawColorStrokes();
+    logEvent('undo_stroke');
+  }
+});
+
+document.getElementById('btn-eraser').addEventListener('click', () => {
+  state.isEraser = !state.isEraser;
+  const btn = document.getElementById('btn-eraser');
+  btn.classList.toggle('active', state.isEraser);
+  if (state.isEraser) {
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+  } else {
+    // Re-select first swatch
+    const first = document.querySelector('.color-swatch');
+    if (first) { first.classList.add('selected'); state.selectedColor = first.dataset.color; }
+  }
+  updateCrayonCursor();
+  updateTouchCrayonColor();
+});
+
+// ============================================================
+// AUDIO ADJUST — Game-like music note interaction
+// ============================================================
+const NOTE_EMOJIS = ['♪', '♫', '♬', '🎵', '🎶'];
+const NOTE_COLORS = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF', '#9B59B6', '#FF8C42'];
+const MAX_NOTES = 5;
+
+// Musical notes (frequencies) for a fun ascending scale
+const MUSICAL_NOTES = [261.63, 293.66, 329.63, 392.00, 523.25]; // C4, D4, E4, G4, C5
+
+function makeResizable(el) {
+  el.dataset.noteCount = '0';
+}
+
+function setupAudioAdjust() {
+  const allElements = document.querySelectorAll('.canvas-element');
+  allElements.forEach(el => {
+    // Handle auditory elements
+    if (el.dataset.dimension === 'auditory') {
+      setupAudioElement(el);
+    }
+    // Handle lights (visual brightness)
+    if (el.dataset.type === 'lights') {
+      setupLightsElement(el);
+    }
+  });
+}
+
+// --- Lights brightness control ---
+const MAX_BRIGHTNESS = 5;
+const BRIGHTNESS_LEVELS = [0.4, 0.55, 0.7, 0.85, 1.0, 1.15]; // canvas filter brightness
+const LIGHT_EMOJIS = ['🌑', '🌘', '🌗', '🌖', '🌕', '☀️'];
+
+function setupLightsElement(el) {
+  el.classList.add('audio-adjustable', 'lights-adjustable');
+  el.dataset.brightnessLevel = '3';
+  updateLightsDisplay(el);
+
+  // Add hint label
+  el.querySelector('.lights-hint-label')?.remove();
+  const hint = document.createElement('div');
+  hint.className = 'lights-hint-label';
+  hint.textContent = 'Tap to change light!';
+  el.appendChild(hint);
+  // Remove hint after first tap
+  const removeHint = () => { hint.remove(); el.removeEventListener('pointerdown', removeHint); };
+  el.addEventListener('pointerdown', removeHint);
+
+  el._lightsClickHandler && el.removeEventListener('pointerdown', el._lightsClickHandler);
+
+  el._lightsClickHandler = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    let level = parseInt(el.dataset.brightnessLevel) || 3;
+    level = (level + 1) % (MAX_BRIGHTNESS + 1);
+    el.dataset.brightnessLevel = level;
+
+    // Update canvas brightness
+    const container = document.getElementById('canvas-container');
+    const brightness = BRIGHTNESS_LEVELS[level];
+    container.style.filter = `brightness(${brightness})`;
+
+    // Spawn a star/glow particle
+    spawnGlowParticle(el, e.clientX, e.clientY, level);
+    bounceElement(el);
+    updateLightsDisplay(el);
+
+    const placed = state.placedElements.find(p => p.id === el.id);
+    if (placed) placed.brightnessLevel = level;
+
+    logEvent('brightness_tap', { id: el.id, level, brightness });
+  };
+  el.addEventListener('pointerdown', el._lightsClickHandler);
+}
+
+function updateLightsDisplay(el) {
+  el.querySelector('.brightness-indicator')?.remove();
+
+  const level = parseInt(el.dataset.brightnessLevel) || 3;
+  const badge = document.createElement('div');
+  badge.className = 'brightness-indicator';
+  badge.textContent = LIGHT_EMOJIS[level];
+  el.appendChild(badge);
+}
+
+function spawnGlowParticle(el, clientX, clientY, level) {
+  const particle = document.createElement('div');
+  particle.className = 'flying-note';
+  particle.textContent = level > 2 ? '✨' : '💫';
+  particle.style.left = clientX + 'px';
+  particle.style.top = clientY + 'px';
+  particle.style.fontSize = '24px';
+  const dx = (Math.random() - 0.5) * 60;
+  const dy = -(40 + Math.random() * 50);
+  particle.style.setProperty('--fly-x', dx + 'px');
+  particle.style.setProperty('--fly-y', dy + 'px');
+  document.body.appendChild(particle);
+  setTimeout(() => particle.remove(), 800);
+}
+
+// --- Audio element setup (unchanged logic) ---
+function setupAudioElement(el) {
+  el.classList.add('audio-adjustable');
+  updateNoteDisplay(el);
+
+  el._audioClickHandler && el.removeEventListener('pointerdown', el._audioClickHandler);
+
+  el._audioClickHandler = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    let count = parseInt(el.dataset.noteCount) || 0;
+    count = (count + 1) % (MAX_NOTES + 1);
+    el.dataset.noteCount = count;
+
+    if (count > 0) {
+      spawnFlyingNote(el, e.clientX, e.clientY);
+      const audioLayer = el.dataset.audiolayer || el.dataset.type;
+      playMusicalNote(count - 1, audioLayer);
+      bounceElement(el);
+    } else {
+      stopAudio();
+      el.style.animation = '';
+    }
+
+    updateNoteDisplay(el);
+
+    const placed = state.placedElements.find(p => p.id === el.id);
+    if (placed) placed.volumeLevel = count;
+
+    logEvent('audio_note_tap', { id: el.id, noteCount: count });
+  };
+  el.addEventListener('pointerdown', el._audioClickHandler);
+}
+
+function updateNoteDisplay(el) {
+  // Remove old notes display
+  el.querySelector('.note-display')?.remove();
+
+  const count = parseInt(el.dataset.noteCount) || 0;
+  if (count === 0) {
+    el.style.animation = '';
+    return;
+  }
+
+  // Show collected notes around the element
+  const display = document.createElement('div');
+  display.className = 'note-display';
+
+  for (let i = 0; i < count; i++) {
+    const note = document.createElement('span');
+    note.className = 'collected-note';
+    note.textContent = NOTE_EMOJIS[i % NOTE_EMOJIS.length];
+    note.style.color = NOTE_COLORS[i % NOTE_COLORS.length];
+    // Position notes in arc above element
+    const angle = -Math.PI * 0.2 + (Math.PI * 0.4 / (MAX_NOTES - 1)) * i;
+    const radius = 55;
+    note.style.left = (50 + Math.cos(angle) * radius) + '%';
+    note.style.top = (-10 + Math.sin(angle) * radius * -1) + '%';
+    display.appendChild(note);
+  }
+  el.appendChild(display);
+
+  // Speaker dances proportional to note count
+  const intensity = count / MAX_NOTES;
+  const speed = 0.8 - intensity * 0.4; // faster at higher volume
+  el.style.animation = `speakerDance ${speed}s ease-in-out infinite`;
+}
+
+function spawnFlyingNote(el, clientX, clientY) {
+  const note = document.createElement('div');
+  note.className = 'flying-note';
+  note.textContent = NOTE_EMOJIS[Math.floor(Math.random() * NOTE_EMOJIS.length)];
+  note.style.color = NOTE_COLORS[Math.floor(Math.random() * NOTE_COLORS.length)];
+  note.style.left = clientX + 'px';
+  note.style.top = clientY + 'px';
+  note.style.fontSize = (20 + Math.random() * 16) + 'px';
+
+  // Random direction: upward with slight horizontal drift
+  const dx = (Math.random() - 0.5) * 80;
+  const dy = -(60 + Math.random() * 60);
+  note.style.setProperty('--fly-x', dx + 'px');
+  note.style.setProperty('--fly-y', dy + 'px');
+
+  document.body.appendChild(note);
+  setTimeout(() => note.remove(), 800);
+}
+
+function bounceElement(el) {
+  el.classList.remove('note-bounce');
+  void el.offsetWidth; // Force reflow
+  el.classList.add('note-bounce');
+  setTimeout(() => el.classList.remove('note-bounce'), 300);
+}
+
+// Musical note scales per audio layer
+const BGM_NOTES = [261.63, 293.66, 329.63, 392.00, 523.25];     // C4-C5, melodic
+const VOICE_NOTES = [196.00, 220.00, 246.94, 261.63, 293.66];   // G3-D4, speech range
+const SFX_NOTES = [523.25, 659.25, 783.99, 1046.50, 1318.51];   // C5-E6, bright/sharp
+
+function playMusicalNote(noteIndex, audioLayer) {
+  if (!state.audioCtx) {
+    state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  const ctx = state.audioCtx;
+  const ready = ctx.state === 'suspended' ? ctx.resume() : Promise.resolve();
+  ready.then(() => {
+    if (audioLayer === 'bgm' || audioLayer === 'speaker') {
+      _playBGM(ctx, noteIndex);
+    } else if (audioLayer === 'voice' || audioLayer === 'microphone') {
+      _playVoice(ctx, noteIndex);
+    } else if (audioLayer === 'sfx' || audioLayer === 'bell') {
+      _playSFX(ctx, noteIndex);
+    } else {
+      _playBGM(ctx, noteIndex); // fallback
+    }
+  });
+}
+
+function _playBGM(ctx, noteIndex) {
+  // Party ambient: crowd murmur + cheerful melody snippet
+  const noteCount = noteIndex + 1;
+  const volume = 0.06 + (noteCount / MAX_NOTES) * 0.15;
+  const now = ctx.currentTime;
+
+  // 1. Crowd murmur — filtered noise
+  const bufSize = Math.floor(ctx.sampleRate * 0.8);
+  const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) d[i] = (Math.random() * 2 - 1);
+  const noise = ctx.createBufferSource();
+  noise.buffer = noiseBuf;
+  const nFilter = ctx.createBiquadFilter();
+  nFilter.type = 'bandpass';
+  nFilter.frequency.value = 800;
+  nFilter.Q.value = 0.5;
+  const nGain = ctx.createGain();
+  nGain.gain.setValueAtTime(volume * 0.4, now);
+  nGain.gain.setTargetAtTime(0, now + 0.6, 0.2);
+  noise.connect(nFilter);
+  nFilter.connect(nGain);
+  nGain.connect(ctx.destination);
+  noise.start(now);
+  noise.stop(now + 0.8);
+
+  // 2. Cheerful melody — quick ascending notes
+  const melody = [523.25, 587.33, 659.25, 783.99]; // C5 D5 E5 G5
+  melody.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    const g = ctx.createGain();
+    const t = now + i * 0.12;
+    g.gain.setValueAtTime(volume, t);
+    g.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+    osc.connect(g);
+    g.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.2);
+  });
+}
+
+function _playVoice(ctx, noteIndex) {
+  // Human crowd murmur: noise shaped by vocal formants
+  const noteCount = noteIndex + 1;
+  const volume = 0.08 + (noteCount / MAX_NOTES) * 0.2;
+
+  // White noise source (simulates breath/crowd)
+  const bufferSize = ctx.sampleRate * 0.8;
+  const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = (Math.random() * 2 - 1);
+  }
+  const noise = ctx.createBufferSource();
+  noise.buffer = noiseBuffer;
+
+  // Vocal buzz (low fundamental, like vocal folds)
+  const buzz = ctx.createOscillator();
+  buzz.type = 'sawtooth';
+  buzz.frequency.value = 120 + noteIndex * 20; // Pitch rises slightly each tap
+
+  // Formant filters — shape both noise and buzz into vowel sounds
+  // Different vowel per noteIndex: /a/, /e/, /i/, /o/, /u/
+  const vowels = [
+    { f1: 730, f2: 1090 },  // /a/
+    { f1: 530, f2: 1840 },  // /e/
+    { f2: 390, f1: 2300 },  // /i/
+    { f1: 570, f2: 840 },   // /o/
+    { f1: 440, f2: 1020 },  // /u/
+  ];
+  const vowel = vowels[noteIndex % vowels.length];
+
+  const formant1 = ctx.createBiquadFilter();
+  formant1.type = 'bandpass';
+  formant1.frequency.value = vowel.f1;
+  formant1.Q.value = 8;
+
+  const formant2 = ctx.createBiquadFilter();
+  formant2.type = 'bandpass';
+  formant2.frequency.value = vowel.f2;
+  formant2.Q.value = 8;
+
+  const gain = ctx.createGain();
+  const buzzGain = ctx.createGain();
+  buzzGain.gain.value = 0.6;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.value = 0.4;
+
+  // Buzz → formants → output
+  buzz.connect(buzzGain);
+  buzzGain.connect(formant1);
+  buzzGain.connect(formant2);
+
+  // Noise → formants → output (adds breathiness)
+  noise.connect(noiseGain);
+  noiseGain.connect(formant1);
+  noiseGain.connect(formant2);
+
+  formant1.connect(gain);
+  formant2.connect(gain);
+  gain.connect(ctx.destination);
+
+  const now = ctx.currentTime;
+  buzz.start(now);
+  noise.start(now);
+
+  // Voice envelope: onset, sustain, fade
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(volume, now + 0.06);
+  gain.gain.setTargetAtTime(volume * 0.65, now + 0.12, 0.08);
+  gain.gain.setTargetAtTime(0, now + 0.45, 0.12);
+
+  buzz.stop(now + 0.7);
+  noise.stop(now + 0.7);
+}
+
+function _playSFX(ctx, noteIndex) {
+  // Event/object sounds: sharp, bright, bell-like, percussive
+  const freq = SFX_NOTES[noteIndex % SFX_NOTES.length];
+  const noteCount = noteIndex + 1;
+  const volume = 0.12 + (noteCount / MAX_NOTES) * 0.3;
+
   const osc1 = ctx.createOscillator();
   const osc2 = ctx.createOscillator();
   const gain = ctx.createGain();
 
   osc1.type = 'sine';
-  osc1.frequency.value = 830; // high bell tone
+  osc1.frequency.value = freq;
   osc2.type = 'sine';
-  osc2.frequency.value = 1245; // harmonic
+  osc2.frequency.value = freq * 2.756; // Inharmonic ratio for metallic/bell sound
+
+  const gain2 = ctx.createGain();
+  gain2.gain.value = 0.4;
 
   osc1.connect(gain);
-  osc2.connect(gain);
+  osc2.connect(gain2);
+  gain2.connect(gain);
   gain.connect(ctx.destination);
 
   const now = ctx.currentTime;
-  gain.gain.setValueAtTime(0.25, now);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2); // ring decay
-
   osc1.start(now);
   osc2.start(now);
-  osc1.stop(now + 1.2);
-  osc2.stop(now + 1.2);
-}
 
-// Floating music notes
-let noteInterval = null;
-function startFloatingNotes() {
-  const container = document.getElementById('floating-notes');
-  if (!container) return;
-  const notes = ['♪', '♫', '♬', '🎵', '🎶'];
-  noteInterval = setInterval(() => {
-    const note = document.createElement('div');
-    note.className = 'note-float';
-    note.textContent = notes[Math.floor(Math.random() * notes.length)];
-    const source = document.getElementById('sound-source');
-    if (!source) return;
-    const sr = source.getBoundingClientRect();
-    const cr = container.getBoundingClientRect();
-    note.style.left = (sr.left - cr.left + sr.width / 2 + (Math.random() - 0.5) * 60) + 'px';
-    note.style.top = (sr.top - cr.top) + 'px';
-    container.appendChild(note);
-    setTimeout(() => note.remove(), 3000);
-  }, 600);
-}
-function stopFloatingNotes() {
-  if (noteInterval) { clearInterval(noteInterval); noteInterval = null; }
+  // Sharp attack, quick decay — like a bell hit
+  gain.gain.setValueAtTime(volume, now);
+  gain.gain.setTargetAtTime(volume * 0.15, now + 0.01, 0.04);
+  gain.gain.setTargetAtTime(0, now + 0.2, 0.15);
+
+  osc1.stop(now + 0.6);
+  osc2.stop(now + 0.6);
 }
 
 // ============================================================
-// VISUAL EFFECTS
+// AUDIO (Web Audio API)
 // ============================================================
-function setVisualFromDistance(d) {
-  const bg = document.getElementById('visual-bg');
-  if (!bg) return;
-
-  // Visual dimension: brightness only (not saturation)
-  // Decision: Jiang & Liu 2025 (JADD) — brightness and saturation are neurologically dissociable
-  const bright = 0.4 + (1 - d) * 0.8;
-  bg.style.filter = `brightness(${bright})`;
-
-  // Background flowers: bloom/wilt based on distance
-  const flowers = bg.querySelectorAll('.bg-flower');
-  const bloomed = ['🌸', '🌼', '🌺', '🌷', '🌻', '🌹'];
-  const wilted = '🌱';
-  const proximity = 1 - d; // 1 = very close, 0 = far away
-
-  flowers.forEach((f, i) => {
-    // Flowers bloom progressively as child gets closer
-    const threshold = (i + 1) / (flowers.length + 1);
-    if (proximity > threshold) {
-      f.textContent = bloomed[i % bloomed.length];
-      f.style.opacity = 0.5 + proximity * 0.5;
-      f.style.transform = `scale(${0.8 + proximity * 0.4})`;
-    } else {
-      f.textContent = wilted;
-      f.style.opacity = 0.25;
-      f.style.transform = 'scale(0.7)';
+function initAudio() {
+  if (state.audioCtx) {
+    // iOS: resume suspended context
+    if (state.audioCtx.state === 'suspended') {
+      state.audioCtx.resume();
     }
-  });
-}
-
-// ============================================================
-// SPATIAL EFFECTS
-// ============================================================
-let heartInterval = null;
-
-function setSpatialFromDistance(d) {
-  const dogAvatar = document.querySelector('.dog-avatar');
-  const npcReaction = document.getElementById('npc-reaction');
-  const tongue = document.querySelector('.dog-tongue');
-  if (!dogAvatar || !npcReaction) return;
-
-  if (d < 0.25) {
-    dogAvatar.classList.add('excited');
-    npcReaction.textContent = '❤️ Hi friend!';
-    npcReaction.classList.add('visible');
-    if (tongue) tongue.classList.remove('hidden');
-    startHearts();
-  } else if (d < 0.45) {
-    dogAvatar.classList.remove('excited');
-    npcReaction.textContent = '👋 Hello!';
-    npcReaction.classList.add('visible');
-    if (tongue) tongue.classList.add('hidden');
-    stopHearts();
-  } else if (d < 0.65) {
-    dogAvatar.classList.remove('excited');
-    npcReaction.textContent = '👀';
-    npcReaction.classList.add('visible');
-    if (tongue) tongue.classList.add('hidden');
-    stopHearts();
-  } else {
-    dogAvatar.classList.remove('excited');
-    npcReaction.classList.remove('visible');
-    if (tongue) tongue.classList.add('hidden');
-    stopHearts();
-  }
-}
-
-function startHearts() {
-  if (heartInterval) return;
-  const container = document.getElementById('heart-particles');
-  heartInterval = setInterval(() => {
-    const h = document.createElement('div');
-    h.className = 'heart-pop';
-    h.textContent = ['❤️', '💕', '💖'][Math.floor(Math.random() * 3)];
-    h.style.setProperty('--hx', (Math.random() - 0.5) * 60 + 'px');
-    container.appendChild(h);
-    setTimeout(() => h.remove(), 1500);
-  }, 400);
-}
-function stopHearts() {
-  if (heartInterval) { clearInterval(heartInterval); heartInterval = null; }
-}
-
-// ============================================================
-// TEMPORAL — visible traveling light orb
-// ============================================================
-let temporalLoopTimeout = null;
-let temporalRunning = false;
-let currentTemporalDelay = 2000;
-
-function setTemporalFromDistance(d) {
-  currentTemporalDelay = 300 + d * 2500;
-  if (!temporalRunning) startTemporalLoop();
-}
-
-function startTemporalLoop() {
-  temporalRunning = true;
-  fireTemporalPulse();
-}
-
-function fireTemporalPulse() {
-  if (!temporalRunning) return;
-
-  const orb = document.getElementById('light-orb');
-  const avatar = document.getElementById('avatar-temporal');
-  const target = document.getElementById('temporal-target');
-  const container = document.getElementById('container-temporal');
-  if (!orb || !avatar || !target || !container) return;
-
-  const cRect = container.getBoundingClientRect();
-  const aRect = avatar.getBoundingClientRect();
-  const tRect = target.getBoundingClientRect();
-
-  // Start position: near the cat
-  const startX = aRect.left - cRect.left + aRect.width / 2 - 12;
-  const startY = aRect.top - cRect.top + aRect.height / 2 - 12;
-  // End position: at the bell
-  const endX = tRect.left - cRect.left + tRect.width / 2 - 12;
-  const endY = tRect.top - cRect.top + tRect.height / 2 - 12;
-
-  // Position orb at start
-  orb.style.transition = 'none';
-  orb.style.left = startX + 'px';
-  orb.style.top = startY + 'px';
-  orb.classList.add('traveling');
-
-  // Drop trail particles along the path
-  const trailCount = 8;
-  const delay = currentTemporalDelay;
-
-  for (let i = 1; i <= trailCount; i++) {
-    setTimeout(() => {
-      if (!temporalRunning) return;
-      const frac = i / trailCount;
-      const tx = startX + (endX - startX) * frac;
-      const ty = startY + (endY - startY) * frac;
-      const trail = document.createElement('div');
-      trail.className = 'light-orb-trail';
-      trail.style.left = tx + 'px';
-      trail.style.top = ty + 'px';
-      const bg = container.querySelector('.scene-bg');
-      if (bg) bg.appendChild(trail);
-      setTimeout(() => trail.remove(), 800);
-    }, (delay / trailCount) * i);
-  }
-
-  // Animate orb traveling
-  requestAnimationFrame(() => {
-    orb.style.transition = `left ${delay}ms ease-in-out, top ${delay}ms ease-in-out`;
-    orb.style.left = endX + 'px';
-    orb.style.top = endY + 'px';
-  });
-
-  // Bell reacts when orb arrives
-  setTimeout(() => {
-    if (!temporalRunning) return;
-    const bell = document.querySelector('.bell-body');
-    const glow = document.querySelector('.bell-glow');
-    if (bell) {
-      bell.classList.add('ringing');
-      setTimeout(() => bell.classList.remove('ringing'), 400);
-    }
-    if (glow) {
-      glow.style.opacity = '1';
-      setTimeout(() => glow.style.opacity = '0', 600);
-    }
-    // Burst nearby stars when bell is hit
-    const stars = document.querySelectorAll('.star');
-    stars.forEach(s => {
-      s.style.opacity = '1';
-      s.style.transform = 'scale(2.5)';
-      setTimeout(() => { s.style.opacity = ''; s.style.transform = ''; }, 500);
-    });
-    orb.classList.remove('traveling');
-
-    // Schedule next pulse
-    temporalLoopTimeout = setTimeout(fireTemporalPulse, 1200);
-  }, delay);
-}
-
-function stopTemporalPulse() {
-  temporalRunning = false;
-  if (temporalLoopTimeout) { clearTimeout(temporalLoopTimeout); temporalLoopTimeout = null; }
-  const orb = document.getElementById('light-orb');
-  if (orb) orb.classList.remove('traveling');
-}
-
-// ============================================================
-// DISTANCE COMPUTATION
-// ============================================================
-function getTargetElement(scene) {
-  return {
-    auditory: document.getElementById('sound-source'),
-    visual: document.getElementById('visual-target'),
-    spatial: document.getElementById('npc-character'),
-    temporal: document.getElementById('temporal-target'),
-  }[scene];
-}
-
-function computeNormalizedDistance(avatarEl, targetEl, containerEl) {
-  const a = avatarEl.getBoundingClientRect();
-  const t = targetEl.getBoundingClientRect();
-  const c = containerEl.getBoundingClientRect();
-  const ax = a.left + a.width / 2, ay = a.top + a.height / 2;
-  const tx = t.left + t.width / 2, ty = t.top + t.height / 2;
-  const dist = Math.hypot(ax - tx, ay - ty);
-  const maxDist = Math.hypot(c.width, c.height) * 0.6;
-  return Math.min(1, dist / maxDist);
-}
-
-// ============================================================
-// SCENE FEEDBACK DISPATCH
-// ============================================================
-function updateSceneFeedback(scene, d) {
-  // Update cat expression based on comfort
-  const catAvatar = document.querySelector(`#avatar-${scene} .cat-avatar`);
-  if (catAvatar) {
-    catAvatar.classList.toggle('happy', d < 0.4);
-    catAvatar.classList.toggle('squint', d > 0.7);
-  }
-
-  switch (scene) {
-    case 'auditory':
-      setAudioFromDistance(d);
-      const rings = document.querySelectorAll('.ring');
-      rings.forEach(r => { r.style.borderColor = `rgba(147,130,255,${0.1 + (1 - d) * 0.6})`; });
-      break;
-    case 'visual':
-      setVisualFromDistance(d);
-      break;
-    case 'spatial':
-      setSpatialFromDistance(d);
-      break;
-    case 'temporal':
-      setTemporalFromDistance(d);
-      break;
-  }
-}
-
-// ============================================================
-// HOLD DETECTION & RING
-// ============================================================
-const STILL_THRESHOLD = 15;
-
-function checkStill(x, y) {
-  const dx = x - state.lastPos.x;
-  const dy = y - state.lastPos.y;
-  if (Math.hypot(dx, dy) > STILL_THRESHOLD) {
-    state.stillStart = null;
-    hideHoldOverlay();
-    updateHoldRing(0);
-    state.lastPos = { x, y };
     return;
   }
-  if (!state.stillStart) {
-    state.stillStart = Date.now();
-    showHoldOverlay();
+  state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // iOS: must resume after creation
+  if (state.audioCtx.state === 'suspended') {
+    state.audioCtx.resume();
   }
-  const pct = (Date.now() - state.stillStart) / HOLD_DURATION;
-  updateHoldProgress(pct);
-  updateHoldRing(pct);
-  if (pct >= 1 && !state.confirmed) confirmPreference();
+
+  // Music box tone: two sine oscillators
+  state.oscillator = state.audioCtx.createOscillator();
+  state.oscillator.type = 'sine';
+  state.oscillator.frequency.value = 523.25; // C5
+
+  state.oscillator2 = state.audioCtx.createOscillator();
+  state.oscillator2.type = 'sine';
+  state.oscillator2.frequency.value = 659.25; // E5
+
+  state.filterNode = state.audioCtx.createBiquadFilter();
+  state.filterNode.type = 'lowpass';
+  state.filterNode.frequency.value = 2000;
+
+  state.gainNode = state.audioCtx.createGain();
+  state.gainNode.gain.value = 0;
+
+  state.oscillator.connect(state.filterNode);
+  state.oscillator2.connect(state.filterNode);
+  state.filterNode.connect(state.gainNode);
+  state.gainNode.connect(state.audioCtx.destination);
+
+  state.oscillator.start();
+  state.oscillator2.start();
 }
 
-function updateHoldRing(pct) {
-  const scene = SCENES[state.currentScene];
-  if (!scene) return;
-  const svg = document.getElementById(`hold-ring-${scene}`);
-  if (!svg) return;
-  const fill = svg.querySelector('.ring-fill');
-  if (!fill) return;
-  const offset = RING_CIRCUMFERENCE * (1 - Math.min(1, pct));
-  fill.style.strokeDashoffset = offset;
+// Pre-init audio on first user touch (iOS requirement)
+document.addEventListener('touchstart', function initAudioOnTouch() {
+  initAudio();
+  document.removeEventListener('touchstart', initAudioOnTouch);
+}, { once: true });
+
+function updateAudioForSize(size) {
+  initAudio();
+  const t = Math.max(0, Math.min(1, (size - 40) / 260));
+  const volume = 0.05 + t * 0.35;
+  const filterFreq = 300 + t * 7700;
+  state.gainNode.gain.setTargetAtTime(volume, state.audioCtx.currentTime, 0.08);
+  state.filterNode.frequency.setTargetAtTime(filterFreq, state.audioCtx.currentTime, 0.08);
 }
 
-function showHoldOverlay() { document.getElementById('hold-overlay').classList.remove('hidden'); }
-function hideHoldOverlay() {
-  document.getElementById('hold-overlay').classList.add('hidden');
-  document.getElementById('hold-progress-fill').style.width = '0%';
-}
-function updateHoldProgress(pct) {
-  document.getElementById('hold-progress-fill').style.width = Math.min(100, pct * 100) + '%';
+function stopAudio() {
+  if (state.gainNode) {
+    state.gainNode.gain.setTargetAtTime(0, state.audioCtx.currentTime, 0.15);
+  }
 }
 
 // ============================================================
-// CELEBRATION — confetti
+// ANIMATE PHASE
 // ============================================================
-function celebrate() {
-  const cel = document.getElementById('celebration');
-  cel.classList.remove('hidden');
-
-  const canvas = document.getElementById('confetti-canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-
-  const confetti = [];
-  const colors = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#9b59b6','#ff9ff3','#feca57'];
-  for (let i = 0; i < 80; i++) {
-    confetti.push({
-      x: canvas.width / 2 + (Math.random() - 0.5) * 100,
-      y: canvas.height / 2,
-      vx: (Math.random() - 0.5) * 12,
-      vy: -Math.random() * 15 - 5,
-      size: Math.random() * 8 + 4,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      rotation: Math.random() * 360,
-      rotSpeed: (Math.random() - 0.5) * 10,
-      alpha: 1,
-    });
-  }
-
-  let frame = 0;
-  function drawConfetti() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    let alive = false;
-    confetti.forEach(c => {
-      c.x += c.vx;
-      c.vy += 0.4; // gravity
-      c.y += c.vy;
-      c.rotation += c.rotSpeed;
-      c.alpha -= 0.008;
-      if (c.alpha <= 0) return;
-      alive = true;
-      ctx.save();
-      ctx.translate(c.x, c.y);
-      ctx.rotate(c.rotation * Math.PI / 180);
-      ctx.globalAlpha = c.alpha;
-      ctx.fillStyle = c.color;
-      ctx.fillRect(-c.size / 2, -c.size / 2, c.size, c.size * 0.6);
-      ctx.restore();
-    });
-    frame++;
-    if (alive && frame < 120) requestAnimationFrame(drawConfetti);
-    else {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      cel.classList.add('hidden');
-    }
-  }
-  drawConfetti();
-}
-
 // ============================================================
-// PAW TRAIL
+// DRUM RHYTHM PHASE (Temporal pacing)
 // ============================================================
-function dropPaw(x, y, containerEl) {
-  state.pawCounter++;
-  if (state.pawCounter % 6 !== 0) return; // every 6th move
-  const paw = document.createElement('div');
-  paw.className = 'paw-print';
-  paw.textContent = '🐾';
-  const cRect = containerEl.getBoundingClientRect();
-  paw.style.left = (x - cRect.left) + 'px';
-  paw.style.top = (y - cRect.top) + 'px';
-  containerEl.appendChild(paw);
-  setTimeout(() => paw.remove(), 2000);
-}
+function setupAnimatePhase() {
+  const drumArea = document.getElementById('drum-area');
+  const drumImg = document.getElementById('drum-img');
+  const drumHint = document.getElementById('drum-hint');
+  const tempoDisplay = document.getElementById('tempo-display');
 
-// ============================================================
-// CONFIRM PREFERENCE
-// ============================================================
-function confirmPreference() {
-  state.confirmed = true;
-  hideHoldOverlay();
+  // State for rhythm detection
+  const tapTimes = [];
+  let avgInterval = 500; // default: medium tempo (ms between beats)
 
-  const scene = SCENES[state.currentScene];
-  const avatarEl = document.getElementById(`avatar-${scene}`);
-  const targetEl = getTargetElement(scene);
-  const containerEl = document.querySelector(`#screen-${scene} .scene-container`);
-  const d = computeNormalizedDistance(avatarEl, targetEl, containerEl);
-
-  const result = {
-    scene,
-    normalizedDistance: d,
-    timestamp: Date.now(),
-    log: [...state.interactionLog],
-  };
-
-  switch (scene) {
-    case 'auditory':
-      result.parameter = 'frequencyCutoff';
-      result.value = 200 + (1 - d) * 3800;
-      result.label = d < 0.3 ? 'High tolerance' : d < 0.6 ? 'Medium tolerance' : 'Low tolerance';
-      break;
-    case 'visual':
-      result.parameter = 'brightnessLevel';
-      result.value = d;
-      result.label = d < 0.3 ? 'Bright OK' : d < 0.6 ? 'Moderate' : 'Dim preferred';
-      break;
-    case 'spatial':
-      result.parameter = 'comfortableDistance';
-      result.value = d;
-      result.label = d < 0.3 ? 'Close comfort' : d < 0.6 ? 'Medium distance' : 'Prefers space';
-      break;
-    case 'temporal':
-      result.parameter = 'bufferLatency';
-      result.value = 300 + d * 2500;
-      result.label = d < 0.3 ? 'Quick pace' : d < 0.6 ? 'Moderate pace' : 'Slow pace';
-      break;
+  // Build tempo indicator dots
+  tempoDisplay.innerHTML = '';
+  for (let i = 0; i < 5; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'tempo-dot';
+    tempoDisplay.appendChild(dot);
   }
-  state.results[scene] = result;
+  const tempoLabel = document.createElement('span');
+  tempoLabel.className = 'tempo-label';
+  tempoLabel.textContent = 'Tap!';
+  tempoDisplay.appendChild(tempoLabel);
 
-  // Ring confirm animation
-  const svg = document.getElementById(`hold-ring-${scene}`);
-  if (svg) svg.classList.add('confirmed');
+  // Remove old handler
+  drumArea._drumHandler && drumArea.removeEventListener('pointerdown', drumArea._drumHandler);
 
-  // Celebration
-  celebrate();
+  drumArea._drumHandler = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-  // Cleanup
-  if (scene === 'auditory') { stopAudio(); stopFloatingNotes(); }
-  if (scene === 'spatial') stopHearts();
-  if (scene === 'temporal') stopTemporalPulse();
+    const now = Date.now();
+    tapTimes.push(now);
 
-  setTimeout(nextScene, 1500);
-}
+    // Keep last 22 taps (need 20 for full energy bar)
+    if (tapTimes.length > 22) tapTimes.shift();
 
-// ============================================================
-// NAVIGATION
-// ============================================================
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => {
-    s.classList.remove('active');
-    s.classList.remove('fade-in');
-  });
-  const screen = document.getElementById(id);
-  screen.classList.add('active');
-  // Skip fade-in for video screen (transform breaks absolute positioning)
-  if (id !== 'screen-video') {
-    screen.classList.add('fade-in');
-  }
-}
+    // Visual: drum bounce
+    drumImg.classList.add('hit');
+    setTimeout(() => drumImg.classList.remove('hit'), 100);
 
-function nextScene() {
-  state.currentScene++;
-  state.confirmed = false;
-  state.stillStart = null;
-  state.interactionLog = [];
-  state.pawCounter = 0;
-  hideHoldOverlay();
+    // Visual: ripple
+    const ripple = document.createElement('div');
+    ripple.className = 'drum-ripple';
+    document.getElementById('drum-hits').appendChild(ripple);
+    setTimeout(() => ripple.remove(), 500);
 
-  if (state.currentScene >= SCENES.length) {
-    showResults();
-    spawnParticles(SCENE_PARTICLES.results);
-    return;
-  }
+    // Sound: drum hit
+    playDrumHit();
 
-  const scene = SCENES[state.currentScene];
-  showScreen(`screen-${scene}`);
-  spawnParticles(SCENE_PARTICLES[scene]);
-
-  // Reset hold ring
-  const svg = document.getElementById(`hold-ring-${scene}`);
-  if (svg) {
-    svg.classList.remove('confirmed');
-    const fill = svg.querySelector('.ring-fill');
-    if (fill) fill.style.strokeDashoffset = RING_CIRCUMFERENCE;
-  }
-
-  // Position avatar
-  const avatarEl = document.getElementById(`avatar-${scene}`);
-  const container = document.querySelector(`#screen-${scene} .scene-container`);
-  const rect = container.getBoundingClientRect();
-  avatarEl.style.left = `${rect.width / 2 - 45}px`;
-  avatarEl.style.top = `${rect.height * 0.72}px`;
-
-  // Scene-specific init
-  if (scene === 'auditory') {
-    initAudio();
-    if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
-    state.gainNode.gain.setTargetAtTime(0.15, state.audioCtx.currentTime, 0.1);
-    startFloatingNotes();
-  }
-  if (scene === 'temporal') {
-    createStars();
-    setTemporalFromDistance(0.7);
-  }
-}
-
-function showResults() {
-  showScreen('screen-results');
-  const grid = document.getElementById('results-grid');
-  const dataDiv = document.getElementById('results-data');
-  grid.innerHTML = '';
-
-  const icons = { auditory: '🎵', visual: '🌈', spatial: '🐶', temporal: '🔔' };
-  const labels = { auditory: 'Sound', visual: 'Brightness', spatial: 'Proximity', temporal: 'Pace' };
-
-  SCENES.forEach(scene => {
-    const r = state.results[scene];
-    if (!r) return;
-    const barPct = (1 - r.normalizedDistance) * 100;
-    const card = document.createElement('div');
-    card.className = 'result-card';
-    card.innerHTML = `
-      <div class="result-card-icon">${icons[scene]}</div>
-      <div class="result-card-label">${labels[scene]}</div>
-      <div class="result-card-value">${r.label}</div>
-      <div class="result-bar"><div class="result-bar-fill" style="width:${barPct}%"></div></div>
-    `;
-    grid.appendChild(card);
-  });
-
-  const exportData = {
-    sessionId: `SENSE_${Date.now()}`,
-    timestamp: new Date().toISOString(),
-    results: Object.fromEntries(
-      Object.entries(state.results).map(([k, v]) => [k, {
-        parameter: v.parameter, value: v.value, normalizedDistance: v.normalizedDistance, label: v.label,
-      }])
-    ),
-  };
-  dataDiv.innerHTML = `<pre>${JSON.stringify(exportData, null, 2)}</pre>`;
-}
-
-// ============================================================
-// DRAG HANDLING
-// ============================================================
-function getEventPos(e) {
-  if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  return { x: e.clientX, y: e.clientY };
-}
-
-function onDragStart(e) {
-  if (state.confirmed) return;
-  const avatar = e.target.closest('.avatar');
-  if (!avatar) return;
-  e.preventDefault();
-
-  state.isDragging = true;
-  state.dragAvatar = avatar;
-  avatar.classList.add('dragging');
-
-  const pos = getEventPos(e);
-  const rect = avatar.getBoundingClientRect();
-  state.dragOffset.x = pos.x - rect.left;
-  state.dragOffset.y = pos.y - rect.top;
-  state.lastPos = { x: pos.x, y: pos.y };
-  state.stillStart = null;
-
-  const scene = SCENES[state.currentScene];
-  const hint = document.getElementById(`hint-${scene}`);
-  if (hint) hint.classList.add('fade-out');
-}
-
-function onDragMove(e) {
-  if (!state.isDragging || !state.dragAvatar || state.confirmed) return;
-  e.preventDefault();
-
-  const pos = getEventPos(e);
-  const scene = SCENES[state.currentScene];
-  const container = document.querySelector(`#screen-${scene} .scene-container`);
-  const cRect = container.getBoundingClientRect();
-
-  let newX = pos.x - cRect.left - state.dragOffset.x;
-  let newY = pos.y - cRect.top - state.dragOffset.y;
-  newX = Math.max(0, Math.min(newX, cRect.width - 90));
-  newY = Math.max(0, Math.min(newY, cRect.height - 90));
-
-  state.dragAvatar.style.left = `${newX}px`;
-  state.dragAvatar.style.top = `${newY}px`;
-
-  // Paw trail
-  dropPaw(pos.x, pos.y, container);
-
-  // Distance + feedback
-  const targetEl = getTargetElement(scene);
-  if (targetEl) {
-    const d = computeNormalizedDistance(state.dragAvatar, targetEl, container);
-    updateSceneFeedback(scene, d);
-    state.interactionLog.push({ t: Date.now(), x: newX, y: newY, dist: d });
-  }
-
-  checkStill(pos.x, pos.y);
-}
-
-function onDragEnd() {
-  if (!state.isDragging || !state.dragAvatar) return;
-  state.dragAvatar.classList.remove('dragging');
-  state.isDragging = false;
-  state.dragAvatar = null;
-  state.stillStart = null;
-  hideHoldOverlay();
-  updateHoldRing(0);
-}
-
-// ============================================================
-// STAGE 2: VIDEO PLAYBACK
-// ============================================================
-
-const videoState = {
-  currentLevel: 2,    // 1=protection, 2=baseline, 3=challenge
-  audioCtxVideo: null,
-  sourceNode: null,
-  filterNodeVideo: null,
-  gainNodeVideo: null,
-  s2PauseTriggered: false,
-  isDraggingFab: false,
-  fabExpanded: false,
-  // Segment boundaries (fraction of total duration)
-  segmentBoundaries: [0.22, 0.42, 0.61, 0.81],
-  // S2 ends at first boundary
-  s2PausePoint: 0.22,
-  // Temporal freeze frame: escalation points at S1→S2, S2→S3, S3→S4 boundaries
-  escalationPoints: [0.22, 0.42, 0.61],
-  freezeTriggered: {},   // {index: true} — tracks which points already fired
-  freezeActive: false,   // true while a freeze is in progress
-};
-
-// --- Tri-level parameter scaling ---
-function getLevelMultiplier(level) {
-  // Level 1 (protection): push params toward safe (multiply distance by 1.5, clamp to 1)
-  // Level 2 (baseline): child's own (1.0)
-  // Level 3 (challenge): push toward reality (multiply distance by 0.5)
-  return { 1: 1.5, 2: 1.0, 3: 0.5 }[level] || 1.0;
-}
-
-function getScaledParams(level) {
-  const mult = getLevelMultiplier(level);
-  const r = state.results;
-  // normalizedDistance: 0 = close/high tolerance, 1 = far/low tolerance
-  const audDist = r.auditory ? Math.min(1, r.auditory.normalizedDistance * mult) : 0.5;
-  const visDist = r.visual ? Math.min(1, r.visual.normalizedDistance * mult) : 0.5;
-  const tempDist = r.temporal ? Math.min(1, r.temporal.normalizedDistance * mult) : 0.5;
-
-  return {
-    // Audio: lowpass cutoff (close=bright, far=muffled)
-    audioCutoff: 8000 * Math.pow(200 / 8000, audDist),
-    audioVolume: 0.3 + (1 - audDist) * 0.7,
-    // Visual: brightness (CSS filter)
-    brightness: 0.5 + (1 - visDist) * 0.5,  // 0.5 (dim) to 1.0 (full)
-    // Temporal: pause duration at escalation points (ms)
-    pauseDuration: 300 + tempDist * 2500,
-  };
-}
-
-// --- Apply real-time audio filtering via Web Audio API ---
-function initVideoAudio() {
-  const video = document.getElementById('sense-video');
-  if (videoState.audioCtxVideo) return;
-
-  videoState.audioCtxVideo = new (window.AudioContext || window.webkitAudioContext)();
-  videoState.sourceNode = videoState.audioCtxVideo.createMediaElementSource(video);
-
-  videoState.filterNodeVideo = videoState.audioCtxVideo.createBiquadFilter();
-  videoState.filterNodeVideo.type = 'lowpass';
-  videoState.filterNodeVideo.Q.value = 1;
-
-  videoState.gainNodeVideo = videoState.audioCtxVideo.createGain();
-
-  videoState.sourceNode.connect(videoState.filterNodeVideo);
-  videoState.filterNodeVideo.connect(videoState.gainNodeVideo);
-  videoState.gainNodeVideo.connect(videoState.audioCtxVideo.destination);
-}
-
-function applyVideoFilters(level) {
-  const params = getScaledParams(level);
-  const video = document.getElementById('sense-video');
-
-  // Audio
-  if (videoState.filterNodeVideo) {
-    const ctx = videoState.audioCtxVideo;
-    videoState.filterNodeVideo.frequency.setTargetAtTime(params.audioCutoff, ctx.currentTime, 0.1);
-    videoState.gainNodeVideo.gain.setTargetAtTime(params.audioVolume, ctx.currentTime, 0.1);
-  }
-
-  // Visual: CSS brightness filter on video element
-  video.style.filter = `brightness(${params.brightness})`;
-}
-
-// --- Update sensory profile display ---
-function updateProfileDisplay(level) {
-  const r = state.results;
-  const mult = getLevelMultiplier(level);
-
-  const dims = [
-    { key: 'auditory', labels: ['Comfortable', 'Moderate', 'Sensitive'] },
-    { key: 'visual',   labels: ['Bright OK', 'Moderate', 'Dim preferred'] },
-    { key: 'spatial',  labels: ['Close', 'Medium', 'Distant'] },
-    { key: 'temporal', labels: ['Quick', 'Moderate', 'Slow'] },
-  ];
-
-  dims.forEach(dim => {
-    const bar = document.getElementById(`bar-${dim.key}`);
-    const label = document.getElementById(`label-${dim.key}`);
-    if (!bar || !label) return;
-    const d = r[dim.key] ? Math.min(1, r[dim.key].normalizedDistance * mult) : 0.5;
-    const pct = (1 - d) * 100;
-    bar.style.width = pct + '%';
-    const idx = d < 0.33 ? 0 : d < 0.66 ? 1 : 2;
-    label.textContent = dim.labels[idx];
-  });
-}
-
-// --- Timeline update ---
-function updateTimeline() {
-  const video = document.getElementById('sense-video');
-  if (!video || !video.duration) return;
-  const pct = (video.currentTime / video.duration) * 100;
-  const prog = document.getElementById('timeline-progress');
-  const thumb = document.getElementById('timeline-thumb');
-  const timeLabel = document.getElementById('timeline-time');
-  if (prog) prog.style.width = pct + '%';
-  if (thumb) thumb.style.left = pct + '%';
-  if (timeLabel) {
-    const cur = formatTime(video.currentTime);
-    const tot = formatTime(video.duration);
-    timeLabel.textContent = `${cur} / ${tot}`;
-  }
-
-  // S2 pause check (caregiver level selection)
-  if (!videoState.s2PauseTriggered && video.currentTime / video.duration >= videoState.s2PausePoint) {
-    videoState.s2PauseTriggered = true;
-    video.pause();
-    document.getElementById('s2-pause-overlay').classList.remove('hidden');
-    document.querySelector('.video-fullscreen').classList.add('paused');
-    return; // don't also trigger freeze frame at the same point
-  }
-
-  // Temporal freeze frame at escalation points
-  if (!videoState.freezeActive && videoState.s2PauseTriggered) {
-    const progress = video.currentTime / video.duration;
-    for (let i = 0; i < videoState.escalationPoints.length; i++) {
-      const ep = videoState.escalationPoints[i];
-      // Trigger if we crossed this point and haven't triggered it yet
-      // Use a small window (±1%) to catch the event
-      if (!videoState.freezeTriggered[i] && progress >= ep && progress < ep + 0.02) {
-        // Skip the first escalation point (0.22) — that's handled by S2 pause
-        if (i === 0) { videoState.freezeTriggered[i] = true; continue; }
-        videoState.freezeTriggered[i] = true;
-        triggerFreezeFrame(i);
-        break;
+    // Fade out demo hands only after practice is done
+    if (!state._isPractice) {
+      const hands = document.querySelector('.drum-hands');
+      if (hands && !hands.classList.contains('tapped')) {
+        hands.classList.add('tapped');
       }
     }
+
+    // Flash beat ball green on hit
+    const beatBall = document.getElementById('beat-ball');
+    if (beatBall) {
+      beatBall.classList.add('hit');
+      setTimeout(() => beatBall.classList.remove('hit'), 200);
+    }
+
+    // Calculate average interval from taps
+    if (tapTimes.length >= 2) {
+      const intervals = [];
+      for (let i = 1; i < tapTimes.length; i++) {
+        intervals.push(tapTimes[i] - tapTimes[i - 1]);
+      }
+      avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+
+      // Update tempo display
+      // Map interval: 200ms (very fast) → 5 dots, 1000ms (very slow) → 1 dot
+      const tempoDots = Math.max(1, Math.min(5, Math.round(6 - avgInterval / 200)));
+      tempoDisplay.querySelectorAll('.tempo-dot').forEach((dot, i) => {
+        dot.classList.toggle('active', i < tempoDots);
+      });
+
+      const tempoNames = ['', 'Very Slow', 'Slow', 'Medium', 'Fast', 'Very Fast'];
+      tempoLabel.textContent = tempoNames[tempoDots] || '';
+
+      // Animate canvas elements to match the beat
+      updateCanvasAnimationSpeed(avgInterval);
+    }
+
+    // Energy bar: every 2 taps lights one segment
+    const totalTaps = tapTimes.length;
+    const litCount = Math.min(5, Math.floor(totalTaps / 4));
+    document.querySelectorAll('.energy-seg').forEach((seg, i) => {
+      if (i < litCount) {
+        if (!seg.classList.contains('lit')) {
+          seg.classList.add('lit', 'full-pulse');
+          setTimeout(() => seg.classList.remove('full-pulse'), 400);
+        }
+      }
+    });
+
+    // Stop metronome in recording round — child plays freely
+    if (!state._isPractice && state._stopMetronome) {
+      state._stopMetronome();
+      state._stopMetronome = null;
+    }
+
+    if (litCount < 5) {
+      drumHint.textContent = totalTaps < 2 ? 'Follow the beat!' : 'Keep going!';
+    } else {
+      drumHint.textContent = 'Great rhythm!';
+    }
+
+    // Store for preference extraction
+    state.drumTaps = tapTimes.slice();
+    state.drumAvgInterval = avgInterval;
+
+    logEvent('drum_tap', { tapCount: totalTaps, avgInterval: Math.round(avgInterval) });
+
+    // Check if practice round is done
+    if (state._checkPracticeEnd) state._checkPracticeEnd();
+
+    // Auto-advance when energy bar is full (only in recording round)
+    if (litCount >= 5) {
+      if (state._stopMetronome) state._stopMetronome();
+      setTimeout(() => {
+        goToPhase('processing');
+      }, 800);
+    }
+  };
+
+  drumArea.addEventListener('pointerdown', drumArea._drumHandler);
+
+  // Remove adjust handlers from elements
+  document.querySelectorAll('.canvas-element').forEach(el => {
+    el.classList.remove('audio-adjustable', 'lights-adjustable');
+    el._audioClickHandler && el.removeEventListener('pointerdown', el._audioClickHandler);
+    el._lightsClickHandler && el.removeEventListener('pointerdown', el._lightsClickHandler);
+  });
+
+  // Warm up AudioContext for drum phase (iOS needs this)
+  if (state.audioCtx) {
+    state.audioCtx.resume();
   }
+
+  // Disable drum tapping during intro
+  let drumEnabled = false;
+  const origHandler = drumArea._drumHandler;
+
+  // Metronome synced with hand animation: each hand cycle 1.4s, 2 hands offset 0.7s = hit every 700ms
+  let beatInterval = 700;
+  let metronomeTimer = null;
+
+  function playMetronomeClick() {
+    if (!state.audioCtx) {
+      state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const ctx = state.audioCtx;
+    ctx.resume().then(() => {
+      const now = ctx.currentTime;
+
+      // Woodblock click — short bandpass noise + resonant tone
+      const bufSize = Math.floor(ctx.sampleRate * 0.02);
+      const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < bufSize; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.003));
+      const noise = ctx.createBufferSource();
+      noise.buffer = buf;
+
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 1800;
+      bp.Q.value = 15;
+
+      const tone = ctx.createOscillator();
+      tone.type = 'sine';
+      tone.frequency.value = 1200;
+
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.25, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.02);
+
+      const toneGain = ctx.createGain();
+      toneGain.gain.setValueAtTime(0.12, now);
+      toneGain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+
+      noise.connect(bp);
+      bp.connect(noiseGain);
+      noiseGain.connect(ctx.destination);
+      tone.connect(toneGain);
+      toneGain.connect(ctx.destination);
+
+      noise.start(now);
+      tone.start(now);
+      noise.stop(now + 0.02);
+      tone.stop(now + 0.05);
+    });
+  }
+
+  function startMetronome() {
+    stopMetronome();
+    playMetronomeClick();
+    metronomeTimer = setInterval(playMetronomeClick, beatInterval);
+  }
+
+  function stopMetronome() {
+    if (metronomeTimer) {
+      clearInterval(metronomeTimer);
+      metronomeTimer = null;
+    }
+  }
+
+  function updateMetronomeTempo(newInterval) {
+    beatInterval = newInterval;
+    startMetronome(); // restart with new interval
+  }
+
+  // Store reference so we can update tempo from tap handler
+  state._updateMetronomeTempo = updateMetronomeTempo;
+  state._stopMetronome = stopMetronome;
+
+  // --- Two rounds: Practice + Record ---
+  let isPractice = true;
+  state._isPractice = true;
+  drumHint.textContent = 'Practice! Try the beat';
+  // Delay metronome start to sync with first hand hitting at 630ms (45% of 1.4s)
+  setTimeout(() => startMetronome(), 630);
+  drumArea.addEventListener('pointerdown', drumArea._drumHandler);
+
+  // After 10 taps in practice, show 3-2-1 then start recording
+  state._checkPracticeEnd = () => {
+    if (isPractice && tapTimes.length >= 10) {
+      isPractice = false;
+      state._isPractice = false;
+      // Reset taps and energy bar for real recording
+      tapTimes.length = 0;
+      document.querySelectorAll('.energy-seg').forEach(seg => seg.classList.remove('lit', 'full-pulse'));
+
+      // 3-2-1 countdown — big shrinking numbers in center
+      drumArea.removeEventListener('pointerdown', drumArea._drumHandler);
+      drumHint.textContent = '';
+
+      function showCountdown(text, callback) {
+        const overlay = document.createElement('div');
+        overlay.className = 'countdown-number';
+        overlay.textContent = text;
+        document.querySelector('.drum-center').appendChild(overlay);
+        setTimeout(() => {
+          overlay.remove();
+          if (callback) callback();
+        }, 800);
+      }
+
+      showCountdown('3', () => {
+        showCountdown('2', () => {
+          showCountdown('1', () => {
+            showCountdown('Go!', () => {
+              drumArea.addEventListener('pointerdown', drumArea._drumHandler);
+              drumHint.textContent = 'Now for real!';
+            });
+          });
+        });
+      });
+    }
+  };
 }
 
-function triggerFreezeFrame(index) {
+function updateCanvasAnimationSpeed(intervalMs) {
+  const speed = Math.max(0.3, Math.min(2, intervalMs / 500));
+  const cycleMs = speed * 1000;
+
+  document.querySelectorAll('.canvas-element').forEach(el => {
+    // Try sprite animation first
+    const usedSprite = startSpriteAnimation(el, cycleMs);
+
+    // Fall back to CSS animation
+    if (!usedSprite) {
+      const type = el.dataset.type;
+      const animName = ANIMATION_MAP[type];
+      if (animName) {
+        el.style.animation = `${animName} ${speed}s ease-in-out infinite`;
+      }
+    }
+  });
+}
+
+function playDrumHit() {
+  if (!state.audioCtx) {
+    state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  const ctx = state.audioCtx;
+  // Always resume — iOS can suspend at any time
+  ctx.resume().then(() => {
+    const now = ctx.currentTime;
+
+    // Realistic drum: body (pitch drop) + warmth (triangle) + stick hit (noise)
+
+    // 1. Drum body
+    const body = ctx.createOscillator();
+    body.type = 'sine';
+    body.frequency.setValueAtTime(180, now);
+    body.frequency.exponentialRampToValueAtTime(60, now + 0.15);
+    const bodyGain = ctx.createGain();
+    bodyGain.gain.setValueAtTime(0.5, now);
+    bodyGain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+
+    // 2. Warmth harmonic
+    const body2 = ctx.createOscillator();
+    body2.type = 'triangle';
+    body2.frequency.setValueAtTime(90, now);
+    body2.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+    const body2Gain = ctx.createGain();
+    body2Gain.gain.setValueAtTime(0.3, now);
+    body2Gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+    // 3. Stick hit (bandpass noise)
+    const bufferSize = Math.floor(ctx.sampleRate * 0.08);
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.value = 3000;
+    noiseFilter.Q.value = 1.5;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.15, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+
+    body.connect(bodyGain); bodyGain.connect(ctx.destination);
+    body2.connect(body2Gain); body2Gain.connect(ctx.destination);
+    noise.connect(noiseFilter); noiseFilter.connect(noiseGain); noiseGain.connect(ctx.destination);
+
+    body.start(now); body2.start(now); noise.start(now);
+    body.stop(now + 0.3); body2.stop(now + 0.35); noise.stop(now + 0.08);
+  });
+}
+
+// ============================================================
+// PREFERENCE EXTRACTION
+// ============================================================
+function extractPreferences() {
+  const avatar = state.placedElements.find(e => e.type === 'avatar');
+  const container = document.getElementById('canvas-container');
+  const maxDist = container
+    ? Math.sqrt(container.offsetWidth ** 2 + container.offsetHeight ** 2)
+    : 1000;
+
+  // SPATIAL: average distance of friends/spatial elements from avatar
+  const spatialElems = state.placedElements.filter(e => e.dimension === 'spatial');
+  let spatialScore = 0.5;
+  if (avatar && spatialElems.length > 0) {
+    const avgDist = spatialElems.reduce((sum, f) => {
+      return sum + Math.sqrt((f.x - avatar.x) ** 2 + (f.y - avatar.y) ** 2);
+    }, 0) / spatialElems.length;
+    spatialScore = Math.min(1, avgDist / (maxDist * 0.5));
+  }
+
+  // AUDITORY: average note count of auditory elements
+  const audioElems = state.placedElements.filter(e => e.dimension === 'auditory');
+  let auditoryScore = 0.5;
+  if (audioElems.length > 0) {
+    const avgNotes = audioElems.reduce((sum, e) => {
+      return sum + ((e.volumeLevel !== undefined ? e.volumeLevel : 2) / MAX_NOTES);
+    }, 0) / audioElems.length;
+    auditoryScore = avgNotes;
+  }
+
+  // VISUAL: average saturation of colors used
+  let visualScore = 0.5;
+  const realStrokes = state.colorStrokes.filter(s => s.color !== 'eraser');
+  if (realStrokes.length > 0) {
+    const satValues = realStrokes.map(s => getColorSaturation(s.color));
+    visualScore = satValues.reduce((a, b) => a + b, 0) / satValues.length;
+  }
+
+  // TEMPORAL: from drum rhythm — faster tapping = higher score
+  let temporalScore = 0.5;
+  if (state.drumAvgInterval) {
+    // Map: 200ms (very fast) → 1.0, 1000ms (very slow) → 0.0
+    temporalScore = Math.max(0, Math.min(1, (1000 - state.drumAvgInterval) / 800));
+  }
+
+  return {
+    spatial: { score: spatialScore, friendCount: spatialElems.length },
+    auditory: { score: auditoryScore, elementCount: audioElems.length },
+    visual: { score: visualScore, strokeCount: realStrokes.length },
+    temporal: { score: temporalScore, animatedCount: state.animatedElements.size, totalCount: nonAvatarElements.length },
+  };
+}
+
+function getColorSaturation(hexColor) {
+  if (!hexColor || hexColor.length < 7) return 0;
+  const r = parseInt(hexColor.slice(1, 3), 16) / 255;
+  const g = parseInt(hexColor.slice(3, 5), 16) / 255;
+  const b = parseInt(hexColor.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return 0;
+  const d = max - min;
+  return l > 0.5 ? d / (2 - max - min) : d / (max + min);
+}
+
+// ============================================================
+// DATA EXPORT
+// ============================================================
+function exportData() {
+  const data = {
+    timestamp: new Date().toISOString(),
+    eventType: state.eventType,
+    preferences: extractPreferences(),
+    placedElements: state.placedElements,
+    colorStrokes: state.colorStrokes.map(s => ({
+      color: s.color,
+      width: s.width,
+      pointCount: s.points.length,
+    })),
+    animatedElements: [...state.animatedElements],
+    interactionLog: state.interactionLog,
+    totalDuration: Date.now() - state.sessionStart,
+    phaseDurations: state.phaseDurations,
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sense-data-${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// PROCESSING SCREEN
+// ============================================================
+function runProcessing() {
+  const steps = ['step-reading', 'step-scene', 'step-prefs', 'step-ready'];
+  let i = 0;
+
+  // Reset all steps
+  steps.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.remove('active');
+      const dot = el.querySelector('.step-dot');
+      if (dot) dot.classList.remove('active');
+    }
+  });
+
+  const interval = setInterval(() => {
+    if (i < steps.length) {
+      const el = document.getElementById(steps[i]);
+      if (el) {
+        el.classList.add('active');
+        const dot = el.querySelector('.step-dot');
+        if (dot) dot.classList.add('active');
+      }
+      i++;
+    } else {
+      clearInterval(interval);
+      setTimeout(() => goToPhase('video'), 600);
+    }
+  }, 800);
+}
+
+// ============================================================
+// VIDEO PLAYER (Stage 2 — simplified)
+// ============================================================
+let videoPreferences = null;
+let currentLevel = 2; // 1=gentle, 2=baseline, 3=challenge
+let s2PauseTriggered = false;
+
+function initVideoPlayer() {
+  videoPreferences = extractPreferences();
+  s2PauseTriggered = false;
+
   const video = document.getElementById('sense-video');
-  const overlay = document.getElementById('freeze-overlay');
-  const params = getScaledParams(videoState.currentLevel);
-  const duration = params.pauseDuration; // 300–2800ms
+  const playPause = document.getElementById('vc-play-pause');
+  const timeDisplay = document.getElementById('timeline-time');
+  const progressFill = document.getElementById('timeline-progress');
+  const progressThumb = document.getElementById('timeline-thumb');
+  const overlay = document.getElementById('video-play-overlay');
+  const overlayIcon = document.getElementById('play-overlay-icon');
+  const videoWrap = document.querySelector('.video-fullscreen');
 
-  videoState.freezeActive = true;
-  video.pause();
+  // Apply initial preferences
+  applyVideoPreferences();
 
-  // Show freeze indicator
-  if (overlay) {
-    const countdown = overlay.querySelector('.freeze-countdown');
-    if (countdown) countdown.textContent = `${(duration / 1000).toFixed(1)}s`;
-    overlay.classList.remove('hidden');
+  // Populate profile bars
+  populateProfile();
+
+  // Play/Pause
+  function togglePlay() {
+    if (video.paused) {
+      video.play();
+      playPause.innerHTML = '&#9646;&#9646;';
+      videoWrap.classList.remove('paused');
+    } else {
+      video.pause();
+      playPause.innerHTML = '&#9654;';
+      videoWrap.classList.add('paused');
+    }
+    overlayIcon.classList.remove('flash');
+    void overlayIcon.offsetWidth;
+    overlayIcon.classList.add('flash');
   }
 
-  console.log(`[SENSE] Freeze frame #${index + 1} at ${(video.currentTime).toFixed(1)}s — pausing ${duration}ms`);
+  playPause.onclick = togglePlay;
+  overlay.onclick = togglePlay;
 
-  // Countdown update
-  const startTime = Date.now();
-  const countdownInterval = setInterval(() => {
-    const elapsed = Date.now() - startTime;
-    const remaining = Math.max(0, duration - elapsed);
-    const countdown = overlay ? overlay.querySelector('.freeze-countdown') : null;
-    if (countdown) countdown.textContent = `${(remaining / 1000).toFixed(1)}s`;
-    if (remaining <= 0) clearInterval(countdownInterval);
-  }, 100);
+  // Time update
+  video.ontimeupdate = () => {
+    if (!video.duration) return;
+    const pct = (video.currentTime / video.duration) * 100;
+    progressFill.style.width = pct + '%';
+    progressThumb.style.left = pct + '%';
+    timeDisplay.textContent = formatTime(video.currentTime) + ' / ' + formatTime(video.duration);
 
-  function resumeFromFreeze() {
-    clearInterval(countdownInterval);
-    videoState.freezeActive = false;
-    if (overlay) overlay.classList.add('hidden');
-    video.play().catch(() => {
-      // Browser blocked auto-play — show tap hint, user can tap video to resume
-      console.warn('[SENSE] Auto-resume blocked, waiting for user tap');
-      document.querySelector('.video-fullscreen').classList.add('paused');
-    });
-    document.querySelector('.video-fullscreen').classList.remove('paused');
-    console.log(`[SENSE] Freeze frame #${index + 1} ended — resuming`);
-  }
+    // S2 pause at 22%
+    if (!s2PauseTriggered && pct >= 22) {
+      s2PauseTriggered = true;
+      video.pause();
+      playPause.innerHTML = '&#9654;';
+      videoWrap.classList.add('paused');
+      document.getElementById('s2-pause-overlay').classList.remove('hidden');
+    }
+  };
 
-  // Auto-resume after pause duration
-  setTimeout(resumeFromFreeze, duration);
+  // Timeline seek
+  document.getElementById('timeline-track').onclick = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    video.currentTime = pct * video.duration;
+  };
 
-  // Fallback: tap overlay to resume immediately
-  if (overlay) {
-    overlay.onclick = () => {
-      clearTimeout();
-      resumeFromFreeze();
+  // Settings panel toggle
+  document.getElementById('fab-dot').onclick = () => {
+    document.getElementById('fab-panel').classList.toggle('hidden');
+  };
+
+  // Profile toggle
+  document.getElementById('fab-profile-toggle').onclick = () => {
+    document.getElementById('fab-profile').classList.toggle('hidden');
+  };
+
+  // Level buttons
+  document.querySelectorAll('.fab-level').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.fab-level').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentLevel = parseInt(btn.dataset.level);
+      applyVideoPreferences();
     };
-  }
+  });
+
+  // S2 level selection
+  document.querySelectorAll('.s2-level-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.s2-level-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    };
+  });
+
+  document.getElementById('s2-continue').onclick = () => {
+    const selected = document.querySelector('.s2-level-btn.selected');
+    if (selected) {
+      currentLevel = parseInt(selected.dataset.level);
+      document.querySelectorAll('.fab-level').forEach(b => {
+        b.classList.toggle('active', b.dataset.level === selected.dataset.level);
+      });
+      applyVideoPreferences();
+    }
+    document.getElementById('s2-pause-overlay').classList.add('hidden');
+    const video = document.getElementById('sense-video');
+    video.play();
+    document.getElementById('vc-play-pause').innerHTML = '&#9646;&#9646;';
+    document.querySelector('.video-fullscreen').classList.remove('paused');
+  };
+}
+
+function applyVideoPreferences() {
+  if (!videoPreferences) return;
+
+  const video = document.getElementById('sense-video');
+  const levelMultiplier = currentLevel === 1 ? 0.5 : currentLevel === 3 ? 1.5 : 1.0;
+
+  // Visual: CSS brightness
+  const brightness = 0.6 + videoPreferences.visual.score * 0.4 * levelMultiplier;
+  video.style.filter = `brightness(${Math.min(1.5, brightness)})`;
+}
+
+function populateProfile() {
+  if (!videoPreferences) return;
+  const dims = ['auditory', 'visual', 'spatial', 'temporal'];
+  dims.forEach(dim => {
+    const bar = document.getElementById(`bar-${dim}`);
+    const label = document.getElementById(`label-${dim}`);
+    if (bar && videoPreferences[dim]) {
+      const pct = Math.round(videoPreferences[dim].score * 100);
+      bar.style.width = pct + '%';
+      if (label) label.textContent = pct + '%';
+    }
+  });
 }
 
 function formatTime(s) {
+  if (!s || isNaN(s)) return '0:00';
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
-  return `${m}:${sec.toString().padStart(2, '0')}`;
-}
-
-// --- Settings panel toggle (from ⚙ in control bar) ---
-function toggleFab() {
-  const panel = document.getElementById('fab-panel');
-  videoState.fabExpanded = !videoState.fabExpanded;
-  panel.classList.toggle('hidden', !videoState.fabExpanded);
-}
-
-// --- Start Stage 2 ---
-function startStage2() {
-  showScreen('screen-processing');
-  spawnParticles({ color: '147,130,255', count: 15, speed: 0.2, size: 3 });
-
-  // Animate processing steps
-  const steps = ['step-spatial', 'step-audio', 'step-visual', 'step-ready'];
-  steps.forEach((id, i) => {
-    setTimeout(() => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.classList.add('active');
-        el.querySelector('.step-dot').classList.add('active');
-      }
-      // Mark previous as done
-      if (i > 0) {
-        const prev = document.getElementById(steps[i - 1]);
-        if (prev) prev.querySelector('.step-dot').classList.add('done');
-      }
-    }, 600 * (i + 1));
-  });
-
-  // Transition to video after processing animation
-  setTimeout(() => {
-    showScreen('screen-video');
-    spawnParticles({ color: '255,255,255', count: 0, speed: 0, size: 0 }); // no particles during video
-    initVideoPlayback();
-  }, 600 * (steps.length + 1));
-}
-
-function initVideoPlayback() {
-  const video = document.getElementById('sense-video');
-  const fullscreen = document.querySelector('.video-fullscreen');
-
-  // Select base video based on spatial distance
-  // Note: near/far are 8s single-segment only; medium is the full 36s narrative
-  // For demo, always use medium to show the complete story
-  const spatialDist = state.results.spatial ? state.results.spatial.normalizedDistance : 0.5;
-  let spatialLevel = 'medium';
-  if (spatialDist < 0.33) spatialLevel = 'near';
-  else if (spatialDist > 0.66) spatialLevel = 'far';
-
-  // Check if full narrative exists for this level, fallback to medium
-  video.onerror = () => {
-    if (spatialLevel !== 'medium') {
-      spatialLevel = 'medium';
-      video.src = 'video/base_medium.mp4';
-      video.load();
-    }
-  };
-  video.src = `video/base_${spatialLevel}.mp4`;
-  video.load();
-
-  // Init audio processing
-  initVideoAudio();
-
-  // Apply initial filters (baseline = level 2)
-  videoState.currentLevel = 2;
-  videoState.s2PauseTriggered = false;
-  videoState.freezeTriggered = {};
-  videoState.freezeActive = false;
-  applyVideoFilters(2);
-  updateProfileDisplay(2);
-
-  // Timeline update loop
-  video.addEventListener('timeupdate', updateTimeline);
-  video.addEventListener('ended', () => {
-    fullscreen.classList.add('paused');
-    document.getElementById('play-overlay-icon').textContent = '↺';
-  });
-
-  // Update play/pause button in control bar
-  video.addEventListener('play', () => {
-    const btn = document.getElementById('vc-play-pause');
-    if (btn) btn.textContent = '⏸';
-  });
-  video.addEventListener('pause', () => {
-    const btn = document.getElementById('vc-play-pause');
-    if (btn) btn.textContent = '▶';
-  });
-
-  // Start playing
-  video.play().then(() => {
-    fullscreen.classList.remove('paused');
-    if (videoState.audioCtxVideo && videoState.audioCtxVideo.state === 'suspended') {
-      videoState.audioCtxVideo.resume();
-    }
-  }).catch(() => {
-    // Autoplay blocked — show play button
-    fullscreen.classList.add('paused');
-  });
+  return m + ':' + (sec < 10 ? '0' : '') + sec;
 }
 
 // ============================================================
 // INIT
 // ============================================================
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('btn-start').addEventListener('click', nextScene);
+// ============================================================
+// PINCH GESTURES (two-finger zoom/resize)
+// ============================================================
+(function initPinchGestures() {
+  const container = document.getElementById('canvas-container');
+  if (!container) return;
 
-  document.getElementById('btn-restart').addEventListener('click', () => {
-    state.currentScene = -1;
-    state.results = {};
-    state.confirmed = false;
-    state.interactionLog = [];
-    spawnParticles(SCENE_PARTICLES.welcome);
-    showScreen('screen-welcome');
-  });
+  let pinchStartDist = 0;
+  let pinchStartScale = 1;
+  let pinchStartMidX = 0, pinchStartMidY = 0;
+  let panStartX = 0, panStartY = 0;
+  let pinchTarget = null;
+  let pinchStartSize = 0;
+  let currentScale = 1;
+  let currentX = 0, currentY = 0;
+  const touches = {};
 
-  document.getElementById('btn-export').addEventListener('click', () => {
-    const data = {
-      sessionId: `SENSE_${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      results: state.results,
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sense_results_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  });
+  function applyTransform() {
+    container.style.transform = `translate(${currentX}px, ${currentY}px) scale(${currentScale})`;
+    container.style.transformOrigin = 'center center';
+  }
 
-  // --- Stage 2: Watch Video button ---
-  document.getElementById('btn-watch-video').addEventListener('click', startStage2);
-
-  // --- Skip to Stage 2 (demo shortcut) ---
-  document.getElementById('btn-skip').addEventListener('click', () => {
-    // Set default results (medium for all dimensions)
-    state.results = {
-      auditory:  { normalizedDistance: 0.4, parameter: 'frequencyCutoff', value: 2000, label: 'Medium tolerance' },
-      visual:    { normalizedDistance: 0.4, parameter: 'brightnessLevel', value: 0.4, label: 'Moderate' },
-      spatial:   { normalizedDistance: 0.5, parameter: 'comfortableDistance', value: 0.5, label: 'Medium distance' },
-      temporal:  { normalizedDistance: 0.4, parameter: 'bufferLatency', value: 1300, label: 'Moderate pace' },
-    };
-    startStage2();
-  });
-
-  // --- Stage 2: Play/Pause (click video OR control bar button) ---
-  function togglePlayPause() {
-    const video = document.getElementById('sense-video');
-    const fullscreen = document.querySelector('.video-fullscreen');
-    const icon = document.getElementById('play-overlay-icon');
-    if (video.paused || video.ended) {
-      if (video.ended) { video.currentTime = 0; videoState.s2PauseTriggered = false; videoState.freezeTriggered = {}; videoState.freezeActive = false; }
-      video.play();
-      fullscreen.classList.remove('paused');
-      if (icon) { icon.textContent = '⏸'; }
-    } else {
-      video.pause();
-      fullscreen.classList.add('paused');
-      if (icon) { icon.textContent = '▶'; }
+  container.addEventListener('touchstart', (e) => {
+    for (const t of e.changedTouches) {
+      touches[t.identifier] = { x: t.clientX, y: t.clientY };
     }
-    // Flash overlay icon
-    if (icon) {
-      icon.classList.remove('flash');
-      void icon.offsetWidth;
-      icon.classList.add('flash');
+
+    if (Object.keys(touches).length === 2) {
+      const ids = Object.keys(touches);
+      const t1 = touches[ids[0]];
+      const t2 = touches[ids[1]];
+      pinchStartDist = Math.sqrt((t2.x - t1.x) ** 2 + (t2.y - t1.y) ** 2);
+      pinchStartMidX = (t1.x + t2.x) / 2;
+      pinchStartMidY = (t1.y + t2.y) / 2;
+      panStartX = currentX;
+      panStartY = currentY;
+
+      // Check if pinch is on an element
+      if (state.canvasSubPhase === 'add-elements' || state.canvasSubPhase === 'adjust') {
+        const el = document.elementFromPoint(pinchStartMidX, pinchStartMidY);
+        const canvasEl = el && el.closest('.canvas-element');
+        if (canvasEl) {
+          pinchTarget = canvasEl;
+          pinchStartSize = parseInt(canvasEl.style.width) || 140;
+          e.preventDefault();
+          return;
+        }
+      }
+
+      pinchTarget = null;
+      pinchStartScale = currentScale;
+      e.preventDefault();
     }
-  }
+  }, { passive: false });
 
-  const playOverlay = document.getElementById('video-play-overlay');
-  if (playOverlay) playOverlay.addEventListener('click', togglePlayPause);
+  container.addEventListener('touchmove', (e) => {
+    for (const t of e.changedTouches) {
+      touches[t.identifier] = { x: t.clientX, y: t.clientY };
+    }
 
-  const vcPlayBtn = document.getElementById('vc-play-pause');
-  if (vcPlayBtn) vcPlayBtn.addEventListener('click', togglePlayPause);
+    if (Object.keys(touches).length === 2) {
+      e.preventDefault();
+      const ids = Object.keys(touches);
+      const t1 = touches[ids[0]];
+      const t2 = touches[ids[1]];
+      const dist = Math.sqrt((t2.x - t1.x) ** 2 + (t2.y - t1.y) ** 2);
+      const midX = (t1.x + t2.x) / 2;
+      const midY = (t1.y + t2.y) / 2;
+      const ratio = dist / pinchStartDist;
 
-  // --- Stage 2: Timeline seek ---
-  const timelineTrack = document.getElementById('timeline-track');
-  if (timelineTrack) {
-    timelineTrack.addEventListener('click', (e) => {
-      const video = document.getElementById('sense-video');
-      if (!video.duration) return;
-      const rect = timelineTrack.getBoundingClientRect();
-      const pct = (e.clientX - rect.left) / rect.width;
-      video.currentTime = pct * video.duration;
-    });
-  }
+      if (pinchTarget) {
+        const newSize = Math.max(60, Math.min(300, pinchStartSize * ratio));
+        pinchTarget.style.width = newSize + 'px';
+        pinchTarget.style.height = newSize + 'px';
+        if (pinchTarget.dataset.dimension === 'auditory') {
+          updateAudioForSize(newSize);
+        }
+      } else {
+        // Zoom + Pan simultaneously
+        currentScale = Math.max(0.5, Math.min(3, pinchStartScale * ratio));
+        currentX = panStartX + (midX - pinchStartMidX);
+        currentY = panStartY + (midY - pinchStartMidY);
+        applyTransform();
+      }
+    }
+  }, { passive: false });
 
-  // --- Stage 2: Settings (⚙) toggle ---
-  const fabDot = document.getElementById('fab-dot');
-  if (fabDot) fabDot.addEventListener('click', toggleFab);
+  container.addEventListener('touchend', (e) => {
+    for (const t of e.changedTouches) {
+      delete touches[t.identifier];
+    }
 
-  // --- Stage 2: Level selection (FAB) ---
-  document.querySelectorAll('.fab-level').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const level = parseInt(btn.dataset.level);
-      videoState.currentLevel = level;
-      document.querySelectorAll('.fab-level').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      applyVideoFilters(level);
-      updateProfileDisplay(level);
-    });
+    if (Object.keys(touches).length < 2) {
+      if (pinchTarget) {
+        updatePlacedElement(pinchTarget);
+        logEvent('element_pinch_resized', {
+          id: pinchTarget.id,
+          size: parseInt(pinchTarget.style.width),
+        });
+        if (pinchTarget.dataset.dimension === 'auditory') {
+          stopAudio();
+        }
+        pinchTarget = null;
+      }
+      pinchStartDist = 0;
+    }
   });
 
-  // --- Stage 2: Profile toggle ---
-  const profileToggle = document.getElementById('fab-profile-toggle');
-  if (profileToggle) {
-    profileToggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      document.getElementById('fab-profile').classList.toggle('hidden');
-    });
-  }
-
-  // --- Stage 2: S2 pause level selection ---
-  document.querySelectorAll('.s2-level-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.s2-level-btn').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      const level = parseInt(btn.dataset.level);
-      videoState.currentLevel = level;
-      // Sync with FAB buttons
-      document.querySelectorAll('.fab-level').forEach(b => {
-        b.classList.toggle('active', parseInt(b.dataset.level) === level);
-      });
-    });
+  container.addEventListener('touchcancel', (e) => {
+    for (const t of e.changedTouches) {
+      delete touches[t.identifier];
+    }
+    pinchTarget = null;
+    pinchStartDist = 0;
   });
 
-  const s2Continue = document.getElementById('s2-continue');
-  if (s2Continue) {
-    s2Continue.addEventListener('click', () => {
-      document.getElementById('s2-pause-overlay').classList.add('hidden');
-      const video = document.getElementById('sense-video');
-      applyVideoFilters(videoState.currentLevel);
-      updateProfileDisplay(videoState.currentLevel);
-      video.play();
-      document.querySelector('.video-fullscreen').classList.remove('paused');
-    });
-  }
+  // Double-tap to reset zoom + pan
+  let lastTap = 0;
+  container.addEventListener('touchend', (e) => {
+    if (e.changedTouches.length === 1 && Object.keys(touches).length === 0) {
+      const now = Date.now();
+      if (now - lastTap < 300) {
+        currentScale = 1;
+        currentX = 0;
+        currentY = 0;
+        applyTransform();
+      }
+      lastTap = now;
+    }
+  });
+})();
 
-  // Touch (Stage 1 drag)
-  document.addEventListener('touchstart', onDragStart, { passive: false });
-  document.addEventListener('touchmove', onDragMove, { passive: false });
-  document.addEventListener('touchend', onDragEnd);
-  // Mouse (Stage 1 drag)
-  document.addEventListener('mousedown', onDragStart);
-  document.addEventListener('mousemove', onDragMove);
-  document.addEventListener('mouseup', onDragEnd);
-});
+console.log('SENSE Canvas Demo loaded');

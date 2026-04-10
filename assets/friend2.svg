@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Head -->
+  <circle cx="50" cy="30" r="20" fill="#FFDAB9" stroke="#E8C9A0" stroke-width="1.5"/>
+  <!-- Hair (pigtails) -->
+  <path d="M 30 22 Q 32 5 50 10 Q 68 5 70 22" fill="#4A2800" stroke="none"/>
+  <circle cx="28" cy="20" r="7" fill="#4A2800"/>
+  <circle cx="72" cy="20" r="7" fill="#4A2800"/>
+  <!-- Eyes -->
+  <circle cx="43" cy="28" r="3" fill="#333"/>
+  <circle cx="57" cy="28" r="3" fill="#333"/>
+  <!-- Smile -->
+  <path d="M 42 36 Q 50 43 58 36" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Body (pink outfit) -->
+  <rect x="35" y="50" width="30" height="28" rx="5" fill="#E91E90" stroke="#D1187F" stroke-width="1.5"/>
+  <!-- Skirt -->
+  <path d="M 32 72 L 38 78 L 50 80 L 62 78 L 68 72 L 65 72 L 35 72 Z" fill="#FF69B4"/>
+  <!-- Arms -->
+  <rect x="22" y="52" width="13" height="8" rx="4" fill="#E91E90"/>
+  <rect x="65" y="52" width="13" height="8" rx="4" fill="#E91E90"/>
+  <!-- Legs -->
+  <rect x="40" y="80" width="8" height="12" rx="4" fill="#FFDAB9"/>
+  <rect x="52" y="80" width="8" height="12" rx="4" fill="#FFDAB9"/>
+  <!-- Shoes -->
+  <ellipse cx="44" cy="93" rx="6" ry="4" fill="#E91E90"/>
+  <ellipse cx="56" cy="93" rx="6" ry="4" fill="#E91E90"/>
+</svg>

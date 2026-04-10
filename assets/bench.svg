@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Seat planks -->
+  <rect x="10" y="40" width="80" height="8" rx="2" fill="#8B6914" stroke="#6B4F10" stroke-width="1"/>
+  <rect x="10" y="50" width="80" height="8" rx="2" fill="#A07818" stroke="#6B4F10" stroke-width="1"/>
+  <!-- Back rest planks -->
+  <rect x="12" y="15" width="76" height="7" rx="2" fill="#8B6914" stroke="#6B4F10" stroke-width="1" transform="rotate(-2 50 18)"/>
+  <rect x="12" y="24" width="76" height="7" rx="2" fill="#A07818" stroke="#6B4F10" stroke-width="1" transform="rotate(-1 50 27)"/>
+  <rect x="12" y="33" width="76" height="7" rx="2" fill="#8B6914" stroke="#6B4F10" stroke-width="1"/>
+  <!-- Left leg -->
+  <rect x="18" y="38" width="5" height="50" fill="#555" rx="1"/>
+  <!-- Right leg -->
+  <rect x="77" y="38" width="5" height="50" fill="#555" rx="1"/>
+  <!-- Left armrest support -->
+  <rect x="15" y="15" width="5" height="45" fill="#555" rx="1"/>
+  <!-- Right armrest support -->
+  <rect x="80" y="15" width="5" height="45" fill="#555" rx="1"/>
+  <!-- Cross brace -->
+  <line x1="20" y1="75" x2="80" y2="75" stroke="#555" stroke-width="3"/>
+</svg>

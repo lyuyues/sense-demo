@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Bottom tier -->
+  <rect x="15" y="55" width="70" height="30" rx="5" fill="#F5A623" stroke="#D4891A" stroke-width="1.5"/>
+  <!-- Top tier -->
+  <rect x="25" y="35" width="50" height="22" rx="4" fill="#FF69B4" stroke="#E055A0" stroke-width="1.5"/>
+  <!-- Frosting drip bottom -->
+  <path d="M 15 55 Q 20 60 25 55 Q 35 62 45 55 Q 55 62 65 55 Q 75 62 85 55" fill="none" stroke="#FFF" stroke-width="3"/>
+  <!-- Frosting drip top -->
+  <path d="M 25 35 Q 32 40 40 35 Q 48 40 55 35 Q 62 40 75 35" fill="none" stroke="#FFF" stroke-width="2.5"/>
+  <!-- Candles -->
+  <rect x="35" y="18" width="4" height="18" rx="1" fill="#4A90D9"/>
+  <rect x="48" y="18" width="4" height="18" rx="1" fill="#4CAF50"/>
+  <rect x="61" y="18" width="4" height="18" rx="1" fill="#FF6B6B"/>
+  <!-- Flames -->
+  <ellipse cx="37" cy="14" rx="3" ry="5" fill="#FFD700"/>
+  <ellipse cx="50" cy="14" rx="3" ry="5" fill="#FFD700"/>
+  <ellipse cx="63" cy="14" rx="3" ry="5" fill="#FFD700"/>
+  <!-- Plate -->
+  <ellipse cx="50" cy="87" rx="40" ry="6" fill="#DDD" stroke="#CCC" stroke-width="1"/>
+</svg>

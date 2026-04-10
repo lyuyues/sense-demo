@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Top bar -->
+  <line x1="10" y1="10" x2="90" y2="10" stroke="#8B7355" stroke-width="4" stroke-linecap="round"/>
+  <!-- Left A-frame -->
+  <line x1="15" y1="10" x2="5" y2="95" stroke="#8B7355" stroke-width="3"/>
+  <line x1="15" y1="10" x2="25" y2="95" stroke="#8B7355" stroke-width="3"/>
+  <!-- Right A-frame -->
+  <line x1="85" y1="10" x2="75" y2="95" stroke="#8B7355" stroke-width="3"/>
+  <line x1="85" y1="10" x2="95" y2="95" stroke="#8B7355" stroke-width="3"/>
+  <!-- Left swing ropes -->
+  <line x1="35" y1="10" x2="30" y2="65" stroke="#999" stroke-width="2"/>
+  <line x1="45" y1="10" x2="46" y2="65" stroke="#999" stroke-width="2"/>
+  <!-- Left seat -->
+  <rect x="28" y="65" width="20" height="5" rx="2" fill="#FF6B6B"/>
+  <!-- Right swing ropes -->
+  <line x1="60" y1="10" x2="58" y2="65" stroke="#999" stroke-width="2"/>
+  <line x1="70" y1="10" x2="72" y2="65" stroke="#999" stroke-width="2"/>
+  <!-- Right seat -->
+  <rect x="56" y="65" width="18" height="5" rx="2" fill="#4A90D9"/>
+</svg>

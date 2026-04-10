@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Box body -->
+  <rect x="15" y="40" width="70" height="50" rx="4" fill="#9B59B6" stroke="#8E44AD" stroke-width="2"/>
+  <!-- Box lid -->
+  <rect x="10" y="30" width="80" height="12" rx="3" fill="#A569BD" stroke="#8E44AD" stroke-width="1.5"/>
+  <!-- Vertical ribbon -->
+  <rect x="45" y="30" width="10" height="60" fill="#FFD700"/>
+  <!-- Horizontal ribbon -->
+  <rect x="10" y="33" width="80" height="6" fill="#FFD700"/>
+  <!-- Bow left -->
+  <ellipse cx="40" cy="25" rx="12" ry="8" fill="#FFD700" stroke="#E6B800" stroke-width="1"/>
+  <!-- Bow right -->
+  <ellipse cx="60" cy="25" rx="12" ry="8" fill="#FFD700" stroke="#E6B800" stroke-width="1"/>
+  <!-- Bow center -->
+  <circle cx="50" cy="27" r="5" fill="#FFC107"/>
+</svg>

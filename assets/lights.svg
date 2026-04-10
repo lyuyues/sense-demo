@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Wire -->
+  <path d="M 5 30 Q 20 40 35 30 Q 50 20 65 30 Q 80 40 95 30" fill="none" stroke="#555" stroke-width="2"/>
+  <!-- Bulb 1 - red -->
+  <circle cx="12" cy="35" r="7" fill="#FF4444"/>
+  <rect x="10" y="28" width="4" height="4" fill="#888"/>
+  <!-- Bulb 2 - yellow -->
+  <circle cx="28" cy="38" r="7" fill="#FFD700"/>
+  <rect x="26" y="31" width="4" height="4" fill="#888"/>
+  <!-- Bulb 3 - green -->
+  <circle cx="44" cy="28" r="7" fill="#4CAF50"/>
+  <rect x="42" y="21" width="4" height="4" fill="#888"/>
+  <!-- Bulb 4 - blue -->
+  <circle cx="60" cy="33" r="7" fill="#4A90D9"/>
+  <rect x="58" y="26" width="4" height="4" fill="#888"/>
+  <!-- Bulb 5 - pink -->
+  <circle cx="76" cy="38" r="7" fill="#FF69B4"/>
+  <rect x="74" y="31" width="4" height="4" fill="#888"/>
+  <!-- Bulb 6 - orange -->
+  <circle cx="92" cy="32" r="7" fill="#FF9800"/>
+  <rect x="90" y="25" width="4" height="4" fill="#888"/>
+  <!-- Glow hints -->
+  <circle cx="12" cy="35" r="10" fill="#FF4444" opacity="0.15"/>
+  <circle cx="44" cy="28" r="10" fill="#4CAF50" opacity="0.15"/>
+  <circle cx="76" cy="38" r="10" fill="#FF69B4" opacity="0.15"/>
+</svg>

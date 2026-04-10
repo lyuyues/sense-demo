@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Box body -->
+  <rect x="15" y="40" width="60" height="45" rx="4" fill="#C68642" stroke="#8B5E3C" stroke-width="2"/>
+  <!-- Lid -->
+  <path d="M 12 40 L 50 25 L 78 40 Z" fill="#DAA520" stroke="#B8860B" stroke-width="1.5"/>
+  <!-- Lid line -->
+  <line x1="15" y1="40" x2="75" y2="40" stroke="#8B5E3C" stroke-width="1"/>
+  <!-- Decoration on front -->
+  <rect x="30" y="52" width="30" height="20" rx="3" fill="#DAA520" stroke="#B8860B" stroke-width="1"/>
+  <!-- Keyhole -->
+  <circle cx="45" cy="62" r="3" fill="#8B5E3C"/>
+  <!-- Crank handle -->
+  <line x1="75" y1="55" x2="90" y2="48" stroke="#8B5E3C" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="92" cy="47" r="5" fill="#DAA520" stroke="#B8860B" stroke-width="1.5"/>
+  <!-- Music notes -->
+  <text x="55" y="22" font-size="14" fill="#FFD700">&#9834;</text>
+  <text x="68" y="16" font-size="11" fill="#FFD700">&#9835;</text>
+</svg>

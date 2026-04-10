@@ -3,268 +3,159 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-  <title>SENSE - Sensory Exploration</title>
-  <link rel="stylesheet" href="style.css?v=5">
+  <title>SENSE - Create Your Story</title>
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
-  <!-- Particle canvas (background layer for all scenes) -->
-  <canvas id="particle-canvas"></canvas>
 
-  <!-- Welcome Screen -->
+  <!-- Screen 1: Welcome -->
   <div id="screen-welcome" class="screen active">
     <div class="welcome-content">
-      <div class="welcome-character">
-        <div class="cat-welcome">
-          <div class="cat-ear cat-ear-l"></div>
-          <div class="cat-ear cat-ear-r"></div>
-          <div class="cat-face">
-            <div class="cat-eye cat-eye-l"><div class="cat-pupil"></div></div>
-            <div class="cat-eye cat-eye-r"><div class="cat-pupil"></div></div>
-            <div class="cat-nose"></div>
-            <div class="cat-mouth"></div>
-          </div>
-          <div class="cat-body-welcome"></div>
-          <div class="cat-tail"></div>
+      <h1>Create Your Story!</h1>
+      <p class="welcome-subtitle">Draw, color, and bring your picture to life</p>
+      <button id="btn-start" class="btn-primary bounce-hover">Start</button>
+      <button id="btn-skip" class="btn-secondary">Skip (Testing)</button>
+      <button id="btn-sound-test" class="btn-secondary" style="margin-top:0.4rem">🔊 Test Sound</button>
+      <button id="btn-test-drum" class="btn-secondary" style="margin-top:0.4rem">🥁 Test Drum</button>
+    </div>
+  </div>
+
+  <!-- Screen 2: Photo Capture -->
+  <div id="screen-photo" class="screen">
+    <div class="photo-content">
+      <div class="photo-viewfinder-wrap">
+        <video id="camera-preview" autoplay playsinline muted></video>
+        <canvas id="camera-snapshot" class="hidden"></canvas>
+      </div>
+
+      <!-- Step A: Child photo -->
+      <div class="photo-step" id="photo-step-child">
+        <p class="photo-prompt">Take a photo of yourself!</p>
+        <button id="btn-capture-child" class="btn-capture">
+          <span class="capture-ring"></span>
+        </button>
+      </div>
+
+      <!-- Step B: Scene photo -->
+      <div class="photo-step hidden" id="photo-step-scene">
+        <p class="photo-prompt">Take a photo of the place!</p>
+        <button id="btn-capture-scene" class="btn-capture">
+          <span class="capture-ring"></span>
+        </button>
+      </div>
+
+      <!-- Thumbnail previews -->
+      <div class="photo-previews">
+        <div class="photo-thumb-wrap">
+          <img id="preview-child" class="photo-thumb placeholder" alt="Child photo">
+          <span class="photo-thumb-label">You</span>
+        </div>
+        <div class="photo-thumb-wrap">
+          <img id="preview-scene" class="photo-thumb placeholder" alt="Scene photo">
+          <span class="photo-thumb-label">Place</span>
         </div>
       </div>
-      <h1>Let's Explore!</h1>
-      <p class="welcome-subtitle">Help the kitten find what feels just right</p>
-      <button id="btn-start" class="btn-primary bounce-hover">
-        Start
+
+      <div class="photo-actions">
+        <button id="btn-photo-next" class="btn-primary" disabled>Next</button>
+        <button id="btn-photo-skip" class="btn-secondary">Skip</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen 3: Event Selection -->
+  <div id="screen-event" class="screen">
+    <div class="event-content">
+      <h1 class="event-title">Where are you going?</h1>
+      <div class="event-grid">
+        <button class="event-card" data-event="birthday">
+          <span class="event-emoji">🎂</span>
+          <span class="event-name">Birthday Party</span>
+        </button>
+        <button class="event-card" data-event="playground">
+          <span class="event-emoji">🛝</span>
+          <span class="event-name">Playground</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen 4: Canvas (includes Animate sub-phase) -->
+  <div id="screen-canvas" class="screen">
+    <!-- Top bar -->
+    <div class="canvas-topbar">
+      <button id="btn-canvas-back" class="btn-canvas-back" title="Back">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
-      <button id="btn-skip" class="btn-secondary" style="margin-top:0.8rem; font-size:0.85rem;">
-        Skip to Video (Demo)
+      <div id="phase-dots" class="phase-dots">
+        <span class="phase-dot active"></span>
+        <span class="phase-dot"></span>
+        <span class="phase-dot"></span>
+      </div>
+      <span id="canvas-instruction" class="canvas-instruction">Place things on your picture</span>
+      <button id="btn-canvas-next" class="btn-canvas-next">Next</button>
+    </div>
+
+    <!-- Main canvas area -->
+    <div id="canvas-container" class="canvas-container">
+      <canvas id="bg-canvas"></canvas>
+      <canvas id="color-canvas"></canvas>
+      <div id="element-layer"></div>
+    </div>
+
+
+    <!-- Bottom: Element palette (sub-phases 1 & 3) -->
+    <div id="element-palette" class="element-palette">
+      <!-- Populated by JS based on event type -->
+    </div>
+
+    <!-- Bottom: Color toolbar (sub-phase 2) -->
+    <div id="color-toolbar" class="color-toolbar hidden">
+      <div class="color-swatches">
+        <button class="color-swatch selected" data-color="#FF6B6B" style="background:#FF6B6B"></button>
+        <button class="color-swatch" data-color="#FFD93D" style="background:#FFD93D"></button>
+        <button class="color-swatch" data-color="#6BCB77" style="background:#6BCB77"></button>
+        <button class="color-swatch" data-color="#4D96FF" style="background:#4D96FF"></button>
+        <button class="color-swatch" data-color="#9B59B6" style="background:#9B59B6"></button>
+        <button class="color-swatch" data-color="#FF8C42" style="background:#FF8C42"></button>
+        <button class="color-swatch" data-color="#2C3E50" style="background:#2C3E50"></button>
+        <button class="color-swatch" data-color="#ECF0F1" style="background:#ECF0F1"></button>
+      </div>
+      <div class="brush-sizes">
+        <button class="brush-size selected" data-size="4"><span class="brush-dot brush-s"></span></button>
+        <button class="brush-size" data-size="8"><span class="brush-dot brush-m"></span></button>
+        <button class="brush-size" data-size="16"><span class="brush-dot brush-l"></span></button>
+      </div>
+      <div class="toolbar-divider"></div>
+      <button class="btn-tool" id="btn-eraser" title="Eraser">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 20H7L3 16l9-9 8 8-4 4"/><path d="M6.5 13.5l5 5"/></svg>
       </button>
-    </div>
-  </div>
-
-  <!-- Scene 1: Auditory -->
-  <div id="screen-auditory" class="screen">
-    <div class="scene-header">
-      <div class="scene-progress">
-        <div class="progress-fill" style="width:12.5%"></div>
-      </div>
-      <div class="scene-title">Listen to the music box</div>
-    </div>
-    <div class="scene-container" id="container-auditory">
-      <div class="scene-bg auditory-bg">
-        <div class="floating-notes" id="floating-notes"></div>
-        <div class="sound-source" id="sound-source">
-          <div class="music-box-body">
-            <div class="music-box-lid"></div>
-            <div class="music-box-base"></div>
-            <div class="music-box-crank"></div>
-          </div>
-          <div class="sound-rings" id="sound-rings">
-            <div class="ring r1"></div>
-            <div class="ring r2"></div>
-            <div class="ring r3"></div>
-          </div>
-        </div>
-        <div class="avatar draggable" id="avatar-auditory" data-scene="auditory">
-          <div class="cat-avatar">
-            <div class="cat-a-ear cat-a-ear-l"></div>
-            <div class="cat-a-ear cat-a-ear-r"></div>
-            <div class="cat-a-face">
-              <div class="cat-a-eye cat-a-eye-l"><div class="cat-a-pupil"></div></div>
-              <div class="cat-a-eye cat-a-eye-r"><div class="cat-a-pupil"></div></div>
-              <div class="cat-a-mouth"></div>
-            </div>
-          </div>
-          <svg class="hold-ring-svg" id="hold-ring-auditory" viewBox="0 0 120 120">
-            <circle class="ring-bg" cx="60" cy="60" r="55"/>
-            <circle class="ring-fill" cx="60" cy="60" r="55"/>
-          </svg>
-        </div>
-      </div>
-    </div>
-    <div class="scene-hint" id="hint-auditory">
-      <span class="hand-pointer">👆</span> Drag the kitten closer or farther from the music
-    </div>
-  </div>
-
-  <!-- Scene 2: Visual -->
-  <div id="screen-visual" class="screen">
-    <div class="scene-header">
-      <div class="scene-progress">
-        <div class="progress-fill" style="width:37.5%"></div>
-      </div>
-      <div class="scene-title">Find the right brightness</div>
-    </div>
-    <div class="scene-container" id="container-visual">
-      <div class="scene-bg visual-bg" id="visual-bg">
-        <div class="garden-bg">
-          <div class="bg-flower bf1">🌱</div>
-          <div class="bg-flower bf2">🌱</div>
-          <div class="bg-flower bf3">🌱</div>
-          <div class="bg-flower bf4">🌱</div>
-          <div class="bg-flower bf5">🌱</div>
-          <div class="bg-flower bf6">🌱</div>
-        </div>
-        <div class="visual-target" id="visual-target">
-          <div class="big-flower">
-            <div class="big-flower-glow"></div>
-            <div class="big-flower-icon">🌸</div>
-          </div>
-        </div>
-        <div class="avatar draggable" id="avatar-visual" data-scene="visual">
-          <div class="cat-avatar">
-            <div class="cat-a-ear cat-a-ear-l"></div>
-            <div class="cat-a-ear cat-a-ear-r"></div>
-            <div class="cat-a-face">
-              <div class="cat-a-eye cat-a-eye-l"><div class="cat-a-pupil"></div></div>
-              <div class="cat-a-eye cat-a-eye-r"><div class="cat-a-pupil"></div></div>
-              <div class="cat-a-mouth"></div>
-            </div>
-          </div>
-          <svg class="hold-ring-svg" id="hold-ring-visual" viewBox="0 0 120 120">
-            <circle class="ring-bg" cx="60" cy="60" r="55"/>
-            <circle class="ring-fill" cx="60" cy="60" r="55"/>
-          </svg>
-        </div>
-      </div>
-    </div>
-    <div class="scene-hint" id="hint-visual">
-      <span class="hand-pointer">👆</span> Drag the kitten to find comfortable colors
-    </div>
-  </div>
-
-  <!-- Scene 3: Spatial -->
-  <div id="screen-spatial" class="screen">
-    <div class="scene-header">
-      <div class="scene-progress">
-        <div class="progress-fill" style="width:62.5%"></div>
-      </div>
-      <div class="scene-title">Meet a new friend</div>
-    </div>
-    <div class="scene-container" id="container-spatial">
-      <div class="scene-bg spatial-bg">
-        <div class="park-bg">
-          <div class="grass"></div>
-          <div class="cloud c1">☁️</div>
-          <div class="cloud c2">☁️</div>
-        </div>
-        <div class="npc-character" id="npc-character">
-          <div class="dog-avatar">
-            <div class="dog-ear dog-ear-l"></div>
-            <div class="dog-ear dog-ear-r"></div>
-            <div class="dog-face">
-              <div class="dog-eye dog-eye-l"><div class="dog-pupil"></div></div>
-              <div class="dog-eye dog-eye-r"><div class="dog-pupil"></div></div>
-              <div class="dog-nose"></div>
-              <div class="dog-tongue hidden"></div>
-            </div>
-            <div class="dog-tail"></div>
-          </div>
-          <div class="npc-reaction" id="npc-reaction"></div>
-          <div class="heart-particles" id="heart-particles"></div>
-        </div>
-        <div class="avatar draggable" id="avatar-spatial" data-scene="spatial">
-          <div class="cat-avatar">
-            <div class="cat-a-ear cat-a-ear-l"></div>
-            <div class="cat-a-ear cat-a-ear-r"></div>
-            <div class="cat-a-face">
-              <div class="cat-a-eye cat-a-eye-l"><div class="cat-a-pupil"></div></div>
-              <div class="cat-a-eye cat-a-eye-r"><div class="cat-a-pupil"></div></div>
-              <div class="cat-a-mouth"></div>
-            </div>
-          </div>
-          <svg class="hold-ring-svg" id="hold-ring-spatial" viewBox="0 0 120 120">
-            <circle class="ring-bg" cx="60" cy="60" r="55"/>
-            <circle class="ring-fill" cx="60" cy="60" r="55"/>
-          </svg>
-        </div>
-      </div>
-    </div>
-    <div class="scene-hint" id="hint-spatial">
-      <span class="hand-pointer">👆</span> Drag the kitten to say hello to the puppy
-    </div>
-  </div>
-
-  <!-- Scene 4: Temporal -->
-  <div id="screen-temporal" class="screen">
-    <div class="scene-header">
-      <div class="scene-progress">
-        <div class="progress-fill" style="width:87.5%"></div>
-      </div>
-      <div class="scene-title">Watch the magic light</div>
-    </div>
-    <div class="scene-container" id="container-temporal">
-      <div class="scene-bg temporal-bg">
-        <div class="starfield" id="starfield"></div>
-        <div class="temporal-target" id="temporal-target">
-          <div class="magic-bell">
-            <div class="bell-body">🔔</div>
-            <div class="bell-glow"></div>
-          </div>
-        </div>
-        <!-- The traveling light orb -->
-        <div class="light-orb" id="light-orb"></div>
-        <div class="avatar draggable" id="avatar-temporal" data-scene="temporal">
-          <div class="cat-avatar">
-            <div class="cat-a-ear cat-a-ear-l"></div>
-            <div class="cat-a-ear cat-a-ear-r"></div>
-            <div class="cat-a-face">
-              <div class="cat-a-eye cat-a-eye-l"><div class="cat-a-pupil"></div></div>
-              <div class="cat-a-eye cat-a-eye-r"><div class="cat-a-pupil"></div></div>
-              <div class="cat-a-mouth"></div>
-            </div>
-          </div>
-          <svg class="hold-ring-svg" id="hold-ring-temporal" viewBox="0 0 120 120">
-            <circle class="ring-bg" cx="60" cy="60" r="55"/>
-            <circle class="ring-fill" cx="60" cy="60" r="55"/>
-          </svg>
-        </div>
-      </div>
-    </div>
-    <div class="scene-hint" id="hint-temporal">
-      <span class="hand-pointer">👆</span> Drag the kitten — watch the magic light fly!
-    </div>
-  </div>
-
-  <!-- Celebration overlay -->
-  <div id="celebration" class="celebration hidden">
-    <canvas id="confetti-canvas"></canvas>
-    <div class="celebration-emoji">🎉</div>
-  </div>
-
-  <!-- Results Screen -->
-  <div id="screen-results" class="screen">
-    <div class="results-content">
-      <div class="results-icon">⭐</div>
-      <h1>All Done!</h1>
-      <p class="results-subtitle">Here's what the kitten likes</p>
-      <div class="results-grid" id="results-grid"></div>
-      <div class="results-data hidden" id="results-data"></div>
-      <button id="btn-watch-video" class="btn-primary bounce-hover">
-        Watch Your Video
-      </button>
-      <button id="btn-restart" class="btn-secondary">
-        Play Again
-      </button>
-      <button id="btn-export" class="btn-secondary">
-        Export Data
+      <button class="btn-tool" id="btn-undo" title="Undo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15-6.7L21 9"/></svg>
       </button>
     </div>
+
+    <!-- Keep animate-bar as empty placeholder for layout -->
+    <div id="animate-bar" class="animate-bar hidden"></div>
   </div>
 
-  <!-- Stage 2: Processing Transition -->
+  <!-- Screen 6: Processing -->
   <div id="screen-processing" class="screen">
     <div class="processing-content">
       <div class="processing-icon">🎬</div>
       <h1>Creating Your Video</h1>
       <div class="processing-steps" id="processing-steps">
-        <div class="processing-step" id="step-spatial">
+        <div class="processing-step active" id="step-reading">
           <span class="step-dot active"></span>
-          <span>Selecting scene based on comfort level...</span>
+          <span>Reading your picture...</span>
         </div>
-        <div class="processing-step" id="step-audio">
+        <div class="processing-step" id="step-scene">
           <span class="step-dot"></span>
-          <span>Adjusting sounds...</span>
+          <span>Setting up the scene...</span>
         </div>
-        <div class="processing-step" id="step-visual">
+        <div class="processing-step" id="step-prefs">
           <span class="step-dot"></span>
-          <span>Setting brightness...</span>
+          <span>Adding your preferences...</span>
         </div>
         <div class="processing-step" id="step-ready">
           <span class="step-dot"></span>
@@ -274,7 +165,44 @@
     </div>
   </div>
 
-  <!-- Stage 2: Video Playback -->
+  <!-- Screen: Drum Rhythm -->
+  <div id="screen-drum" class="screen">
+    <div class="drum-screen-content">
+      <div class="drum-center">
+        <div class="drum-hands" id="drum-hands">
+          <div class="drum-hand drum-hand-left">
+            <img src="assets/hand_left.png" draggable="false" class="hand-img" />
+          </div>
+          <div class="drum-hand drum-hand-right">
+            <img src="assets/hand_right.png" draggable="false" class="hand-img" />
+          </div>
+        </div>
+        <div class="drum-area" id="drum-area">
+          <img src="assets/drum.png?v=4" class="drum-img" id="drum-img" alt="Drum" draggable="false" />
+          <div class="drum-hits" id="drum-hits"></div>
+        </div>
+      </div>
+      <div class="drum-bottom">
+        <div class="beat-guide" id="beat-guide">
+          <div class="beat-ball" id="beat-ball"></div>
+        </div>
+        <p class="drum-hint-text" id="drum-hint">Follow the beat!</p>
+        <div class="tempo-display" id="tempo-display"></div>
+        <div class="energy-bar" id="energy-bar">
+          <div class="energy-segments">
+            <div class="energy-seg" data-idx="0"></div>
+            <div class="energy-seg" data-idx="1"></div>
+            <div class="energy-seg" data-idx="2"></div>
+            <div class="energy-seg" data-idx="3"></div>
+            <div class="energy-seg" data-idx="4"></div>
+          </div>
+        </div>
+        <button id="btn-animate-done" class="btn-primary hidden" style="display:none">All Done!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen 7: Video Playback -->
   <div id="screen-video" class="screen">
     <div class="video-fullscreen">
       <video id="sense-video" playsinline preload="auto">
@@ -296,57 +224,56 @@
         <!-- Controls row -->
         <div class="vc-row">
           <div class="vc-left">
-            <button class="vc-btn" id="vc-play-pause">▶</button>
+            <button class="vc-btn" id="vc-play-pause">&#9654;</button>
             <span class="vc-time" id="timeline-time">0:00 / 0:00</span>
           </div>
           <div class="vc-right">
-            <!-- FAB trigger integrated into bar -->
-            <button class="vc-btn vc-btn-sm" id="fab-dot">⚙</button>
+            <button class="vc-btn vc-btn-sm" id="fab-dot">&#9881;</button>
           </div>
         </div>
       </div>
 
       <!-- YouTube-style center play/pause overlay -->
       <div class="video-play-overlay" id="video-play-overlay">
-        <div class="play-overlay-icon" id="play-overlay-icon">▶</div>
+        <div class="play-overlay-icon" id="play-overlay-icon">&#9654;</div>
       </div>
 
-      <!-- Settings panel (anchored to ⚙ in control bar) -->
+      <!-- Settings panel (anchored to gear in control bar) -->
       <div class="fab-control" id="fab-control">
         <div class="fab-panel hidden" id="fab-panel">
           <div class="fab-section">
             <div class="fab-level-label">Level</div>
             <div class="fab-levels">
-              <button class="fab-level" data-level="1" title="Gentle — more filtered">🛡</button>
-              <button class="fab-level active" data-level="2" title="Baseline — child's own">●</button>
-              <button class="fab-level" data-level="3" title="Challenge — closer to real">🎯</button>
+              <button class="fab-level" data-level="1" title="Gentle — more filtered">&#128737;</button>
+              <button class="fab-level active" data-level="2" title="Baseline — child's own">&#9679;</button>
+              <button class="fab-level" data-level="3" title="Challenge — closer to real">&#127919;</button>
             </div>
           </div>
           <div class="fab-divider"></div>
           <div class="fab-section">
-            <button class="fab-btn fab-btn-sm" id="fab-profile-toggle">ⓘ Profile</button>
+            <button class="fab-btn fab-btn-sm" id="fab-profile-toggle">&#9432; Profile</button>
           </div>
           <!-- Sensory profile (hidden by default) -->
           <div class="fab-profile hidden" id="fab-profile">
             <div class="profile-row">
-              <span class="profile-icon">🔊</span>
+              <span class="profile-icon">&#128266;</span>
               <div class="profile-bar"><div class="profile-bar-fill" id="bar-auditory"></div></div>
-              <span class="profile-label" id="label-auditory">—</span>
+              <span class="profile-label" id="label-auditory">&mdash;</span>
             </div>
             <div class="profile-row">
-              <span class="profile-icon">🔆</span>
+              <span class="profile-icon">&#128262;</span>
               <div class="profile-bar"><div class="profile-bar-fill" id="bar-visual"></div></div>
-              <span class="profile-label" id="label-visual">—</span>
+              <span class="profile-label" id="label-visual">&mdash;</span>
             </div>
             <div class="profile-row">
-              <span class="profile-icon">👤</span>
+              <span class="profile-icon">&#128100;</span>
               <div class="profile-bar"><div class="profile-bar-fill" id="bar-spatial"></div></div>
-              <span class="profile-label" id="label-spatial">—</span>
+              <span class="profile-label" id="label-spatial">&mdash;</span>
             </div>
             <div class="profile-row">
-              <span class="profile-icon">⏱</span>
+              <span class="profile-icon">&#9201;</span>
               <div class="profile-bar"><div class="profile-bar-fill" id="bar-temporal"></div></div>
-              <span class="profile-label" id="label-temporal">—</span>
+              <span class="profile-label" id="label-temporal">&mdash;</span>
             </div>
           </div>
         </div>
@@ -359,29 +286,29 @@
           <p class="s2-pause-subtitle">Choose a level for the rest of the video</p>
           <div class="s2-level-options">
             <button class="s2-level-btn" data-level="1">
-              <span class="s2-level-icon">🛡</span>
+              <span class="s2-level-icon">&#128737;</span>
               <span class="s2-level-name">Gentle</span>
               <span class="s2-level-desc">More filtered</span>
             </button>
             <button class="s2-level-btn selected" data-level="2">
-              <span class="s2-level-icon">●</span>
+              <span class="s2-level-icon">&#9679;</span>
               <span class="s2-level-name">Child's Own</span>
               <span class="s2-level-desc">Baseline</span>
             </button>
             <button class="s2-level-btn" data-level="3">
-              <span class="s2-level-icon">🎯</span>
+              <span class="s2-level-icon">&#127919;</span>
               <span class="s2-level-name">Challenge</span>
               <span class="s2-level-desc">Closer to real</span>
             </button>
           </div>
-          <button class="s2-continue-btn" id="s2-continue">Continue ▶</button>
+          <button class="s2-continue-btn" id="s2-continue">Continue &#9654;</button>
         </div>
       </div>
 
       <!-- Temporal freeze frame overlay -->
       <div class="freeze-overlay hidden" id="freeze-overlay">
         <div class="freeze-indicator">
-          <div class="freeze-icon">⏸</div>
+          <div class="freeze-icon">&#9208;</div>
           <div class="freeze-label">Preparing...</div>
           <div class="freeze-countdown">0.0s</div>
           <div class="freeze-hint">tap to skip</div>
@@ -390,14 +317,9 @@
     </div>
   </div>
 
-  <!-- Hold confirmation overlay -->
-  <div id="hold-overlay" class="hold-overlay hidden">
-    <div class="hold-text">Stay still... 🐾</div>
-    <div class="hold-progress-bar">
-      <div class="hold-progress-fill" id="hold-progress-fill"></div>
-    </div>
-  </div>
+  <!-- Touch crayon cursor (iPad) -->
+  <div id="touch-crayon" class="touch-crayon hidden"></div>
 
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
