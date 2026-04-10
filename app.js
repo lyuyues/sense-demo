@@ -1109,6 +1109,15 @@ function showDeleteButton(el) {
   btn.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     e.preventDefault();
+    // Stop ambient music if deleting music element
+    if (el.dataset.type === 'music') {
+      stopAmbientLoop();
+    }
+    // Reset brightness if deleting lamp
+    if (el.dataset.type === 'lamp') {
+      lampBrightness = 0;
+      document.getElementById('canvas-container').style.filter = '';
+    }
     // Remove from DOM
     el.remove();
     // Remove from state
