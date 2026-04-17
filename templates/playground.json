@@ -2,34 +2,28 @@
   "id": "playground",
   "name": "Playground",
   "icon": "🛝",
+  "backgroundImage": "assets/playground_bg.png",
   "background": {
-    "shapes": [
-      {"type": "rect", "x": 0, "y": 0, "w": 800, "h": 600, "fill": "none", "stroke": "#ccc", "label": "sky"},
-      {"type": "rect", "x": 0, "y": 400, "w": 800, "h": 200, "fill": "none", "stroke": "#8B7355", "label": "ground"},
-      {"type": "path", "d": "M 100 200 Q 200 50 300 200", "stroke": "#aaa", "label": "hill"},
-      {"type": "circle", "cx": 650, "cy": 80, "r": 40, "fill": "none", "stroke": "#ddd", "label": "sun"}
-    ]
+    "shapes": []
   },
   "elements": [
     {"type": "friend", "id": "friend1", "asset": "assets/friend1.svg", "label": "Friend", "dimension": "spatial"},
     {"type": "friend", "id": "friend2", "asset": "assets/friend2.svg", "label": "Friend", "dimension": "spatial"},
     {"type": "friend", "id": "friend3", "asset": "assets/friend3.svg", "label": "Friend", "dimension": "spatial"},
-    {"type": "speaker", "id": "speaker1", "asset": "assets/speaker.svg", "label": "Speaker", "dimension": "auditory", "resizable": true},
-    {"type": "slide", "id": "slide1", "asset": "assets/slide.svg", "label": "Slide", "dimension": "decoration"},
-    {"type": "swing", "id": "swing1", "asset": "assets/swing.svg", "label": "Swing", "dimension": "decoration"},
-    {"type": "ball", "id": "ball1", "asset": "assets/ball.svg", "label": "Ball", "dimension": "decoration"},
     {"type": "dog", "id": "dog1", "asset": "assets/dog.svg", "label": "Dog", "dimension": "spatial"},
-    {"type": "bench", "id": "bench1", "asset": "assets/bench.svg", "label": "Bench", "dimension": "decoration"},
-    {"type": "tree", "id": "tree1", "asset": "assets/tree.svg", "label": "Tree", "dimension": "decoration"}
+    {"type": "ball", "id": "ball1", "asset": "assets/ball.svg", "label": "Ball", "dimension": "decoration"},
+    {"type": "tree", "id": "tree1", "asset": "assets/tree.svg", "label": "Tree", "dimension": "decoration"},
+    {"type": "cloud", "id": "cloud1", "asset": "assets/cloud.png", "label": "Cloud", "dimension": "visual"},
+    {"type": "cloud", "id": "cloud2", "asset": "assets/cloud.png", "label": "Cloud", "dimension": "visual"}
   ],
   "animations": {
     "friend": ["wave"],
-    "speaker": ["pulse"],
-    "slide": ["none"],
-    "swing": ["swing"],
-    "ball": ["bounce"],
+    "music": ["pulse"],
+    "microphone": ["pulse"],
+    "bell": ["shake"],
     "dog": ["wagTail"],
-    "bench": ["none"],
-    "tree": ["sway"]
+    "ball": ["bounce"],
+    "tree": ["sway"],
+    "lamp": ["glow"]
   }
 }

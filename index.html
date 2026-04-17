@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>SENSE - Create Your Story</title>
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=165">
 </head>
 <body>
 
@@ -14,9 +17,7 @@
       <h1>Create Your Story!</h1>
       <p class="welcome-subtitle">Draw, color, and bring your picture to life</p>
       <button id="btn-start" class="btn-primary bounce-hover">Start</button>
-      <button id="btn-skip" class="btn-secondary">Skip (Testing)</button>
-      <button id="btn-sound-test" class="btn-secondary" style="margin-top:0.4rem">🔊 Test Sound</button>
-      <button id="btn-test-drum" class="btn-secondary" style="margin-top:0.4rem">🥁 Test Drum</button>
+      <button id="btn-skip" class="btn-secondary">Skip Photoshot (Testing)</button>
     </div>
   </div>
 
@@ -47,11 +48,11 @@
       <!-- Thumbnail previews -->
       <div class="photo-previews">
         <div class="photo-thumb-wrap">
-          <img id="preview-child" class="photo-thumb placeholder" alt="Child photo">
+          <img id="preview-child" class="photo-thumb" src="assets/test_child_photo.png" alt="Child photo">
           <span class="photo-thumb-label">You</span>
         </div>
         <div class="photo-thumb-wrap">
-          <img id="preview-scene" class="photo-thumb placeholder" alt="Scene photo">
+          <img id="preview-scene" class="photo-thumb" src="assets/sample_livingroom_crayon.png" alt="Scene photo">
           <span class="photo-thumb-label">Place</span>
         </div>
       </div>
@@ -87,13 +88,18 @@
       <button id="btn-canvas-back" class="btn-canvas-back" title="Back">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
-      <div id="phase-dots" class="phase-dots">
-        <span class="phase-dot active"></span>
-        <span class="phase-dot"></span>
-        <span class="phase-dot"></span>
+      <div id="phase-tabs" class="phase-tabs">
+        <button class="phase-tab active" data-phase="add-elements">🎨 Create</button>
+        <button class="phase-tab" data-phase="color">🖍️ Color</button>
+        <button class="phase-tab" data-phase="sound-studio">🎵 Sound</button>
+        <button class="phase-tab" data-phase="animate">🥁 Rhythm</button>
       </div>
       <span id="canvas-instruction" class="canvas-instruction">Place things on your picture</span>
       <button id="btn-canvas-next" class="btn-canvas-next">Next</button>
+    </div>
+    <!-- Stage timer bar -->
+    <div class="stage-timer-bar" id="stage-timer-bar">
+      <div class="stage-timer-fill" id="stage-timer-fill"></div>
     </div>
 
     <!-- Main canvas area -->
@@ -101,6 +107,51 @@
       <canvas id="bg-canvas"></canvas>
       <canvas id="color-canvas"></canvas>
       <div id="element-layer"></div>
+      <!-- Sound Studio overlay inside canvas -->
+      <div id="sound-studio" class="sound-studio hidden">
+        <div class="staff-area" id="staff-area">
+          <div class="staff-line" data-line="5"></div>
+          <div class="staff-line" data-line="4"></div>
+          <div class="staff-line" data-line="3"></div>
+          <div class="staff-line" data-line="2"></div>
+          <div class="staff-line" data-line="1"></div>
+          <div class="staff-elements" id="staff-elements"></div>
+          <!-- Volume triangle indicator at bottom -->
+          <div class="volume-triangle">
+            <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 20">
+              <polygon points="0,20 100,20 100,0" fill="rgba(150,140,130,0.08)" />
+              <line x1="0" y1="20" x2="100" y2="20" stroke="rgba(150,140,130,0.2)" stroke-width="0.5"/>
+              <line x1="100" y1="0" x2="100" y2="20" stroke="rgba(150,140,130,0.2)" stroke-width="0.5"/>
+              <line x1="0" y1="20" x2="100" y2="0" stroke="rgba(150,140,130,0.2)" stroke-width="0.5"/>
+            </svg>
+            <span class="vol-label vol-label-left">🔈</span>
+            <span class="vol-label vol-label-right">🔊</span>
+          </div>
+        </div>
+      </div>
+      <!-- Drum overlay (animate sub-phase) -->
+      <div id="drum-overlay" class="drum-overlay hidden">
+        <!-- Drum -->
+        <div class="drum-center">
+          <div class="drum-hands" id="drum-hands">
+            <div class="drum-hand drum-hand-left">
+              <img src="assets/hand_left.png" draggable="false" class="hand-img" />
+            </div>
+            <div class="drum-hand drum-hand-right">
+              <img src="assets/hand_right.png" draggable="false" class="hand-img" />
+            </div>
+          </div>
+          <div class="drum-area" id="drum-area">
+            <img src="assets/drum.png?v=4" class="drum-img" id="drum-img" alt="Drum" draggable="false" />
+            <div class="drum-hits" id="drum-hits"></div>
+          </div>
+        </div>
+        <!-- Taiko track at bottom -->
+        <div class="taiko-track" id="taiko-track">
+          <div class="taiko-target" id="taiko-target"></div>
+          <div class="taiko-notes" id="taiko-notes"></div>
+        </div>
+      </div>
     </div>
 
 
@@ -109,22 +160,39 @@
       <!-- Populated by JS based on event type -->
     </div>
 
+    <!-- Custom sticker input overlay (inline, not fullscreen) -->
+    <div id="sticker-input-overlay" class="sticker-input-overlay hidden">
+      <div class="sticker-input-card">
+        <input type="text" id="sticker-name-input" class="sticker-name-input" placeholder="Type an object name..." autocomplete="off" />
+        <button id="btn-sticker-generate" class="btn-sticker-generate">Go</button>
+        <button id="btn-sticker-cancel" class="btn-sticker-cancel">&times;</button>
+      </div>
+    </div>
+
     <!-- Bottom: Color toolbar (sub-phase 2) -->
     <div id="color-toolbar" class="color-toolbar hidden">
       <div class="color-swatches">
-        <button class="color-swatch selected" data-color="#FF6B6B" style="background:#FF6B6B"></button>
-        <button class="color-swatch" data-color="#FFD93D" style="background:#FFD93D"></button>
-        <button class="color-swatch" data-color="#6BCB77" style="background:#6BCB77"></button>
-        <button class="color-swatch" data-color="#4D96FF" style="background:#4D96FF"></button>
-        <button class="color-swatch" data-color="#9B59B6" style="background:#9B59B6"></button>
-        <button class="color-swatch" data-color="#FF8C42" style="background:#FF8C42"></button>
-        <button class="color-swatch" data-color="#2C3E50" style="background:#2C3E50"></button>
+        <!-- Row 1: Soft/pastel (hyper-responsive) -->
+        <button class="color-swatch" data-color="#F4ACAC" style="background:#F4ACAC"></button>
+        <button class="color-swatch" data-color="#FFE8A0" style="background:#FFE8A0"></button>
+        <button class="color-swatch" data-color="#A8E6B0" style="background:#A8E6B0"></button>
+        <button class="color-swatch" data-color="#A0C8FF" style="background:#A0C8FF"></button>
+        <button class="color-swatch" data-color="#CBA8E8" style="background:#CBA8E8"></button>
+        <button class="color-swatch" data-color="#FFDAB0" style="background:#FFDAB0"></button>
         <button class="color-swatch" data-color="#ECF0F1" style="background:#ECF0F1"></button>
+        <!-- Row 2: Vivid/saturated (seeking) -->
+        <button class="color-swatch selected" data-color="#FF3B3B" style="background:#FF3B3B"></button>
+        <button class="color-swatch" data-color="#FFC107" style="background:#FFC107"></button>
+        <button class="color-swatch" data-color="#2ECC40" style="background:#2ECC40"></button>
+        <button class="color-swatch" data-color="#1E6FFF" style="background:#1E6FFF"></button>
+        <button class="color-swatch" data-color="#8E24AA" style="background:#8E24AA"></button>
+        <button class="color-swatch" data-color="#FF5722" style="background:#FF5722"></button>
+        <button class="color-swatch" data-color="#2C3E50" style="background:#2C3E50"></button>
       </div>
       <div class="brush-sizes">
-        <button class="brush-size selected" data-size="4"><span class="brush-dot brush-s"></span></button>
-        <button class="brush-size" data-size="8"><span class="brush-dot brush-m"></span></button>
-        <button class="brush-size" data-size="16"><span class="brush-dot brush-l"></span></button>
+        <button class="brush-size" data-size="1"><span class="brush-dot brush-s"></span></button>
+        <button class="brush-size selected" data-size="2"><span class="brush-dot brush-m"></span></button>
+        <button class="brush-size" data-size="4"><span class="brush-dot brush-l"></span></button>
       </div>
       <div class="toolbar-divider"></div>
       <button class="btn-tool" id="btn-eraser" title="Eraser">
@@ -134,6 +202,10 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15-6.7L21 9"/></svg>
       </button>
     </div>
+
+
+    <!-- Bottom: Sound palette (sound-studio sub-phase) -->
+    <div id="sound-palette" class="sound-palette hidden"></div>
 
     <!-- Keep animate-bar as empty placeholder for layout -->
     <div id="animate-bar" class="animate-bar hidden"></div>
@@ -162,45 +234,15 @@
           <span>Ready!</span>
         </div>
       </div>
+      <!-- AI behavior observation -->
+      <div class="ai-observation-area">
+        <p class="ai-observation" id="ai-observation"></p>
+        <p class="ai-summary" id="ai-summary"></p>
+      </div>
     </div>
   </div>
 
-  <!-- Screen: Drum Rhythm -->
-  <div id="screen-drum" class="screen">
-    <div class="drum-screen-content">
-      <div class="drum-center">
-        <div class="drum-hands" id="drum-hands">
-          <div class="drum-hand drum-hand-left">
-            <img src="assets/hand_left.png" draggable="false" class="hand-img" />
-          </div>
-          <div class="drum-hand drum-hand-right">
-            <img src="assets/hand_right.png" draggable="false" class="hand-img" />
-          </div>
-        </div>
-        <div class="drum-area" id="drum-area">
-          <img src="assets/drum.png?v=4" class="drum-img" id="drum-img" alt="Drum" draggable="false" />
-          <div class="drum-hits" id="drum-hits"></div>
-        </div>
-      </div>
-      <div class="drum-bottom">
-        <div class="beat-guide" id="beat-guide">
-          <div class="beat-ball" id="beat-ball"></div>
-        </div>
-        <p class="drum-hint-text" id="drum-hint">Follow the beat!</p>
-        <div class="tempo-display" id="tempo-display"></div>
-        <div class="energy-bar" id="energy-bar">
-          <div class="energy-segments">
-            <div class="energy-seg" data-idx="0"></div>
-            <div class="energy-seg" data-idx="1"></div>
-            <div class="energy-seg" data-idx="2"></div>
-            <div class="energy-seg" data-idx="3"></div>
-            <div class="energy-seg" data-idx="4"></div>
-          </div>
-        </div>
-        <button id="btn-animate-done" class="btn-primary hidden" style="display:none">All Done!</button>
-      </div>
-    </div>
-  </div>
+  <!-- Drum screen removed — now integrated into canvas as drum-overlay -->
 
   <!-- Screen 7: Video Playback -->
   <div id="screen-video" class="screen">
@@ -320,6 +362,6 @@
   <!-- Touch crayon cursor (iPad) -->
   <div id="touch-crayon" class="touch-crayon hidden"></div>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=165"></script>
 </body>
 </html>
