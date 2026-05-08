@@ -35,6 +35,8 @@ const state = {
   // AI agent
   stageScreenshots: {},
   aiObservation: null,
+  // Light stage data
+  lightData: null,
 };
 
 // --- Animation map: element type → CSS animation name OR sprite frames ---
@@ -119,8 +121,9 @@ const SUB_PHASES = [
   { id: 'place-self', instruction: '', dotIndex: 0 },
   { id: 'add-elements', instruction: 'Add friends and things!', dotIndex: 0 },
   { id: 'color', instruction: 'Color your picture!', dotIndex: 1 },
-  { id: 'sound-studio', instruction: 'Create your soundscape!', dotIndex: 2 },
-  { id: 'animate', instruction: 'Drum time!', dotIndex: 3 },
+  { id: 'light', instruction: 'Move the sun across the sky!', dotIndex: 2 },
+  { id: 'sound-studio', instruction: 'Create your soundscape!', dotIndex: 3 },
+  { id: 'animate', instruction: 'Drum time!', dotIndex: 4 },
 ];
 
 // ============================================================
@@ -446,9 +449,17 @@ window.addEventListener('resize', () => {
 // --- Scene background drawing ---
 function drawSceneAsLineart(ctx, imgSrc) {
   const canvas = ctx.canvas;
+  // If canvas has zero size (initCanvasScreen ran before layout), retry next frame.
+  if (canvas.width === 0 || canvas.height === 0) {
+    requestAnimationFrame(() => drawSceneAsLineart(ctx, imgSrc));
+    return;
+  }
   const img = new Image();
-  img.crossOrigin = 'anonymous';
+  // NOTE: do NOT set crossOrigin — local same-origin loads do not taint the canvas,
+  // and python's http.server doesn't return CORS headers, which would otherwise
+  // block the load silently and leave the canvas blank.
   img.onload = () => {
+    console.log('drawSceneAsLineart: loaded', imgSrc.slice(0, 80), `(${img.width}x${img.height} → canvas ${canvas.width}x${canvas.height})`);
     const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
     const w = img.width * scale;
     const h = img.height * scale;
@@ -462,7 +473,15 @@ function drawSceneAsLineart(ctx, imgSrc) {
     ctx.drawImage(img, x, y, w, h);
     ctx.restore();
   };
-  img.src = imgSrc + (imgSrc.includes('?') ? '&' : '?') + 'v=' + Date.now();
+  img.onerror = (e) => {
+    console.warn('drawSceneAsLineart: failed to load', imgSrc.slice(0, 80), e);
+  };
+  // Cache-bust file URLs only — data: / blob: URLs do not accept query strings
+  // and would silently fail to load if appended.
+  const isInlineUrl = imgSrc.startsWith('data:') || imgSrc.startsWith('blob:');
+  img.src = isInlineUrl
+    ? imgSrc
+    : imgSrc + (imgSrc.includes('?') ? '&' : '?') + 'v=' + Date.now();
 }
 
 // --- Line-art rendering (fallback for templates without background image) ---
@@ -571,6 +590,11 @@ function setCanvasSubPhase(subPhase) {
     updatePhaseDots(config.dotIndex);
   }
 
+  // Light stage: shrink the scene (bg/color/element layers) so it sits inside
+  // the building cutout with margin, instead of filling the whole stage.
+  const ccForShrink = document.getElementById('canvas-container');
+  if (ccForShrink) ccForShrink.classList.toggle('light-stage-shrink', subPhase === 'light');
+
   const palette = document.getElementById('element-palette');
   const colorToolbar = document.getElementById('color-toolbar');
   const animateBar = document.getElementById('animate-bar');
@@ -622,6 +646,15 @@ function setCanvasSubPhase(subPhase) {
       } else if (leaving === 'color') {
         state.stageScreenshots.color = captureStageScreenshot();
         triggerStageAI('color');
+        // Bake color strokes into per-element overlay canvases so coloring
+        // travels with the avatar / placed elements (and doesn't stay glued
+        // to the global color-canvas after the user moves things).
+        if (typeof mergeColorOntoAllElements === 'function') {
+          mergeColorOntoAllElements();
+        }
+      } else if (leaving === 'light') {
+        state.stageScreenshots.light = captureStageScreenshot();
+        triggerStageAI('light');
       } else if (leaving === 'sound-studio') {
         state.stageScreenshots.sound = captureStageScreenshot();
         triggerStageAI('sound');
@@ -650,6 +683,9 @@ function setCanvasSubPhase(subPhase) {
     el.classList.remove('tappable');
   });
 
+  // Reset bottom-bar canvas adjustment — phases that need it set it back below
+  document.getElementById('canvas-container')?.classList.remove('no-bottom-bar');
+
   switch (subPhase) {
     case 'place-self':
       // Auto-place avatar and sun (for playground)
@@ -659,10 +695,12 @@ function setCanvasSubPhase(subPhase) {
       return;
 
     case 'add-elements':
+      document.getElementById('light-stage')?.classList.add('hidden');
       renderElementPalette();
       break;
 
     case 'color':
+      document.getElementById('light-stage')?.classList.add('hidden');
       palette.classList.add('hidden');
       // Don't enable drawing yet — wait for Color me tap
       colorToolbar.classList.add('hidden');
@@ -674,9 +712,24 @@ function setCanvasSubPhase(subPhase) {
       }, 1500);
       break;
 
+    case 'light':
+      palette.classList.add('hidden');
+      document.getElementById('element-palette').style.display = 'none';
+      document.getElementById('light-stage')?.classList.remove('hidden');
+      // Hide sound/drum if previously open
+      document.getElementById('sound-studio').classList.add('hidden');
+      document.getElementById('drum-overlay').classList.add('hidden');
+      // Light phase: no bottom toolbar — hide leftovers + let canvas fill the gap
+      document.getElementById('sound-palette')?.classList.add('hidden');
+      document.getElementById('color-toolbar')?.classList.add('hidden');
+      document.getElementById('canvas-container')?.classList.add('no-bottom-bar');
+      if (typeof setupLightStage === 'function') setupLightStage();
+      break;
+
     case 'sound-studio':
       palette.classList.add('hidden');
       document.getElementById('element-palette').style.display = 'none';
+      document.getElementById('light-stage')?.classList.add('hidden');
       document.getElementById('sound-studio').classList.remove('hidden');
       document.getElementById('sound-palette').classList.remove('hidden');
       setupSoundStudio();
@@ -684,10 +737,15 @@ function setCanvasSubPhase(subPhase) {
 
     case 'animate':
       document.getElementById('sound-studio').classList.add('hidden');
+      document.getElementById('light-stage')?.classList.add('hidden');
       stopAllStudioLayers();
       palette.classList.add('hidden');
       document.getElementById('element-palette').style.display = 'none';
       btnNext.classList.add('hidden');
+      // Drum phase: no bottom toolbar — hide leftovers + let canvas fill the gap
+      document.getElementById('sound-palette')?.classList.add('hidden');
+      document.getElementById('color-toolbar')?.classList.add('hidden');
+      document.getElementById('canvas-container')?.classList.add('no-bottom-bar');
       // Show drum overlay on canvas
       document.getElementById('drum-overlay').classList.remove('hidden');
       setupAnimatePhase();
@@ -699,13 +757,19 @@ function setCanvasSubPhase(subPhase) {
 }
 
 function updatePhaseDots(activeIdx) {
+  // Tab order matches SUB_PHASE_ORDER (skipping 'place-self'): tabs to the LEFT of
+  // the active tab are marked .done (sage green); the current tab is .active (tomato).
+  const TAB_ORDER = ['add-elements', 'color', 'light', 'sound-studio', 'animate'];
+  const activeIndex = TAB_ORDER.indexOf(state.canvasSubPhase);
   document.querySelectorAll('.phase-tab').forEach(tab => {
-    tab.classList.toggle('active', tab.dataset.phase === state.canvasSubPhase);
+    const idx = TAB_ORDER.indexOf(tab.dataset.phase);
+    tab.classList.toggle('active', idx === activeIndex);
+    tab.classList.toggle('done', idx >= 0 && activeIndex >= 0 && idx < activeIndex);
   });
 }
 
 // --- Next / Back buttons ---
-const SUB_PHASE_ORDER = ['place-self', 'add-elements', 'color', 'sound-studio', 'animate'];
+const SUB_PHASE_ORDER = ['place-self', 'add-elements', 'color', 'light', 'sound-studio', 'animate'];
 
 // Phase tab clicks — switch between stages freely
 document.querySelectorAll('.phase-tab').forEach(tab => {
@@ -1034,10 +1098,27 @@ async function generateCustomSticker(name) {
   }
 }
 
+// Server-side Gemini-driven lineart (high quality "coloring book" style:
+// keeps face/hair/skin/shoes colored, makes large color blocks white while
+// preserving outlines). Matches the boy reference image style.
+async function generateLineartViaApi(dataUrl) {
+  if (!API_BASE) throw new Error('No API_BASE');
+  const resp = await fetch(API_BASE + '/api/generate-lineart', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: dataUrl }),
+  });
+  if (!resp.ok) throw new Error('Lineart API ' + resp.status);
+  const data = await resp.json();
+  if (!data.image) throw new Error('Lineart API: no image in response');
+  return data.image;
+}
+
 function generateLineart(dataUrl) {
   return new Promise((resolve) => {
     const img = new window.Image();
-    img.crossOrigin = 'anonymous';
+    // No crossOrigin: data: / blob: URLs don't trigger CORS, and same-origin
+    // http loads do not need it either.
     img.onload = () => {
       const c = document.createElement('canvas');
       c.width = img.width;
@@ -1054,31 +1135,44 @@ function generateLineart(dataUrl) {
         const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
         const sat = mx === 0 ? 0 : (mx - mn) / mx; // HSV saturation 0-1
 
-        // Dark pixels → keep as outline
-        if (gray < 60) {
+        // 1. Crisp dark outlines → keep dark (anti-aliased outline pixels stay readable)
+        if (gray < 55) {
           d[i] = d[i+1] = d[i+2] = 40;
           d[i+3] = 255;
           continue;
         }
 
-        // Skin tones: low-mid saturation, warm hue (r > g > b)
-        const isSkin = r > 150 && g > 100 && b > 70 && r > g && g > b && sat < 0.55;
-        // Hair/dark features: medium brightness, any saturation
-        const isDarkDetail = gray < 120 && sat < 0.4;
-
-        if (isSkin || isDarkDetail) {
-          // Keep original color (face, hair, eyes, shoes)
+        // 2. Soft outline edges (gray 55-100, low sat) → keep but lighten slightly
+        if (gray < 100 && sat < 0.25) {
+          // Anti-aliased edge of an outline — fade to mid-gray so edges still read
+          const v = Math.round(80 + (gray - 55) * 1.5);
+          d[i] = d[i+1] = d[i+2] = v;
+          d[i+3] = 255;
           continue;
         }
 
-        // Everything else (clothes, large color blocks) → white/near-transparent
-        if (sat > 0.15 || gray > 200) {
-          d[i] = d[i+1] = d[i+2] = 255;
-          d[i+3] = 25; // very faint so outlines still show
-        }
+        // 3. Skin tones (warm, r > g > b, mid saturation) → keep original
+        const isSkin = r > 140 && g > 90 && b > 60 && r > g && g >= b - 5 && sat > 0.10 && sat < 0.55;
+        if (isSkin) continue;
+
+        // 4. Eye iris / mouth red (high sat warm or dark warm) → keep small accents
+        // Only if pixel is small relative to image — but we can't easily tell here.
+        // Heuristic: very saturated warm pixels are kept (eyes, lips, cheeks).
+        const isAccent = sat > 0.45 && r > g && r > b && gray < 160;
+        if (isAccent) continue;
+
+        // 5. Everything else (clothes, hoodie, big color blocks) → near-white
+        //    The "Color me!" target: keep an extremely faint tint so the area
+        //    still reads as fillable, but lets crayon strokes paint over crisply.
+        d[i] = d[i+1] = d[i+2] = 255;
+        d[i+3] = 18;
       }
       ctx.putImageData(imageData, 0, 0);
       resolve(c.toDataURL('image/png'));
+    };
+    img.onerror = (e) => {
+      console.warn('generateLineart: failed to load source image', e);
+      resolve(dataUrl);  // fall back to original on failure
     };
     img.src = dataUrl;
   });
@@ -1418,12 +1512,201 @@ function checkCloudSunOverlap() {
 }
 
 // ============================================================
+// LIGHT STAGE — sun/moon arc for brightness + time-of-day preference
+// ============================================================
+// Classify arc position t ∈ [0,1] into a coarse time-of-day band.
+// Mirrors the moon/sun split (isMoon when t<0.15 or t>0.85).
+function getTimeOfDay(t) {
+  if (typeof t !== 'number') return null;
+  if (t < 0.15 || t > 0.85) return 'night';
+  if (t < 0.35) return 'morning';
+  if (t < 0.65) return 'midday';
+  return 'afternoon';
+}
+
+// Normalize light brightness (range 0.4–1.15) into 0–1 preference score
+function normalizeLightBrightness(b) {
+  if (typeof b !== 'number') return null;
+  return Math.max(0, Math.min(1, (b - 0.4) / 0.75));
+}
+
+// Per-event scene illustrations (Imagen-generated, watercolor + ink, magenta interior chroma-keyed transparent).
+const LIGHT_SCENE_BY_EVENT = {
+  school: 'assets/light_scene_school.png?v=209',
+  grocery: 'assets/light_scene_grocery.png?v=209',
+  dining: 'assets/light_scene_dining.png?v=209',
+};
+const LIGHT_SCENE_DEFAULT = 'assets/light_house_scene.png?v=209';
+
+function setupLightStage() {
+  const stage = document.getElementById('light-stage');
+  const celestial = document.getElementById('light-celestial');
+  const sky = document.getElementById('light-sky');
+  const container = document.getElementById('canvas-container');
+  const frame = document.getElementById('light-frame');
+
+  // Swap the frame image to match the chosen event
+  if (frame) {
+    const desired = LIGHT_SCENE_BY_EVENT[state.eventType] || LIGHT_SCENE_DEFAULT;
+    const desiredFile = desired.split('?')[0];
+    if (frame.src.indexOf(desiredFile) === -1) {
+      frame.src = desired;
+    }
+  }
+
+  // Initial position: center of arc (noon, t = 0.5) or restore prior
+  let t = (state.lightData && typeof state.lightData.arcPosition === 'number')
+            ? state.lightData.arcPosition : 0.5;
+
+  function getStageRect() {
+    return stage.getBoundingClientRect();
+  }
+
+  function clientXToT(clientX) {
+    const rect = getStageRect();
+    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  }
+
+  // Position celestial body at parameter t along quadratic Bezier arc.
+  // Arc lives in the top ~20% of the stage so the sun stays in the white-sky
+  // area ABOVE the building roof (which fills most of the frame).
+  function positionCelestial(tNew) {
+    t = Math.max(0, Math.min(1, tNew));
+    const rect = getStageRect();
+    const w = rect.width, h = rect.height;
+
+    // Quadratic Bezier (1-t)^2 P0 + 2(1-t)t P1 + t^2 P2
+    // Edges at y=25% from top, apex at y=10% from top — keeps the sun clear of the
+    // topbar while still landing in the white sky strip above the building roof.
+    const x0 = 0.05, y0 = 0.25;
+    const x1 = 0.50, y1 = -0.05;
+    const x2 = 0.95, y2 = 0.25;
+    const u = 1 - t;
+    const xPct = u * u * x0 + 2 * u * t * x1 + t * t * x2;
+    const yPct = u * u * y0 + 2 * u * t * y1 + t * t * y2;
+    celestial.style.left = (xPct * w) + 'px';
+    celestial.style.top = (yPct * h) + 'px';
+
+    // Brightness: peak at t=0.5 (noon), low at edges. 0.4 → 1.15 range.
+    const brightness = 0.4 + 0.75 * Math.sin(t * Math.PI);
+    // Apply to specific underlying layers only, NOT the whole canvas-container
+    // (so the celestial icon inside light-stage stays vivid).
+    // Also dim the sky pane so the "outside" matches the time of day, but
+    // leave the house frame (.light-frame) at constant brightness so the
+    // interior reads as warmly lit even at night.
+    container.style.filter = '';
+    ['bg-canvas', 'color-canvas', 'element-layer', 'light-frame'].forEach(id => {
+      const layer = document.getElementById(id);
+      if (layer) layer.style.filter = `brightness(${brightness.toFixed(2)})`;
+    });
+    celestial.style.filter = 'drop-shadow(0 0 14px rgba(255, 220, 100, 0.85))';
+
+    // Switch between sun and moon at the dim edges of the arc
+    const isMoon = (t < 0.15 || t > 0.85);
+    celestial.classList.toggle('is-moon', isMoon);
+    celestial.classList.toggle('is-sun', !isMoon);
+
+    // Save to state
+    if (!state.lightData) state.lightData = {};
+    state.lightData.arcPosition = t;
+    state.lightData.brightness = brightness;
+  }
+
+  positionCelestial(t);
+
+  // === Demo loop: sun + hand glide back and forth around noon together,
+  // demonstrating the drag gesture for non-readers. Stops on first user touch.
+  // Cancel any RAF leaked from a previous setupLightStage entry. ===
+  if (stage._demoRAF) cancelAnimationFrame(stage._demoRAF);
+  const dragHint = document.getElementById('light-drag-hint');
+  if (dragHint) dragHint.classList.remove('hidden');
+
+  let demoActive = true;
+  const demoStart = performance.now();
+
+  function stopDemo() {
+    demoActive = false;
+    if (stage._demoRAF) {
+      cancelAnimationFrame(stage._demoRAF);
+      stage._demoRAF = null;
+    }
+    if (dragHint) dragHint.classList.add('hidden');
+  }
+
+  function tickDemo() {
+    if (!demoActive) return;
+    const elapsed = (performance.now() - demoStart) / 1000;
+    // Sin oscillation: t goes 0.5 → 0.7 → 0.5 → 0.3 → 0.5 over a 2.6s period
+    const period = 2.6;
+    const tDemo = 0.5 + 0.20 * Math.sin((elapsed / period) * 2 * Math.PI);
+    positionCelestial(tDemo);
+    // Position the hand to follow the sun (slight offset below + right)
+    if (dragHint && stage) {
+      const rect = stage.getBoundingClientRect();
+      const u = 1 - tDemo;
+      const xPct = u * u * 0.05 + 2 * u * tDemo * 0.50 + tDemo * tDemo * 0.95;
+      const yPct = u * u * 0.25 + 2 * u * tDemo * -0.05 + tDemo * tDemo * 0.25;
+      dragHint.style.left = (xPct * rect.width) + 'px';
+      dragHint.style.top = (yPct * rect.height + 35) + 'px';  // hand sits just below the sun
+    }
+    stage._demoRAF = requestAnimationFrame(tickDemo);
+  }
+  stage._demoRAF = requestAnimationFrame(tickDemo);
+
+  // Pointer / touch drag handlers
+  let dragging = false;
+
+  function onDown(e) {
+    e.preventDefault();
+    dragging = true;
+    stopDemo();  // first user touch ends the demo (also cancels RAF)
+    celestial.classList.add('dragging');
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    positionCelestial(clientXToT(cx));
+  }
+  function onMove(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    positionCelestial(clientXToT(cx));
+  }
+  function onUp() {
+    if (!dragging) return;
+    dragging = false;
+    celestial.classList.remove('dragging');
+    if (typeof logEvent === 'function') {
+      logEvent('light_arc_set', { arcPosition: t, brightness: state.lightData.brightness });
+    }
+  }
+
+  // Avoid duplicate listeners across re-entry
+  if (stage._lightHandlers) {
+    const h = stage._lightHandlers;
+    stage.removeEventListener('mousedown', h.down);
+    stage.removeEventListener('mousemove', h.move);
+    stage.removeEventListener('mouseup', h.up);
+    stage.removeEventListener('mouseleave', h.up);
+    stage.removeEventListener('touchstart', h.down);
+    stage.removeEventListener('touchmove', h.move);
+    stage.removeEventListener('touchend', h.up);
+  }
+  stage._lightHandlers = { down: onDown, move: onMove, up: onUp };
+  stage.addEventListener('mousedown', onDown);
+  stage.addEventListener('mousemove', onMove);
+  stage.addEventListener('mouseup', onUp);
+  stage.addEventListener('mouseleave', onUp);
+  stage.addEventListener('touchstart', onDown, { passive: false });
+  stage.addEventListener('touchmove', onMove, { passive: false });
+  stage.addEventListener('touchend', onUp);
+}
+
+// ============================================================
 // SOUND STUDIO — Five-line staff for sound composition
 // ============================================================
 const SOUND_ELEMENTS = [
-  { type: 'bgm', asset: 'assets/music_note.png', label: 'Music', color: '#FF8C42' },
-  { type: 'voice', asset: 'assets/microphone.png', label: 'Voices', color: '#4D96FF' },
-  { type: 'sfx', asset: 'assets/bell.png', label: 'Sounds', color: '#6BCB77' },
+  { type: 'bgm', asset: 'assets/music_note.png', glyph: '♫', label: 'BGM', color: '#FF8C42' },
+  { type: 'voice', asset: 'assets/microphone.png', glyph: '♩', label: 'Voices', color: '#4D96FF' },
+  { type: 'sfx', asset: 'assets/bell.png', glyph: '♪', label: 'Effects', color: '#6BCB77' },
 ];
 
 function setupSoundStudio() {
@@ -1433,6 +1716,8 @@ function setupSoundStudio() {
 
   palette.innerHTML = '';
   staffElements.innerHTML = '';
+  // Reveal decorative note hints when entering an empty staff
+  document.getElementById('staff-hints')?.classList.remove('hidden');
 
   // Add trash zone
   const trash = document.createElement('div');
@@ -1445,8 +1730,12 @@ function setupSoundStudio() {
   SOUND_ELEMENTS.forEach(snd => {
     const item = document.createElement('div');
     item.className = 'sound-palette-item';
+    item.dataset.soundType = snd.type;
+    const iconInner = snd.glyph
+      ? `<span class="sound-palette-glyph" style="color:${snd.color}">${snd.glyph}</span>`
+      : `<img src="${snd.asset.startsWith('data:') ? snd.asset : snd.asset + '?v=' + Date.now()}" />`;
     item.innerHTML = `
-      <div class="sound-palette-icon"><img src="${snd.asset.startsWith('data:') ? snd.asset : snd.asset + '?v=' + Date.now()}" /></div>
+      <div class="sound-palette-icon">${iconInner}</div>
       <span class="sound-palette-label">${snd.label}</span>
     `;
 
@@ -1570,15 +1859,28 @@ async function generateCustomSound(name) {
   }
 }
 
+function refreshSoundPaletteState() {
+  const placed = new Set();
+  document.querySelectorAll('.staff-element').forEach(el => placed.add(el.dataset.soundType));
+  document.querySelectorAll('.sound-palette-item[data-sound-type]').forEach(item => {
+    item.classList.toggle('used', placed.has(item.dataset.soundType));
+  });
+}
+
 function spawnStaffElement(snd, startEvent) {
+  // Only one of each sound type allowed on the staff
+  if (document.querySelector(`.staff-element[data-sound-type="${CSS.escape(snd.type)}"]`)) return;
   const staffArea = document.getElementById('staff-area');
   const staffElements = document.getElementById('staff-elements');
   const el = document.createElement('div');
   el.className = 'staff-element';
   el.dataset.soundType = snd.type;
-  el.innerHTML = `<img src="${snd.asset.startsWith('data:') ? snd.asset : snd.asset + '?v=' + Date.now()}" draggable="false" />`;
+  el.innerHTML = snd.glyph
+    ? `<span class="staff-element-glyph" style="color:${snd.color}">${snd.glyph}</span>`
+    : `<img src="${snd.asset.startsWith('data:') ? snd.asset : snd.asset + '?v=' + Date.now()}" draggable="false" />`;
 
   staffElements.appendChild(el);
+  refreshSoundPaletteState();
 
   // Position at center
   const rect = staffArea.getBoundingClientRect();
@@ -1660,6 +1962,7 @@ function makeStaffDraggable(el, snd) {
         if (studioLayers[snd.type].gain) { studioLayers[snd.type].gain.disconnect(); }
         delete studioLayers[snd.type];
       }
+      refreshSoundPaletteState();
       logEvent('staff_element_removed', { type: snd.type });
       return;
     }
@@ -2458,8 +2761,10 @@ function showColorHint() {
   document.getElementById('element-layer').style.zIndex = '3';
   state._coloringActive = true;
 
-  // Add "Color me!" hint to EACH placed element
+  // Add "Color me!" hint to AVATAR ONLY (per Yue 2026-05-07).
+  // Other placed items keep their original look during the color phase.
   document.querySelectorAll('.canvas-element').forEach(el => {
+    if (el.id !== 'avatar-main') return;
     const img = el.querySelector('img');
     if (!img) return;
 
@@ -2492,8 +2797,27 @@ function showColorHint() {
       el.dataset.originalSrc = img.src;
 
       if (el.id === 'avatar-main') {
-        img.src = 'assets/test_avatar_lineart.png?v=' + Date.now();
         img.style.filter = '';
+        // If the user took a real photo (not the default test avatar), generate
+        // lineart from THEIR avatar instead of falling back to the canned boy.
+        const usingCustomPhoto = state.childPhoto && !state.childPhoto.includes('test_avatar');
+        if (usingCustomPhoto) {
+          if (state.childAvatarLineart) {
+            img.src = state.childAvatarLineart;
+          } else {
+            // Prefer server-side Gemini coloring-book conversion (matches the
+            // boy reference style). Falls back to client-side pixel algorithm
+            // if the API isn't available.
+            generateLineartViaApi(state.childPhoto)
+              .catch(() => generateLineart(state.childPhoto))
+              .then(url => {
+                state.childAvatarLineart = url;
+                img.src = url;
+              });
+          }
+        } else {
+          img.src = 'assets/test_avatar_lineart.png?v=' + Date.now();
+        }
       } else {
         const src = img.src.split('?')[0];
         const lineartSrc = src.replace('.png', '_lineart.png');
@@ -2604,18 +2928,195 @@ function updateCrayonCursor() {
   canvas.style.cursor = 'none';
 }
 
-// --- Color toolbar events ---
-document.querySelectorAll('.color-swatch').forEach(swatch => {
-  swatch.addEventListener('click', () => {
-    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
-    swatch.classList.add('selected');
-    state.selectedColor = swatch.dataset.color;
-    state.isEraser = false;
-    document.getElementById('btn-eraser').classList.remove('active');
-    updateCrayonCursor();
-    updateTouchCrayonColor();
+// --- Color picker: hue dropdown + saturation carousel ---
+// 30 hues across the spectrum. Each hue exposes 6 saturation steps at L=50% by default.
+// Modifiers: lShift (lightness offset), gray/black/brown (special handling).
+const HUE_PALETTE = [
+  { key: 'red',      name: 'Red',      hue: 0   },
+  { key: 'crimson',  name: 'Crimson',  hue: 348, lShift: -8 },
+  { key: 'coral',    name: 'Coral',    hue: 12  },
+  { key: 'salmon',   name: 'Salmon',   hue: 8,   lShift: 10 },
+  { key: 'orange',   name: 'Orange',   hue: 28  },
+  { key: 'peach',    name: 'Peach',    hue: 22,  lShift: 12 },
+  { key: 'amber',    name: 'Amber',    hue: 42  },
+  { key: 'gold',     name: 'Gold',     hue: 46,  lShift: -5 },
+  { key: 'yellow',   name: 'Yellow',   hue: 54  },
+  { key: 'olive',    name: 'Olive',    hue: 65,  lShift: -15 },
+  { key: 'lime',     name: 'Lime',     hue: 80  },
+  { key: 'green',    name: 'Green',    hue: 130 },
+  { key: 'forest',   name: 'Forest',   hue: 140, lShift: -18 },
+  { key: 'jade',     name: 'Jade',     hue: 150 },
+  { key: 'mint',     name: 'Mint',     hue: 155, lShift: 12 },
+  { key: 'teal',     name: 'Teal',     hue: 172 },
+  { key: 'cyan',     name: 'Cyan',     hue: 188 },
+  { key: 'sky',      name: 'Sky',      hue: 205 },
+  { key: 'azure',    name: 'Azure',    hue: 215 },
+  { key: 'blue',     name: 'Blue',     hue: 220 },
+  { key: 'indigo',   name: 'Indigo',   hue: 245, lShift: -10 },
+  { key: 'violet',   name: 'Violet',   hue: 260 },
+  { key: 'purple',   name: 'Purple',   hue: 275 },
+  { key: 'magenta',  name: 'Magenta',  hue: 305 },
+  { key: 'rose',     name: 'Rose',     hue: 345, lShift: 8 },
+  { key: 'pink',     name: 'Pink',     hue: 330 },
+  { key: 'brown',    name: 'Brown',    hue: 25,  brown: true },
+  { key: 'tan',      name: 'Tan',      hue: 32,  lShift: 18 },
+  { key: 'black',    name: 'Black',                black: true },
+  { key: 'gray',     name: 'Gray',                 gray: true },
+];
+const SAT_LEVELS = [15, 32, 49, 66, 83, 100]; // % saturation, L=50%
+const DEFAULT_SAT_INDEX = 3; // start mid-saturated
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(255 * c).toString(16).padStart(2, '0');
+  };
+  return '#' + f(0) + f(8) + f(4);
+}
+
+function getHueSwatches(hueDef) {
+  if (hueDef.gray) {
+    // Light → dark gradient (no hue)
+    return [90, 75, 60, 45, 30, 15].map(l => hslToHex(0, 0, l));
+  }
+  if (hueDef.black) {
+    // Very dark gradient, near-black at the saturated end
+    return [40, 32, 24, 18, 12, 6].map(l => hslToHex(0, 0, l));
+  }
+  if (hueDef.brown) {
+    return SAT_LEVELS.map(s => hslToHex(hueDef.hue, Math.round(s * 0.85), 32));
+  }
+  const baseL = 50 + (hueDef.lShift || 0);
+  return SAT_LEVELS.map(s => hslToHex(hueDef.hue, s, baseL));
+}
+
+// Picker state — mirrors the visible UI selection
+let currentHueKey = 'red';
+let currentSatIndex = DEFAULT_SAT_INDEX;
+
+function getHueDef(key) {
+  return HUE_PALETTE.find(h => h.key === key) || HUE_PALETTE[0];
+}
+
+function renderSatCarousel() {
+  const container = document.getElementById('sat-carousel');
+  if (!container) return;
+  const hueDef = getHueDef(currentHueKey);
+  const swatches = getHueSwatches(hueDef);
+  container.innerHTML = '';
+  swatches.forEach((hex, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'sat-swatch' + (i === currentSatIndex ? ' selected' : '');
+    btn.dataset.color = hex;
+    btn.dataset.satIndex = String(i);
+    btn.style.background = hex;
+    btn.addEventListener('click', () => {
+      currentSatIndex = i;
+      selectColor(hex);
+      // refresh selected highlight
+      container.querySelectorAll('.sat-swatch').forEach((el, idx) => {
+        el.classList.toggle('selected', idx === i);
+      });
+    });
+    container.appendChild(btn);
   });
-});
+}
+
+function renderHueDropdownMenu() {
+  const menu = document.getElementById('hue-dropdown-menu');
+  if (!menu) return;
+  menu.innerHTML = '';
+  HUE_PALETTE.forEach(hueDef => {
+    const tile = document.createElement('button');
+    tile.className = 'hue-tile' + (hueDef.key === currentHueKey ? ' selected' : '');
+    tile.dataset.hueKey = hueDef.key;
+    // representative dot = mid-saturation for that hue
+    const previewHex = getHueSwatches(hueDef)[DEFAULT_SAT_INDEX];
+    tile.innerHTML =
+      `<span class="hue-tile-dot" style="background:${previewHex}"></span>` +
+      `<span class="hue-tile-name">${hueDef.name}</span>`;
+    tile.addEventListener('click', () => {
+      currentHueKey = hueDef.key;
+      // keep current sat index, but clamp
+      currentSatIndex = Math.min(currentSatIndex, SAT_LEVELS.length - 1);
+      updateHueDropdownButton();
+      renderSatCarousel();
+      // update selection highlights inside menu
+      menu.querySelectorAll('.hue-tile').forEach(el => {
+        el.classList.toggle('selected', el.dataset.hueKey === currentHueKey);
+      });
+      // pick the current sat's color
+      const hex = getHueSwatches(getHueDef(currentHueKey))[currentSatIndex];
+      selectColor(hex);
+      closeHueDropdown();
+    });
+    menu.appendChild(tile);
+  });
+}
+
+function updateHueDropdownButton() {
+  const dot = document.getElementById('hue-dropdown-dot');
+  const label = document.getElementById('hue-dropdown-label');
+  const hueDef = getHueDef(currentHueKey);
+  const previewHex = getHueSwatches(hueDef)[DEFAULT_SAT_INDEX];
+  if (dot) dot.style.background = previewHex;
+  if (label) label.textContent = hueDef.name;
+}
+
+function selectColor(hex) {
+  state.selectedColor = hex;
+  state.isEraser = false;
+  const eraserBtn = document.getElementById('btn-eraser');
+  if (eraserBtn) eraserBtn.classList.remove('active');
+  updateCrayonCursor();
+  updateTouchCrayonColor();
+}
+
+function openHueDropdown() {
+  const menu = document.getElementById('hue-dropdown-menu');
+  const btn = document.getElementById('hue-dropdown-btn');
+  if (!menu || !btn) return;
+  menu.classList.remove('hidden');
+  btn.setAttribute('aria-expanded', 'true');
+}
+function closeHueDropdown() {
+  const menu = document.getElementById('hue-dropdown-menu');
+  const btn = document.getElementById('hue-dropdown-btn');
+  if (!menu || !btn) return;
+  menu.classList.add('hidden');
+  btn.setAttribute('aria-expanded', 'false');
+}
+function toggleHueDropdown() {
+  const menu = document.getElementById('hue-dropdown-menu');
+  if (!menu) return;
+  if (menu.classList.contains('hidden')) openHueDropdown();
+  else closeHueDropdown();
+}
+
+(function initColorPicker() {
+  const dropdownBtn = document.getElementById('hue-dropdown-btn');
+  if (!dropdownBtn) return; // toolbar not present yet (test pages, etc.)
+  renderHueDropdownMenu();
+  renderSatCarousel();
+  updateHueDropdownButton();
+  // sync initial selectedColor with default hue/sat
+  const initialHex = getHueSwatches(getHueDef(currentHueKey))[currentSatIndex];
+  state.selectedColor = initialHex;
+
+  dropdownBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleHueDropdown();
+  });
+  // dismiss when tapping outside
+  document.addEventListener('pointerdown', (e) => {
+    const menu = document.getElementById('hue-dropdown-menu');
+    if (!menu || menu.classList.contains('hidden')) return;
+    if (!menu.contains(e.target) && !dropdownBtn.contains(e.target)) closeHueDropdown();
+  });
+})();
 
 document.querySelectorAll('.brush-size').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -2638,11 +3139,13 @@ document.getElementById('btn-eraser').addEventListener('click', () => {
   const btn = document.getElementById('btn-eraser');
   btn.classList.toggle('active', state.isEraser);
   if (state.isEraser) {
-    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+    document.querySelectorAll('.sat-swatch').forEach(s => s.classList.remove('selected'));
   } else {
-    // Re-select first swatch
-    const first = document.querySelector('.color-swatch');
-    if (first) { first.classList.add('selected'); state.selectedColor = first.dataset.color; }
+    // restore previous hue/sat selection visually + state
+    const hex = getHueSwatches(getHueDef(currentHueKey))[currentSatIndex];
+    state.selectedColor = hex;
+    const swatches = document.querySelectorAll('.sat-swatch');
+    if (swatches[currentSatIndex]) swatches[currentSatIndex].classList.add('selected');
   }
   updateCrayonCursor();
   updateTouchCrayonColor();
@@ -3117,11 +3620,9 @@ function stopAudio() {
 // DRUM RHYTHM PHASE (Temporal pacing)
 // ============================================================
 // ============================================================
-// DRUM RHYTHM PHASE — 4-round Taiko design
+// DRUM RHYTHM PHASE — 2-round design
 // Round 0: Intro (demo hands)
-// Round 1: Visual following (taiko notes scroll, no sound cue)
-// Round 2: Auditory following (sound cue only, no visual notes)
-// Round 3: Free play (child's own tempo)
+// Round 1: Free play (child's own tempo)
 // ============================================================
 function setupAnimatePhase() {
   const drumArea = document.getElementById('drum-area');
@@ -3133,22 +3634,23 @@ function setupAnimatePhase() {
   // Use canvas topbar instruction area for drum hints
   const instructionEl = document.getElementById('canvas-instruction');
 
-  // Data collection per round
+  // Data collection per session (3 sessions for SMT reliability — Provasi & Bobin-Bègue 2003)
   const drumData = {
-    visual: { cueTimes: [], tapTimes: [], delays: [] },
-    auditory: { cueTimes: [], tapTimes: [], delays: [] },
-    free: { tapTimes: [] },
+    sessions: [[], [], []],  // tap timestamps per session
   };
 
-  let currentRound = 0;
+  let currentRound = 0;        // 0 = Demo, 1..3 = Free sessions
+  const SESSIONS_TOTAL = 3;
   const BEAT_INTERVAL = 700;
-  const BEATS_PER_ROUND = 12;
   const FREE_TAPS_NEEDED = 30;
-  let beatCount = 0;
   let roundTimer = null;
   let introTimer = null;
   let drumEnabled = false;
-  let pendingCueTime = null;
+
+  // Magic Energy buildup state — see SENSE/docs/plans/2026-05-07-drum-flow-redesign.md
+  const chargeCounts = new WeakMap();
+  let totalTaps = 0;
+  let lastTargetIdx = -1;
 
   // Clean up any previous drum session
   if (state._cleanupDrum) state._cleanupDrum();
@@ -3173,145 +3675,59 @@ function setupAnimatePhase() {
     if (!drumEnabled) return;
 
     const now = Date.now();
+    // Capture pointer coords (viewport-relative) so visual effects spawn under the finger,
+    // not at drum center (which can drift due to idle bob transform on iPad)
+    const tapX = (e.clientX != null) ? e.clientX :
+                 (e.touches && e.touches[0]) ? e.touches[0].clientX : null;
+    const tapY = (e.clientY != null) ? e.clientY :
+                 (e.touches && e.touches[0]) ? e.touches[0].clientY : null;
 
-    // Visual + sound feedback
+    // Visual + sound feedback (match hdDrumHit duration in style-handdrawn.css)
     drumImg.classList.add('hit');
-    setTimeout(() => drumImg.classList.remove('hit'), 100);
+    setTimeout(() => drumImg.classList.remove('hit'), 280);
     const ripple = document.createElement('div');
     ripple.className = 'drum-ripple';
     document.getElementById('drum-hits').appendChild(ripple);
     setTimeout(() => ripple.remove(), 500);
-    playDrumHit();
+    playDrumHit(currentRound);
 
-    // Visual round: check if a note is near the target, show hit effect
-    if (currentRound === 1 && taikoTarget) {
-      // Find any note near the target (wide 80px window)
-      const targetX = taikoTrack.offsetWidth * 0.33;
-      let hitNote = null;
-      let closestDist = Infinity;
-      taikoNotes.querySelectorAll('.taiko-note').forEach(n => {
-        const noteX = parseFloat(n.style.left || 0) + 24;
-        const dist = Math.abs(noteX - targetX);
-        if (dist < 80 && dist < closestDist) {
-          closestDist = dist;
-          hitNote = n;
-        }
-      });
+    // Record data per session (currentRound 1..3 = free sessions 0..2)
+    if (currentRound >= 1 && currentRound <= SESSIONS_TOTAL) {
+      const sessionIdx = currentRound - 1;
+      drumData.sessions[sessionIdx].push(now);
+      const tapCount = drumData.sessions[sessionIdx].length;
+      totalTaps += 1;
+      updateEnergyBar(tapCount, tapX, tapY);
 
-      // Target ring reacts
-      taikoTarget.classList.add('hit');
-      setTimeout(() => taikoTarget.classList.remove('hit'), 300);
-
-      if (hitNote) {
-        // Hit! — green burst + "Nice!" text + remove note
-        hitNote.style.background = '#4CAF50';
-        hitNote.style.transform = 'translateY(-50%) scale(1.4)';
-        hitNote.style.opacity = '0';
-        hitNote.style.transition = 'all 0.25s';
-        setTimeout(() => hitNote.remove(), 250);
-
-        // Burst ring
-        const burst = document.createElement('div');
-        burst.className = 'taiko-burst';
-        burst.style.left = '33%';
-        burst.style.top = '50%';
-        taikoTrack.appendChild(burst);
-        setTimeout(() => burst.remove(), 600);
-
-        // "Nice!" floating text
-        const nice = document.createElement('div');
-        nice.className = 'taiko-nice';
-        nice.textContent = closestDist < 30 ? 'Perfect!' : 'Nice!';
-        nice.style.left = '33%';
-        nice.style.top = '20%';
-        taikoTrack.appendChild(nice);
-        setTimeout(() => nice.remove(), 800);
-      }
-    }
-
-
-    // Record data per round
-    if (currentRound === 1) {
-      drumData.visual.tapTimes.push(now);
-      if (pendingCueTime) {
-        drumData.visual.delays.push(now - pendingCueTime);
-        pendingCueTime = null;
-      }
-      updateProgress(drumData.visual.tapTimes.length, BEATS_PER_ROUND);
-    } else if (currentRound === 2) {
-      drumData.auditory.tapTimes.push(now);
-      if (pendingCueTime) {
-        const delay = now - pendingCueTime;
-        drumData.auditory.delays.push(delay);
-        pendingCueTime = null;
-
-        // Reward feedback based on reaction time
-        const drumCenter = document.querySelector('.drum-center');
-        const reward = document.createElement('div');
-        reward.className = 'taiko-nice';
-        reward.style.position = 'absolute';
-        reward.style.left = '50%';
-        reward.style.top = '10%';
-        reward.style.zIndex = '20';
-        if (delay < 200) {
-          reward.textContent = 'Perfect!';
-          reward.style.color = '#4CAF50';
-        } else if (delay < 400) {
-          reward.textContent = 'Nice!';
-          reward.style.color = '#FF8C42';
-        } else {
-          reward.textContent = 'OK';
-          reward.style.color = '#999';
-        }
-        drumCenter.appendChild(reward);
-        setTimeout(() => reward.remove(), 800);
-      }
-      updateProgress(drumData.auditory.tapTimes.length, BEATS_PER_ROUND);
-    } else if (currentRound === 3) {
-      drumData.free.tapTimes.push(now);
-      const tapCount = drumData.free.tapTimes.length;
-      updateEnergyBar(tapCount);
-
-      // Sound wave visual effect
-      const wave1 = document.createElement('div');
-      wave1.className = 'drum-soundwave';
-      drumArea.appendChild(wave1);
-      setTimeout(() => wave1.remove(), 800);
-      const wave2 = document.createElement('div');
-      wave2.className = 'drum-soundwave';
-      wave2.style.animationDelay = '0.15s';
-      drumArea.appendChild(wave2);
-      setTimeout(() => wave2.remove(), 1000);
-
-      // Encouragement text at milestones
-      const drumCenter = document.querySelector('.drum-center');
-      const encouragements = {
-        3: 'Go! 🥁',
-        8: 'Great rhythm!',
-        14: 'Keep it up! 🔥',
-        20: 'Almost there!',
-        25: 'So close! ⭐',
-      };
-      if (encouragements[tapCount]) {
-        const msg = document.createElement('div');
-        msg.className = 'taiko-nice';
-        msg.textContent = encouragements[tapCount];
-        msg.style.position = 'absolute';
-        msg.style.left = '50%';
-        msg.style.top = '10%';
-        msg.style.zIndex = '20';
-        msg.style.color = '#FF8C42';
-        drumCenter.appendChild(msg);
-        setTimeout(() => msg.remove(), 1000);
-      }
+      // Magic Energy buildup: spawn wave from drum → charge a target element
+      // (uniform per-tap feedback; no rate-dependent reward — preserves SMT measurement)
+      const target = pickWakeTarget();
+      spawnEnergyWave(target, currentRound, tapX, tapY);
+      updateBackgroundBrightness(currentRound, tapCount);
+      updateVignetteIntensity(currentRound, tapCount);
+      triggerShakeIfLateS3(currentRound, tapCount);
+      // Interaction boost (2026-05-07): whole canvas reacts to each tap
+      pulseAllCanvasElements();
+      spawnSplashParticles(currentRound, tapX, tapY);
 
       if (tapCount >= FREE_TAPS_NEEDED) {
         drumEnabled = false;
-        finishDrum();
+        // Light up the corresponding magic meter segment + spawn sparkles
+        const seg = document.getElementById(`magic-seg-${sessionIdx + 1}`);
+        if (seg) seg.classList.add('lit');
+        spawnSparkles(sessionIdx === SESSIONS_TOTAL - 1 ? 24 : 14);
+        sessionCompleteEffect(sessionIdx);
+        // Per Yue 2026-05-07: skip theme.complete center-text (only "Go!" allowed)
+        if (sessionIdx < SESSIONS_TOTAL - 1) {
+          setTimeout(() => startFreeRound(sessionIdx + 1), 1100);
+        } else {
+          setTimeout(() => spawnSparkles(20), 200);
+          setTimeout(() => finishDrum(), 1500);
+        }
       }
     }
 
-    logEvent('drum_tap', { round: currentRound, timestamp: now });
+    logEvent('drum_tap', { round: currentRound, session: currentRound, timestamp: now });
   }
 
   drumArea._drumHandler && drumArea.removeEventListener('pointerdown', drumArea._drumHandler);
@@ -3320,15 +3736,336 @@ function setupAnimatePhase() {
 
   // --- UI helpers ---
   // Put round indicators into the topbar instruction area
-  const roundLabels = ['Demo', '👀', '👂', '🆓'];
+  const roundLabels = ['Demo', '🆓 1', '🆓 2', '🆓 3'];
+
+  // Per-session "energy magic" narrative — adapts to event
+  const SESSION_THEMES = {
+    school: [
+      { intro: '✨ Charge the magic! (1/3)', desc: 'Wake up the classroom!',      complete: '⚡ Lights coming on!' },
+      { intro: '🎒 Add more energy! (2/3)', desc: 'Friends are arriving!',        complete: '🎵 Almost ready!' },
+      { intro: '🏫 Final burst! (3/3)',     desc: 'Morning circle time!',         complete: '🎉 Off to school!' },
+    ],
+    grocery: [
+      { intro: '✨ Charge the magic! (1/3)', desc: 'Wake up the store!',          complete: '⚡ Lights flickering on!' },
+      { intro: '🛒 Add more energy! (2/3)', desc: 'Carts are rolling!',           complete: '🎵 Aisles coming alive!' },
+      { intro: '🥦 Final burst! (3/3)',     desc: 'Time to shop!',                complete: '🎉 Off to the store!' },
+    ],
+    dining: [
+      { intro: '✨ Charge the magic! (1/3)', desc: 'Wake up the restaurant!',     complete: '⚡ Lights are on!' },
+      { intro: '🍽️ Add more energy! (2/3)', desc: 'Tables setting themselves!',   complete: '🎵 Food on its way!' },
+      { intro: '🍝 Final burst! (3/3)',     desc: 'Time to eat!',                 complete: '🎉 Off to dinner!' },
+    ],
+    // legacy
+    birthday: [
+      { intro: '✨ Charge the magic! (1/3)', desc: 'Wake up the party!',     complete: '⚡ Sparks flying!' },
+      { intro: '🎈 Add more energy! (2/3)', desc: 'Decorations coming alive!', complete: '🎵 Magic is brewing!' },
+      { intro: '🎂 Final burst! (3/3)',     desc: 'Light the candles!',       complete: '🎉 Off to your party!' },
+    ],
+    playground: [
+      { intro: '✨ Charge the magic! (1/3)', desc: 'Wake up the playground!',   complete: '⚡ Friends arriving!' },
+      { intro: '🛝 Add more energy! (2/3)', desc: 'Swings and slides start moving!', complete: '🎵 Almost there!' },
+      { intro: '🌳 Final burst! (3/3)',     desc: 'Time to play!',              complete: '🎉 Off we go!' },
+    ],
+    _default: [
+      { intro: '✨ Charge the magic! (1/3)', desc: 'Wake up your scene!',      complete: '⚡ Magic flowing!' },
+      { intro: '🌟 Keep going! (2/3)',       desc: 'Your drawing is coming alive!', complete: '🎵 Nearly there!' },
+      { intro: '🚀 Final burst! (3/3)',      desc: 'Bring it to life!',         complete: '🎉 Ready to fly!' },
+    ],
+  };
+  function getTheme(idx) {
+    const set = SESSION_THEMES[state.eventType] || SESSION_THEMES._default;
+    return set[idx] || set[0];
+  }
+
+  // Spawn sparkle particles bursting out from drum center
+  function spawnSparkles(count) {
+    const drumCenter = document.querySelector('.drum-center');
+    if (!drumCenter) return;
+    const glyphs = ['✨', '⭐', '💫', '🌟', '🎵'];
+    for (let i = 0; i < count; i++) {
+      const sparkle = document.createElement('div');
+      sparkle.className = 'sparkle-particle';
+      sparkle.textContent = glyphs[Math.floor(Math.random() * glyphs.length)];
+      const angle = (i / count) * 360 + Math.random() * 25 - 12;
+      const distance = 130 + Math.random() * 90;
+      const rad = angle * Math.PI / 180;
+      sparkle.style.setProperty('--dx', `${Math.cos(rad) * distance}px`);
+      sparkle.style.setProperty('--dy', `${Math.sin(rad) * distance}px`);
+      sparkle.style.fontSize = `${20 + Math.random() * 16}px`;
+      drumCenter.appendChild(sparkle);
+      setTimeout(() => sparkle.remove(), 1500);
+    }
+  }
+
+  // === Interaction effects (2026-05-07) ===
+
+  // Whole canvas "breathes" with each tap — strongest interactivity cue
+  function pulseAllCanvasElements() {
+    document.querySelectorAll('.canvas-element').forEach(el => {
+      el.classList.remove('drum-tap-pulse');
+      void el.offsetWidth;
+      el.classList.add('drum-tap-pulse');
+      setTimeout(() => el.classList.remove('drum-tap-pulse'), 280);
+    });
+  }
+
+  // Small particles splash out from drum on each tap (separate from main star to energy bar)
+  function spawnSplashParticles(sessionPhase, tapX, tapY) {
+    let cx, cy;
+    if (tapX != null && tapY != null) {
+      cx = tapX; cy = tapY;
+    } else if (drumImg) {
+      const dRect = drumImg.getBoundingClientRect();
+      cx = dRect.left + dRect.width / 2;
+      cy = dRect.top + dRect.height * 0.4;
+    } else {
+      return;
+    }
+    const colors = sessionPhase === 1 ? ['#a3c9a8', '#86b5a3'] :
+                   sessionPhase === 2 ? ['#ffd166', '#f0a04b'] :
+                                        ['#ec6b4a', '#ff9b6c'];
+    const count = 3 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('div');
+      p.className = 'drum-splash';
+      p.style.left = cx + 'px';
+      p.style.top = cy + 'px';
+      const angle = (Math.PI * 2 * i / count) + (Math.random() - 0.5) * 0.6;
+      const dist = 60 + Math.random() * 50;
+      p.style.setProperty('--dx', `${Math.cos(angle) * dist}px`);
+      p.style.setProperty('--dy', `${Math.sin(angle) * dist - 20}px`);
+      p.style.background = colors[i % colors.length];
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 700);
+    }
+  }
+
+  // Big visual + audio celebration when a session (30 taps) completes
+  function sessionCompleteEffect(sessionIdx) {
+    const overlay = document.getElementById('drum-overlay');
+    if (overlay) {
+      const flash = document.createElement('div');
+      flash.className = `session-flash session-flash-s${sessionIdx + 1}`;
+      overlay.appendChild(flash);
+      setTimeout(() => flash.remove(), 700);
+    }
+    // Multi-directional star burst from drum center
+    if (drumImg) {
+      const dRect = drumImg.getBoundingClientRect();
+      const cx = dRect.left + dRect.width / 2;
+      const cy = dRect.top + dRect.height / 2;
+      const burstCount = 14 + sessionIdx * 4; // S1 14, S2 18, S3 22
+      for (let i = 0; i < burstCount; i++) {
+        const angle = (Math.PI * 2 * i / burstCount) + (Math.random() - 0.5) * 0.4;
+        const dist = 220 + Math.random() * 120;
+        const star = document.createElement('div');
+        star.className = 'energy-star burst-star';
+        star.textContent = '✦';
+        star.style.left = cx + 'px';
+        star.style.top = cy + 'px';
+        star.style.setProperty('--dx', `${Math.cos(angle) * dist}px`);
+        star.style.setProperty('--dy', `${Math.sin(angle) * dist}px`);
+        document.body.appendChild(star);
+        setTimeout(() => star.remove(), 1100);
+      }
+    }
+    // Rising chime: 4 ascending notes, pitch-shifted up per session
+    playChime(sessionIdx);
+    // Game-style victory flourish after the chime — happy upward swoop + cluster
+    setTimeout(() => playVictoryFlourish(sessionIdx), 380);
+  }
+
+  // Cheerful "yay!" feel via pure audio: an upward glissando + bright cluster chord
+  function playVictoryFlourish(sessionIdx) {
+    const ctx = state.audioCtx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const pitchMul = 1 + sessionIdx * 0.15;
+
+    // 1) Glissando swoop — sine sliding up, like "wheee!"
+    const swoop = ctx.createOscillator();
+    swoop.type = 'sine';
+    swoop.frequency.setValueAtTime(440 * pitchMul, t);
+    swoop.frequency.exponentialRampToValueAtTime(1100 * pitchMul, t + 0.22);
+    const swoopGain = ctx.createGain();
+    swoopGain.gain.setValueAtTime(0, t);
+    swoopGain.gain.linearRampToValueAtTime(0.16, t + 0.02);
+    swoopGain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+    swoop.connect(swoopGain); swoopGain.connect(ctx.destination);
+    swoop.start(t); swoop.stop(t + 0.3);
+
+    // 2) Major-chord cluster on the back end — happy resolve
+    const chordRoot = 523.25 * pitchMul; // C5 base
+    const chordIntervals = [1, 1.25, 1.5, 2]; // Root, M3, P5, octave
+    const chordStart = t + 0.18;
+    chordIntervals.forEach((mul, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = i === 3 ? 'triangle' : 'sine';
+      osc.frequency.value = chordRoot * mul;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, chordStart);
+      g.gain.linearRampToValueAtTime(0.07 - i * 0.01, chordStart + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.001, chordStart + 0.55);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(chordStart); osc.stop(chordStart + 0.6);
+    });
+  }
+
+  // Play a 4-note ascending chime for session completion
+  function playChime(sessionIdx) {
+    const ctx = state.audioCtx;
+    if (!ctx) return;
+    // Pentatonic-ish ascending — pleasant, not jarring
+    const baseNotes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
+    const pitchMul = 1 + sessionIdx * 0.12; // S2 +12%, S3 +24%
+    baseNotes.forEach((f, i) => {
+      setTimeout(() => {
+        const t = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = f * pitchMul;
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.18, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.55);
+      }, i * 90);
+    });
+  }
+
+  // === Magic Energy buildup helpers ===
+
+  // Pick next element to receive an energy wave. Round-robin across canvas elements.
+  // Returns null if no elements exist (caller falls back to drum-anchored wave).
+  function pickWakeTarget() {
+    const all = Array.from(document.querySelectorAll('.canvas-element'));
+    if (all.length === 0) return null;
+    lastTargetIdx = (lastTargetIdx + 1) % all.length;
+    return all[lastTargetIdx];
+  }
+
+  // Spawn 1+ energy ring(s) flying from tap point → target. Charges the target on arrival.
+  function spawnEnergyWave(targetEl, sessionPhase, tapX, tapY) {
+    let drumCx, drumCy;
+    if (tapX != null && tapY != null) {
+      drumCx = tapX; drumCy = tapY;
+    } else {
+      const drumRect = drumImg.getBoundingClientRect();
+      drumCx = drumRect.left + drumRect.width / 2;
+      drumCy = drumRect.top + drumRect.height / 2;
+    }
+
+    // Build target list: primary + splash siblings (S2/S3)
+    const targets = [];
+    if (targetEl) {
+      targets.push(targetEl);
+      if (sessionPhase >= 2) {
+        const all = Array.from(document.querySelectorAll('.canvas-element')).filter(el => el !== targetEl);
+        const splashCount = sessionPhase === 2 ? 1 : 2;
+        for (let i = 0; i < Math.min(splashCount, all.length); i++) {
+          targets.push(all[(lastTargetIdx + i + 1) % all.length]);
+        }
+      }
+    }
+    // Fallback: aimless wave drifting outward from drum
+    if (targets.length === 0) {
+      const wave = document.createElement('div');
+      wave.className = `energy-wave energy-wave-s${sessionPhase} energy-wave-aimless`;
+      wave.style.left = `${drumCx}px`;
+      wave.style.top = `${drumCy}px`;
+      document.body.appendChild(wave);
+      setTimeout(() => wave.remove(), 800);
+      return;
+    }
+
+    const ringCount = sessionPhase === 3 ? 3 : 1;
+    targets.forEach((tgt, idx) => {
+      if (!tgt) return;
+      const tRect = tgt.getBoundingClientRect();
+      const tCx = tRect.left + tRect.width / 2;
+      const tCy = tRect.top + tRect.height / 2;
+      const dx = tCx - drumCx;
+      const dy = tCy - drumCy;
+      for (let r = 0; r < ringCount; r++) {
+        const wave = document.createElement('div');
+        wave.className = `energy-wave energy-wave-s${sessionPhase}`;
+        wave.style.left = `${drumCx}px`;
+        wave.style.top = `${drumCy}px`;
+        wave.style.setProperty('--dx', `${dx}px`);
+        wave.style.setProperty('--dy', `${dy}px`);
+        wave.style.animationDelay = `${r * 0.08 + idx * 0.05}s`;
+        document.body.appendChild(wave);
+        setTimeout(() => wave.remove(), 900 + r * 80);
+      }
+      // Slight delay so charging visual aligns with wave arrival
+      setTimeout(() => chargeElement(tgt, sessionPhase), 350);
+    });
+  }
+
+  // Apply charge halo + (S2+) breathing pulse. Uniform per call (no rate dependence).
+  function chargeElement(el, sessionPhase) {
+    if (!el) return;
+    const prev = chargeCounts.get(el) || 0;
+    const next = prev + 1;
+    chargeCounts.set(el, next);
+    el.classList.add('charged');
+    el.style.setProperty('--charge-level', Math.min(0.4, 0.1 + next * 0.05));
+    // Brief shudder
+    el.classList.remove('charge-shudder');
+    void el.offsetWidth;
+    el.classList.add('charge-shudder');
+    setTimeout(() => el.classList.remove('charge-shudder'), 350);
+    // Persistent breathing once enough charge accumulated (S2+)
+    if (sessionPhase >= 2 && next >= 3) {
+      el.classList.add('breathing');
+      if (sessionPhase === 3) el.classList.add('breathing-fast');
+    }
+  }
+
+  // Background brightness ramp (S2: 0→30%, S3: 30→60%) — by cumulative session taps, not tempo
+  function updateBackgroundBrightness(sessionPhase, sessionTaps) {
+    const overlay = document.getElementById('drum-overlay');
+    if (!overlay) return;
+    let pct = 0;
+    if (sessionPhase === 2) pct = (sessionTaps / FREE_TAPS_NEEDED) * 30;
+    else if (sessionPhase === 3) pct = 30 + (sessionTaps / FREE_TAPS_NEEDED) * 30;
+    overlay.style.setProperty('--bg-brightness-pct', pct);
+  }
+
+  // Vignette glow at screen edges (S3 only)
+  function updateVignetteIntensity(sessionPhase, sessionTaps) {
+    const overlay = document.getElementById('drum-overlay');
+    if (!overlay) return;
+    if (sessionPhase < 3) {
+      overlay.style.setProperty('--vignette-intensity', 0);
+      return;
+    }
+    overlay.style.setProperty('--vignette-intensity', Math.min(0.6, sessionTaps / FREE_TAPS_NEEDED * 0.6));
+  }
+
+  // Subtle screen shake on the last 5 taps of S3 — per-tap, fixed 100ms (tempo-independent)
+  function triggerShakeIfLateS3(sessionPhase, sessionTapCount) {
+    if (sessionPhase !== 3 || sessionTapCount < FREE_TAPS_NEEDED - 5) return;
+    const overlay = document.getElementById('drum-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('drum-shake');
+    void overlay.offsetWidth;
+    overlay.classList.add('drum-shake');
+    setTimeout(() => overlay.classList.remove('drum-shake'), 110);
+  }
+
+  // Reset meter on entry (in case re-entering drum stage)
+  for (let i = 1; i <= SESSIONS_TOTAL; i++) {
+    const seg = document.getElementById(`magic-seg-${i}`);
+    if (seg) seg.classList.remove('lit');
+  }
   function setRound(r) {
     currentRound = r;
-    // Build inline round indicators in the instruction area
-    const roundsHTML = roundLabels.map((label, i) => {
-      const cls = i < r ? 'drum-round done' : i === r ? 'drum-round active' : 'drum-round';
-      return `<span class="${cls}">${label}</span>`;
-    }).join('');
-    instructionEl.innerHTML = roundsHTML;
+    // Round indicators removed per Yue 2026-05-07 — only the per-session hint text remains
+    instructionEl.innerHTML = '';
   }
 
   function updateProgress(current, total) {
@@ -3345,96 +4082,8 @@ function setupAnimatePhase() {
 
   function runCountdown(callback, briefHint) {
     drumEnabled = false;
-    if (briefHint) {
-      // Show brief instruction for 1.5s before countdown
-      showCountdown(briefHint, () => {
-        showCountdown('3', () => {
-          showCountdown('2', () => {
-            showCountdown('1', () => {
-              showCountdown('Go!', callback);
-            });
-          });
-        });
-      });
-    } else {
-      showCountdown('3', () => {
-        showCountdown('2', () => {
-          showCountdown('1', () => {
-            showCountdown('Go!', callback);
-          });
-        });
-      });
-    }
-  }
-
-  // --- Metronome click sound ---
-  function playMetronomeClick() {
-    const ctx = state.audioCtx;
-    ctx.resume().then(() => {
-      const now = ctx.currentTime;
-      const bufSize = Math.floor(ctx.sampleRate * 0.02);
-      const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-      const d = buf.getChannelData(0);
-      for (let i = 0; i < bufSize; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.003));
-      const noise = ctx.createBufferSource();
-      noise.buffer = buf;
-      const bp = ctx.createBiquadFilter();
-      bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 15;
-      const tone = ctx.createOscillator();
-      tone.type = 'sine'; tone.frequency.value = 1200;
-      const nG = ctx.createGain();
-      nG.gain.setValueAtTime(0.25, now);
-      nG.gain.exponentialRampToValueAtTime(0.01, now + 0.02);
-      const tG = ctx.createGain();
-      tG.gain.setValueAtTime(0.12, now);
-      tG.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
-      noise.connect(bp); bp.connect(nG); nG.connect(ctx.destination);
-      tone.connect(tG); tG.connect(ctx.destination);
-      noise.start(now); tone.start(now);
-      noise.stop(now + 0.02); tone.stop(now + 0.05);
-    });
-  }
-
-  // --- Taiko note animation (visual round) — circles scroll right to left ---
-  function spawnTaikoNote() {
-    const note = document.createElement('div');
-    note.className = 'taiko-note';
-    taikoNotes.appendChild(note);
-
-    const trackWidth = taikoTrack.offsetWidth || 500;
-    const targetCenterX = trackWidth * 0.33; // 1/3 of track
-    const travelTime = 2500;
-    const startTime = Date.now();
-
-    function animate() {
-      const elapsed = Date.now() - startTime;
-      const progress = elapsed / travelTime;
-      if (progress >= 1) { note.remove(); return; }
-
-      // Scroll from right edge to left
-      const x = trackWidth - (progress * (trackWidth + 60));
-      note.style.left = x + 'px';
-
-      // Register cue when note overlaps target circle
-      const noteCenter = x + 16; // half of note width
-      if (!note._cueRegistered && Math.abs(noteCenter - targetCenterX) < 25) {
-        note._cueRegistered = true;
-        pendingCueTime = Date.now();
-        drumData.visual.cueTimes.push(pendingCueTime);
-      }
-
-      requestAnimationFrame(animate);
-    }
-    requestAnimationFrame(animate);
-  }
-
-  // --- Audio-only cue (auditory round) ---
-  function playAudioCue() {
-    // Only play if we're actually in round 2
-    if (currentRound !== 2) return;
-    pendingCueTime = Date.now();
-    drumData.auditory.cueTimes.push(pendingCueTime);
-    playMetronomeClick();
+    // Per Yue 2026-05-07: only "Go!" — drop brief hint + "3/2/1" (too many words too fast)
+    showCountdown('Go!', callback);
   }
 
   // --- Round 0: Intro ---
@@ -3443,21 +4092,21 @@ function setupAnimatePhase() {
     hands.style.display = '';
     hands.classList.remove('tapped');
     if (taikoTrack) taikoTrack.classList.remove('visible');
-    instructionEl.innerHTML += ' <span class="drum-hint-inline">Watch and learn!</span>';
+    instructionEl.textContent = 'Watch and learn!';
     drumEnabled = false;
 
     let introBeats = 0;
     introTimer = setInterval(() => {
       if (currentRound !== 0) return;
-      playDrumHit();
+      playDrumHit(currentRound);
       drumImg.classList.add('hit');
-      setTimeout(() => drumImg.classList.remove('hit'), 100);
+      setTimeout(() => drumImg.classList.remove('hit'), 280);
       introBeats++;
       updateProgress(introBeats, 6);
       if (introBeats >= 6) {
         clearInterval(introTimer); introTimer = null;
         hands.classList.add('tapped');
-        setTimeout(() => startVisualRound(), 500);
+        setTimeout(() => startFreeRound(0), 500);
       }
     }, BEAT_INTERVAL);
   }
@@ -3471,74 +4120,38 @@ function setupAnimatePhase() {
   state._cleanupDrum = () => {
     clearAllTimers();
     drumEnabled = false;
+    const overlay = document.getElementById('drum-overlay');
+    if (overlay) {
+      overlay.classList.remove('drum-s1', 'drum-s2', 'drum-s3', 'drum-shake');
+      overlay.style.removeProperty('--bg-brightness-pct');
+      overlay.style.removeProperty('--vignette-intensity');
+    }
+    document.querySelectorAll('.canvas-element.charged, .canvas-element.breathing').forEach(el => {
+      el.classList.remove('charged', 'charge-shudder', 'breathing', 'breathing-fast');
+      el.style.removeProperty('--charge-level');
+    });
   };
 
-  // --- Round 1: Visual following ---
-  function startVisualRound() {
+  // --- Free play sessions (1 of 3, 2 of 3, 3 of 3) ---
+  function startFreeRound(sessionIdx) {
     clearAllTimers();
-    setRound(1);
-    if (taikoTrack) taikoTrack.classList.add('visible');
-    instructionEl.innerHTML += ' <span class="drum-hint-inline">Tap when the ball hits!</span>';
-
-    runCountdown(() => {
-      drumEnabled = true;
-      let localBeatCount = 0;
-      let done = false;
-      roundTimer = setInterval(() => {
-        if (done || currentRound !== 1) return;
-        spawnTaikoNote();
-        localBeatCount++;
-        if (localBeatCount >= BEATS_PER_ROUND) {
-          done = true;
-          clearAllTimers();
-          setTimeout(() => {
-            drumEnabled = false;
-            if (taikoTrack) taikoTrack.classList.remove('visible');
-            startAuditoryRound();
-          }, 1500);
-        }
-      }, BEAT_INTERVAL);
-    });
-  }
-
-  // --- Round 2: Auditory following ---
-  function startAuditoryRound() {
-    clearAllTimers();
-    setRound(2);
+    setRound(sessionIdx + 1);  // 1, 2, or 3
+    const theme = getTheme(sessionIdx);
     if (taikoTrack) taikoTrack.classList.remove('visible');
-    instructionEl.innerHTML += ' <span class="drum-hint-inline">Listen and tap!</span>';
+    instructionEl.textContent = theme.desc;
 
-    runCountdown(() => {
-      drumEnabled = true;
-      let localBeatCount = 0;
-      let done = false;
-      roundTimer = setInterval(() => {
-        if (done || currentRound !== 2) return;
-        playAudioCue();
-        localBeatCount++;
-        if (localBeatCount >= BEATS_PER_ROUND) {
-          done = true;
-          clearAllTimers();
-          setTimeout(() => {
-            drumEnabled = false;
-            startFreeRound();
-          }, 1500);
-        }
-      }, BEAT_INTERVAL);
-    });
-  }
+    // Set phase class on drum overlay (S1/S2/S3 visual signature)
+    const overlay = document.getElementById('drum-overlay');
+    if (overlay) {
+      overlay.classList.remove('drum-s1', 'drum-s2', 'drum-s3');
+      overlay.classList.add(`drum-s${sessionIdx + 1}`);
+    }
 
-  // --- Round 3: Free play with energy bar ---
-  function startFreeRound() {
-    clearAllTimers();
-    setRound(3);
-    if (taikoTrack) taikoTrack.classList.remove('visible');
-    instructionEl.innerHTML += ' <span class="drum-hint-inline">Play your own beat!</span>';
-
-    // Show energy bar in the taiko track area
+    // Reset and rebuild energy bar each session
     taikoNotes.innerHTML = '';
     taikoTarget.style.display = 'none';
-    // Add energy bar container
+    const oldBar = document.getElementById('free-energy-bar');
+    if (oldBar) oldBar.remove();
     const energyBar = document.createElement('div');
     energyBar.className = 'energy-bar-container';
     energyBar.id = 'free-energy-bar';
@@ -3550,49 +4163,87 @@ function setupAnimatePhase() {
     taikoTrack.appendChild(energyBar);
     taikoTrack.classList.add('visible');
 
+    // Themed intro before countdown
     runCountdown(() => {
       drumEnabled = true;
-    });
+    }, theme.intro);
   }
 
   function updateEnergyBar(tapCount) {
     const bar = document.getElementById('free-energy-bar');
     if (!bar) return;
     const segs = bar.querySelectorAll('.energy-seg');
-    segs.forEach((seg, i) => {
-      if (i < tapCount && !seg.classList.contains('lit')) {
-        seg.classList.add('lit');
-      }
-    });
+    const targetSeg = segs[tapCount - 1];
+    if (!targetSeg || targetSeg.classList.contains('lit') || targetSeg.dataset.starInflight) return;
+    flyStarToSeg(targetSeg);
   }
 
-  // --- Finish ---
+  // Star flies from drum center → target energy-bar segment, then lights it on arrival
+  function flyStarToSeg(targetSeg) {
+    if (!drumImg || !targetSeg) return;
+    targetSeg.dataset.starInflight = '1';
+    const dRect = drumImg.getBoundingClientRect();
+    const tRect = targetSeg.getBoundingClientRect();
+    const startX = dRect.left + dRect.width / 2;
+    const startY = dRect.top + dRect.height * 0.4;
+    const endX = tRect.left + tRect.width / 2;
+    const endY = tRect.top + tRect.height / 2;
+
+    const star = document.createElement('div');
+    star.className = 'energy-star';
+    star.textContent = '✦';
+    star.style.left = startX + 'px';
+    star.style.top = startY + 'px';
+    star.style.setProperty('--dx', (endX - startX) + 'px');
+    star.style.setProperty('--dy', (endY - startY) + 'px');
+    document.body.appendChild(star);
+
+    star.addEventListener('animationend', () => {
+      targetSeg.classList.add('lit');
+      delete targetSeg.dataset.starInflight;
+      star.remove();
+    }, { once: true });
+  }
+
+  // --- Finish: compute SMT as median ISI across all 3 sessions ---
   function finishDrum() {
     clearAllTimers();
-    instructionEl.innerHTML += ' <span class="drum-hint-inline">Great job!</span>';
+    instructionEl.textContent = 'Great job!';
 
     state.drumData = drumData;
 
-    const vDelays = drumData.visual.delays;
-    const aDelays = drumData.auditory.delays;
-    const fTaps = drumData.free.tapTimes;
+    const allIntervals = [];
+    drumData.sessions.forEach(session => {
+      for (let i = 1; i < session.length; i++) {
+        allIntervals.push(session[i] - session[i - 1]);
+      }
+    });
 
-    state.drumVisualLatency = vDelays.length > 0
-      ? Math.round(vDelays.reduce((a, b) => a + b, 0) / vDelays.length) : null;
-    state.drumAuditoryLatency = aDelays.length > 0
-      ? Math.round(aDelays.reduce((a, b) => a + b, 0) / aDelays.length) : null;
-
-    if (fTaps.length >= 2) {
-      const intervals = [];
-      for (let i = 1; i < fTaps.length; i++) intervals.push(fTaps[i] - fTaps[i - 1]);
-      state.drumAvgInterval = Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length);
-      state.drumTaps = fTaps;
+    if (allIntervals.length >= 2) {
+      const sorted = [...allIntervals].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      const median = sorted.length % 2 === 0
+        ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)
+        : sorted[mid];
+      state.drumAvgInterval = median;     // SMT (median ISI across all sessions)
+      state.drumIntervals = allIntervals;
+      state.drumSessions = drumData.sessions.map(s => [...s]);
+      state.drumSessionMedians = drumData.sessions.map(s => {
+        if (s.length < 2) return null;
+        const ints = [];
+        for (let i = 1; i < s.length; i++) ints.push(s[i] - s[i - 1]);
+        const sorted = [...ints].sort((a, b) => a - b);
+        const m = Math.floor(sorted.length / 2);
+        return sorted.length % 2 === 0
+          ? Math.round((sorted[m - 1] + sorted[m]) / 2)
+          : sorted[m];
+      });
     }
 
     logEvent('drum_complete', {
-      visualLatency: state.drumVisualLatency,
-      auditoryLatency: state.drumAuditoryLatency,
-      freeAvgInterval: state.drumAvgInterval,
+      sessionsTaps: drumData.sessions.map(s => s.length),
+      sessionMedians: state.drumSessionMedians,
+      drumSMT: state.drumAvgInterval,
     });
 
     // Trigger drum AI + final summary in parallel
@@ -3627,16 +4278,15 @@ function updateCanvasAnimationSpeed(intervalMs) {
   });
 }
 
-function playDrumHit() {
+// Drum hit — synthesized; same sound across all 3 sessions per Yue 2026-05-07
+// (S1 sounded most natural, so we drop pitch/overtone escalation)
+function playDrumHit(sessionPhase) {
   if (!state.audioCtx) {
     state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
   const ctx = state.audioCtx;
-  // Always resume — iOS can suspend at any time
   ctx.resume().then(() => {
     const now = ctx.currentTime;
-
-    // Realistic drum: body (pitch drop) + warmth (triangle) + stick hit (noise)
 
     // 1. Drum body
     const body = ctx.createOscillator();
@@ -3724,12 +4374,25 @@ function extractPreferences() {
     auditoryScore = avgNotes;
   }
 
-  // VISUAL: average saturation of colors used
-  let visualScore = 0.5;
+  // VISUAL: blend of color saturation (Color stage) and brightness (Light stage)
+  // Both signal "how much visual stimulation child wants"; equal weight when both available.
   const realStrokes = state.colorStrokes.filter(s => s.color !== 'eraser');
-  if (realStrokes.length > 0) {
+  const haveColor = realStrokes.length > 0;
+  const lightBrightness = state.lightData?.brightness ?? null;
+  const lightArc = state.lightData?.arcPosition ?? null;
+  const normBright = normalizeLightBrightness(lightBrightness);
+  const haveLight = normBright !== null;
+
+  let visualScore = 0.5;
+  if (haveColor && haveLight) {
+    const satValues = realStrokes.map(s => getColorSaturation(s.color));
+    const avgSat = satValues.reduce((a, b) => a + b, 0) / satValues.length;
+    visualScore = 0.5 * avgSat + 0.5 * normBright;
+  } else if (haveColor) {
     const satValues = realStrokes.map(s => getColorSaturation(s.color));
     visualScore = satValues.reduce((a, b) => a + b, 0) / satValues.length;
+  } else if (haveLight) {
+    visualScore = normBright;
   }
 
   // TEMPORAL: from drum rhythm — faster tapping = higher score
@@ -3748,7 +4411,13 @@ function extractPreferences() {
       layerCount: auditoryLayerCount,
       elementCount: audioElems.length,
     },
-    visual: { score: visualScore, strokeCount: realStrokes.length },
+    visual: {
+      score: visualScore,
+      strokeCount: realStrokes.length,
+      lightBrightness,
+      lightArcPosition: lightArc,
+      timeOfDay: getTimeOfDay(lightArc),
+    },
     temporal: { score: temporalScore, animatedCount: state.animatedElements.size, totalCount: nonAvatarElements.length },
   };
 }
@@ -3821,12 +4490,13 @@ function buildBehaviorData() {
       deletions: state.interactionLog.filter(e => e.event === 'element_deleted').length,
       repositions: state.interactionLog.filter(e => e.event === 'element_moved').length,
     },
+    light: {
+      arcPosition: state.lightData?.arcPosition ?? null,
+      brightness: state.lightData?.brightness ?? null,
+      timeOfDay: getTimeOfDay(state.lightData?.arcPosition),
+    },
     drum: {
-      visualLatency: state.drumVisualLatency || null,
-      auditoryLatency: state.drumAuditoryLatency || null,
       freeAvgInterval: state.drumAvgInterval || null,
-      visualDelays: state.drumData ? state.drumData.visual.delays : [],
-      auditoryDelays: state.drumData ? state.drumData.auditory.delays : [],
     },
   };
 }
@@ -3882,14 +4552,15 @@ function triggerStageAI(stageName) {
     stageData.avgBrushSize = realStrokes.length > 0
       ? Math.round(realStrokes.reduce((s, st) => s + st.width, 0) / realStrokes.length) : 0;
     screenshot = state.stageScreenshots.color;
+  } else if (stageName === 'light') {
+    stageData.arcPosition = state.lightData?.arcPosition ?? null;
+    stageData.brightness = state.lightData?.brightness ?? null;
+    stageData.timeOfDay = getTimeOfDay(state.lightData?.arcPosition);
+    screenshot = state.stageScreenshots.light;
   } else if (stageName === 'sound') {
     screenshot = state.stageScreenshots.sound;
   } else if (stageName === 'drum') {
-    stageData.visualLatency = state.drumVisualLatency || null;
-    stageData.auditoryLatency = state.drumAuditoryLatency || null;
     stageData.freeAvgInterval = state.drumAvgInterval || null;
-    stageData.visualDelays = state.drumData ? state.drumData.visual.delays : [];
-    stageData.auditoryDelays = state.drumData ? state.drumData.auditory.delays : [];
   }
 
   stageData.phaseDuration = state.phaseDurations[stageName] || 0;
@@ -4040,6 +4711,7 @@ function initVideoPlayer() {
   } else if (spatialScore < 0.35) {
     videoFile = 'video/base_near.mp4';   // child placed friends close → show near perspective
   }
+  videoFile += '?v=168';  // cache-bust when video content is updated
   const source = video.querySelector('source');
   if (source && source.src !== videoFile) {
     source.src = videoFile;
@@ -4155,9 +4827,18 @@ function applyVideoPreferences() {
   const video = document.getElementById('sense-video');
   const levelMultiplier = currentLevel === 1 ? 0.5 : currentLevel === 3 ? 1.5 : 1.0;
 
-  // Visual: CSS brightness
-  const brightness = 0.6 + videoPreferences.visual.score * 0.4 * levelMultiplier;
-  video.style.filter = `brightness(${Math.min(1.5, brightness)})`;
+  // Visual: prefer the brightness the child set on the Light stage.
+  // The light stage outputs 0.4–1.15; level 1/3 nudges it down/up.
+  // Fall back to the color-saturation–driven mapping if the child skipped Light.
+  let brightness;
+  const lightB = videoPreferences.visual.lightBrightness;
+  if (typeof lightB === 'number') {
+    brightness = lightB * levelMultiplier;
+  } else {
+    brightness = 0.6 + videoPreferences.visual.score * 0.4 * levelMultiplier;
+  }
+  brightness = Math.max(0.4, Math.min(1.5, brightness));
+  video.style.filter = `brightness(${brightness.toFixed(2)})`;
 }
 
 function populateProfile() {

@@ -43,6 +43,19 @@ BACKGROUND_PROMPT = (
     "Like a child's drawing on white paper."
 )
 
+LINEART_PROMPT = (
+    'Look at this image. Create a "coloring book" version of the EXACT same character/object:\n'
+    '- Keep the EXACT same pose, proportions, and outline\n'
+    '- Keep small details colored: face/skin, hair, eyes, shoes, small accessories\n'
+    '- Make large clothing areas and big color blocks WHITE (empty, ready to be colored in)\n'
+    '- Keep all outlines and line work visible\n'
+    '- Keep the same art style (crayon/watercolor look)\n'
+    '- The background MUST be pure white (#FFFFFF), NOT black, NOT gray, NOT any other color\n'
+    '- Do NOT add any background color at all — just the character/object on a clean white background\n'
+    'Think of it like a children\'s coloring page where the big areas are left white for kids '
+    'to color in, but the face and hair are already colored.'
+)
+
 DIR = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -68,6 +81,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_convert(AVATAR_PROMPT, remove_bg=True)
         elif self.path == '/api/convert-background':
             self._handle_convert(BACKGROUND_PROMPT, remove_bg=False)
+        elif self.path == '/api/generate-lineart':
+            self._handle_convert(LINEART_PROMPT, remove_bg=True)
         elif self.path == '/api/generate-sticker':
             self._handle_generate_sticker()
         elif self.path == '/api/generate-sound':

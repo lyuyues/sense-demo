@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:opsz,ital,wght@9..144,0,500;9..144,1,500&family=Patrick+Hand&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=221">
+  <link rel="stylesheet" href="style.css?v=226">
   <link rel="stylesheet" href="style-handdrawn.css?v=9">
 </head>
 <body>
@@ -24,6 +24,7 @@
         <video id="welcome-video" autoplay loop muted playsinline preload="auto">
           <source src="video/intro_transition.mp4" type="video/mp4">
         </video>
+        <span class="welcome-video-tbd">intro video TBD</span>
       </div>
       <button id="btn-start" class="btn-primary bounce-hover">Start</button>
       <button id="btn-skip" class="btn-secondary">Skip Photoshot (Testing)</button>
@@ -162,7 +163,7 @@
           <path d="M 5 15 Q 50 -3 95 15" fill="none" stroke="rgba(120, 90, 50, 0.45)" stroke-width="0.6" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>
         </svg>
         <!-- House scene illustration (Imagen-generated, watercolor + ink). Interior is transparent (chroma-keyed) so the canvas scene below shows through as the "indoor" zone. -->
-        <img id="light-frame" class="light-frame" src="assets/light_house_scene.png?v=221" alt="" />
+        <img id="light-frame" class="light-frame" src="assets/light_house_scene.png?v=222" alt="" />
 
         <!-- Drag-hint hand: right hand below the sun, swings on wrist pivot to cue swipe. -->
         <div id="light-drag-hint" class="light-drag-hint">
@@ -188,7 +189,6 @@
         <div class="tap-echo-track" id="tap-echo-track"></div>
         <!-- Magic energy meter (3 segments, fills across sessions) -->
         <div class="magic-meter-container" id="magic-meter-container">
-          <div class="magic-label">Magic Energy</div>
           <div class="magic-meter">
             <div class="magic-seg" id="magic-seg-1"></div>
             <div class="magic-seg" id="magic-seg-2"></div>
@@ -446,6 +446,6 @@
     </defs>
   </svg>
 
-  <script src="app.js?v=221"></script>
+  <script src="app.js?v=222"></script>
 </body>
 </html>
