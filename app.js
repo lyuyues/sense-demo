@@ -3700,10 +3700,24 @@ function extractPreferences() {
     spatialScore = Math.min(1, avgDist / (maxDist * 0.5));
   }
 
-  // AUDITORY: average note count of auditory elements
+  // AUDITORY: derived from Sound phase staff placements (last value per element type).
+  // Falls back to placed auditory-dimension sprites when Sound phase has no data.
+  const staffByType = {};
+  for (const ev of state.interactionLog) {
+    if (ev.event === 'staff_element_set') staffByType[ev.type] = ev;
+  }
+  const staffSettings = Object.values(staffByType);
   const audioElems = state.placedElements.filter(e => e.dimension === 'auditory');
   let auditoryScore = 0.5;
-  if (audioElems.length > 0) {
+  let staffPitchAvg = null, staffVolumeAvg = null;
+  const auditoryLayerCount = staffSettings.length;
+  if (auditoryLayerCount > 0) {
+    staffPitchAvg = staffSettings.reduce((s, e) => s + (e.pitch ?? 0), 0) / auditoryLayerCount / 100;
+    staffVolumeAvg = staffSettings.reduce((s, e) => s + (e.volume ?? 0), 0) / auditoryLayerCount / 100;
+    // Composite: volume drives felt loudness; pitch and layering add complexity
+    auditoryScore = 0.5 * staffVolumeAvg + 0.3 * staffPitchAvg + 0.2 * (auditoryLayerCount / 3);
+    auditoryScore = Math.max(0, Math.min(1, auditoryScore));
+  } else if (audioElems.length > 0) {
     const avgNotes = audioElems.reduce((sum, e) => {
       return sum + ((e.volumeLevel !== undefined ? e.volumeLevel : 2) / MAX_NOTES);
     }, 0) / audioElems.length;
@@ -3727,7 +3741,13 @@ function extractPreferences() {
 
   return {
     spatial: { score: spatialScore, friendCount: spatialElems.length },
-    auditory: { score: auditoryScore, elementCount: audioElems.length },
+    auditory: {
+      score: auditoryScore,
+      staffPitch: staffPitchAvg,
+      staffVolume: staffVolumeAvg,
+      layerCount: auditoryLayerCount,
+      elementCount: audioElems.length,
+    },
     visual: { score: visualScore, strokeCount: realStrokes.length },
     temporal: { score: temporalScore, animatedCount: state.animatedElements.size, totalCount: nonAvatarElements.length },
   };
