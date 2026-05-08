@@ -7,7 +7,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
   <title>SENSE - Create Your Story</title>
-  <link rel="stylesheet" href="style.css?v=165">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:opsz,ital,wght@9..144,0,500;9..144,1,500&family=Patrick+Hand&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=221">
+  <link rel="stylesheet" href="style-handdrawn.css?v=9">
 </head>
 <body>
 
@@ -16,6 +20,11 @@
     <div class="welcome-content">
       <h1>Create Your Story!</h1>
       <p class="welcome-subtitle">Draw, color, and bring your picture to life</p>
+      <div class="welcome-video-frame">
+        <video id="welcome-video" autoplay loop muted playsinline preload="auto">
+          <source src="video/intro_transition.mp4" type="video/mp4">
+        </video>
+      </div>
       <button id="btn-start" class="btn-primary bounce-hover">Start</button>
       <button id="btn-skip" class="btn-secondary">Skip Photoshot (Testing)</button>
     </div>
@@ -69,13 +78,17 @@
     <div class="event-content">
       <h1 class="event-title">Where are you going?</h1>
       <div class="event-grid">
-        <button class="event-card" data-event="birthday">
-          <span class="event-emoji">🎂</span>
-          <span class="event-name">Birthday Party</span>
+        <button class="event-card" data-event="school">
+          <span class="event-emoji">🏫</span>
+          <span class="event-name">Going to School</span>
         </button>
-        <button class="event-card" data-event="playground">
-          <span class="event-emoji">🛝</span>
-          <span class="event-name">Playground</span>
+        <button class="event-card" data-event="grocery">
+          <span class="event-emoji">🛒</span>
+          <span class="event-name">Grocery Store</span>
+        </button>
+        <button class="event-card" data-event="dining">
+          <span class="event-emoji">🍽️</span>
+          <span class="event-name">Dining Out</span>
         </button>
       </div>
     </div>
@@ -91,6 +104,7 @@
       <div id="phase-tabs" class="phase-tabs">
         <button class="phase-tab active" data-phase="add-elements">🎨 Create</button>
         <button class="phase-tab" data-phase="color">🖍️ Color</button>
+        <button class="phase-tab" data-phase="light">☀️ Light</button>
         <button class="phase-tab" data-phase="sound-studio">🎵 Sound</button>
         <button class="phase-tab" data-phase="animate">🥁 Rhythm</button>
       </div>
@@ -115,6 +129,17 @@
           <div class="staff-line" data-line="3"></div>
           <div class="staff-line" data-line="2"></div>
           <div class="staff-line" data-line="1"></div>
+          <!-- Decorative treble clef + scattered notes, hand-sketch feel -->
+          <div class="staff-hints" id="staff-hints">
+            <span class="staff-clef">𝄞</span>
+            <span class="staff-note-hint n1" style="top:72%; left:18%">♩</span>
+            <span class="staff-note-hint n2" style="top:30%; left:28%">♪</span>
+            <span class="staff-note-hint n3" style="top:54%; left:40%">♫</span>
+            <span class="staff-note-hint n4" style="top:78%; left:52%">♩</span>
+            <span class="staff-note-hint n5" style="top:40%; left:64%">♬</span>
+            <span class="staff-note-hint n6" style="top:62%; left:76%">♪</span>
+            <span class="staff-note-hint n7" style="top:22%; left:88%">♩</span>
+          </div>
           <div class="staff-elements" id="staff-elements"></div>
           <!-- Volume triangle indicator at bottom -->
           <div class="volume-triangle">
@@ -129,8 +154,47 @@
           </div>
         </div>
       </div>
+      <!-- Light Stage overlay (sun/moon arc — brightness + time of day) -->
+      <div id="light-stage" class="light-stage hidden">
+        <div class="light-sky" id="light-sky"></div>
+        <!-- Dotted arc shows the sun's trajectory: edges at y=15 (=25% of stage), apex at y=-3 (=10% of stage via Bezier control). Matches positionCelestial() in app.js. -->
+        <svg class="light-arc-svg" viewBox="0 0 100 60" preserveAspectRatio="none">
+          <path d="M 5 15 Q 50 -3 95 15" fill="none" stroke="rgba(120, 90, 50, 0.45)" stroke-width="0.6" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>
+        </svg>
+        <!-- House scene illustration (Imagen-generated, watercolor + ink). Interior is transparent (chroma-keyed) so the canvas scene below shows through as the "indoor" zone. -->
+        <img id="light-frame" class="light-frame" src="assets/light_house_scene.png?v=221" alt="" />
+
+        <!-- Drag-hint hand: right hand below the sun, swings on wrist pivot to cue swipe. -->
+        <div id="light-drag-hint" class="light-drag-hint">
+          <img src="assets/hand_right.png" draggable="false" class="hand-img" alt="" />
+        </div>
+
+        <div class="light-celestial" id="light-celestial">
+          <!-- Sun (crayon image + face overlay) -->
+          <div class="celestial-sun" id="celestial-sun">
+            <img src="assets/sun.png?v=200" class="celestial-img" draggable="false" alt="sun">
+          </div>
+          <!-- Moon (AI-generated crayon image, matches sun.png style) -->
+          <div class="celestial-moon-wrap" id="celestial-moon">
+            <img src="assets/moon.png?v=200" class="celestial-img" draggable="false" alt="moon">
+          </div>
+        </div>
+        <div class="light-hint" id="light-hint">Drag the sun across the sky</div>
+      </div>
+
       <!-- Drum overlay (animate sub-phase) -->
       <div id="drum-overlay" class="drum-overlay hidden">
+        <!-- Tap echo track (Taiko-style): each drum hit spawns a circle that flies leftward -->
+        <div class="tap-echo-track" id="tap-echo-track"></div>
+        <!-- Magic energy meter (3 segments, fills across sessions) -->
+        <div class="magic-meter-container" id="magic-meter-container">
+          <div class="magic-label">Magic Energy</div>
+          <div class="magic-meter">
+            <div class="magic-seg" id="magic-seg-1"></div>
+            <div class="magic-seg" id="magic-seg-2"></div>
+            <div class="magic-seg" id="magic-seg-3"></div>
+          </div>
+        </div>
         <!-- Drum -->
         <div class="drum-center">
           <div class="drum-hands" id="drum-hands">
@@ -171,36 +235,30 @@
 
     <!-- Bottom: Color toolbar (sub-phase 2) -->
     <div id="color-toolbar" class="color-toolbar hidden">
-      <div class="color-swatches">
-        <!-- Row 1: Soft/pastel (hyper-responsive) -->
-        <button class="color-swatch" data-color="#F4ACAC" style="background:#F4ACAC"></button>
-        <button class="color-swatch" data-color="#FFE8A0" style="background:#FFE8A0"></button>
-        <button class="color-swatch" data-color="#A8E6B0" style="background:#A8E6B0"></button>
-        <button class="color-swatch" data-color="#A0C8FF" style="background:#A0C8FF"></button>
-        <button class="color-swatch" data-color="#CBA8E8" style="background:#CBA8E8"></button>
-        <button class="color-swatch" data-color="#FFDAB0" style="background:#FFDAB0"></button>
-        <button class="color-swatch" data-color="#ECF0F1" style="background:#ECF0F1"></button>
-        <!-- Row 2: Vivid/saturated (seeking) -->
-        <button class="color-swatch selected" data-color="#FF3B3B" style="background:#FF3B3B"></button>
-        <button class="color-swatch" data-color="#FFC107" style="background:#FFC107"></button>
-        <button class="color-swatch" data-color="#2ECC40" style="background:#2ECC40"></button>
-        <button class="color-swatch" data-color="#1E6FFF" style="background:#1E6FFF"></button>
-        <button class="color-swatch" data-color="#8E24AA" style="background:#8E24AA"></button>
-        <button class="color-swatch" data-color="#FF5722" style="background:#FF5722"></button>
-        <button class="color-swatch" data-color="#2C3E50" style="background:#2C3E50"></button>
+      <!-- Hue dropdown + saturation carousel (populated by JS from HUE_PALETTE). -->
+      <div class="color-picker-row">
+        <button class="hue-dropdown-btn" id="hue-dropdown-btn" aria-haspopup="listbox" aria-expanded="false">
+          <span class="hue-dropdown-dot" id="hue-dropdown-dot"></span>
+          <span class="hue-dropdown-label" id="hue-dropdown-label">Red</span>
+          <span class="hue-dropdown-chevron">▾</span>
+        </button>
+        <div class="hue-dropdown-menu hidden" id="hue-dropdown-menu" role="listbox"></div>
+        <div class="sat-carousel" id="sat-carousel"></div>
       </div>
-      <div class="brush-sizes">
-        <button class="brush-size" data-size="1"><span class="brush-dot brush-s"></span></button>
-        <button class="brush-size selected" data-size="2"><span class="brush-dot brush-m"></span></button>
-        <button class="brush-size" data-size="4"><span class="brush-dot brush-l"></span></button>
+      <div class="tool-group">
+        <div class="brush-sizes">
+          <button class="brush-size" data-size="1"><span class="brush-dot brush-s"></span></button>
+          <button class="brush-size selected" data-size="2"><span class="brush-dot brush-m"></span></button>
+          <button class="brush-size" data-size="4"><span class="brush-dot brush-l"></span></button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <button class="btn-tool" id="btn-eraser" title="Eraser">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 20H7L3 16l9-9 8 8-4 4"/><path d="M6.5 13.5l5 5"/></svg>
+        </button>
+        <button class="btn-tool" id="btn-undo" title="Undo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15-6.7L21 9"/></svg>
+        </button>
       </div>
-      <div class="toolbar-divider"></div>
-      <button class="btn-tool" id="btn-eraser" title="Eraser">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 20H7L3 16l9-9 8 8-4 4"/><path d="M6.5 13.5l5 5"/></svg>
-      </button>
-      <button class="btn-tool" id="btn-undo" title="Undo">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15-6.7L21 9"/></svg>
-      </button>
     </div>
 
 
@@ -248,7 +306,7 @@
   <div id="screen-video" class="screen">
     <div class="video-fullscreen">
       <video id="sense-video" playsinline preload="auto">
-        <source src="video/base_medium.mp4" type="video/mp4">
+        <source src="video/base_medium.mp4?v=200" type="video/mp4">
       </video>
       <!-- YouTube-style bottom control bar -->
       <div class="video-controls" id="video-controls">
@@ -362,6 +420,32 @@
   <!-- Touch crayon cursor (iPad) -->
   <div id="touch-crayon" class="touch-crayon hidden"></div>
 
-  <script src="app.js?v=165"></script>
+  <!-- SVG filters & patterns for crayon-style hand-drawn look -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="crayon-edge" x="-10%" y="-40%" width="120%" height="180%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.025" numOctaves="3" seed="4" result="noise"/>
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="6"/>
+      </filter>
+      <filter id="crayon-edge-strong" x="-10%" y="-40%" width="120%" height="180%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="3" seed="9" result="noise"/>
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="9"/>
+      </filter>
+      <!-- Crayon stroke texture: angled wax-pencil lines for the fill bar -->
+      <pattern id="crayon-stroke-pattern" x="0" y="0" width="6" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(-12)">
+        <line x1="0" y1="0" x2="0" y2="40" stroke="rgba(140,60,15,0.32)" stroke-width="1.6"/>
+        <line x1="2.5" y1="0" x2="2.5" y2="40" stroke="rgba(180,90,25,0.18)" stroke-width="1"/>
+        <line x1="4.5" y1="0" x2="4.5" y2="40" stroke="rgba(120,40,10,0.22)" stroke-width="0.8"/>
+      </pattern>
+      <!-- Warm orange gradient for the fill -->
+      <linearGradient id="energy-fill-grad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#f9c46b"/>
+        <stop offset="55%" stop-color="#ee9a48"/>
+        <stop offset="100%" stop-color="#d8702c"/>
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <script src="app.js?v=221"></script>
 </body>
 </html>

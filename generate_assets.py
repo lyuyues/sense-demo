@@ -151,11 +151,237 @@ LINEART_TARGETS = [
 ]
 
 
+# ============================================================
+# SCENE GENERATION (full background illustrations, not stickers)
+# ============================================================
+
+def make_scene_prompt(building_type, exterior_cues=""):
+    """Build a Light-stage scene prompt for a given building type.
+
+    exterior_cues: optional extra description (e.g., signage, awning details)
+    """
+    return f"""Wide landscape watercolor and ink illustration, 16:9 aspect ratio, children's book aesthetic. Soft watercolor washes, thin black ink outlines, warm muted tones, hand-painted feel, charming and whimsical.
+
+Composition: full-bleed side-view cross-section of a {building_type}. The building silhouette EXTENDS TO ALL FOUR EDGES of the frame — the roof touches the top-left and top-right corners, and the building's foundation touches the bottom-left and bottom-right corners. The illustration goes EDGE TO EDGE with NO white margins or padding around the building. Building takes up 100% of the frame.
+
+{exterior_cues}
+
+CRITICAL — INTERIOR IS A FILM STUDIO CHROMA KEY CYCLORAMA:
+The entire interior of the building is COMPLETELY COVERED by a giant uniform film-studio chroma key cyclorama, like a Hollywood green-screen seamless wall but in MAGENTA. Hex color #FF00FF (pure neon magenta). The backdrop is freshly painted, completely flat, perfectly uniform.
+
+The cyclorama EXTENDS FROM JUST BELOW THE INTERIOR ROOF LINE ALL THE WAY DOWN TO THE BOTTOM EDGE OF THE FRAME. There is NO interior floor strip, NO baseboard, NO bottom band, NO floor visible inside the building — the magenta cyclorama touches the bottom edge of the frame directly between the two walls. Floor or grass is only visible OUTSIDE the building (to the left and right of the side walls, if at all).
+
+Absolutely NO objects in front of the backdrop: NO furniture, NO desks, NO chalkboards, NO shelves, NO ladders, NO doors, NO chairs, NO carts, NO crates, NO baskets, NO people, NO hanging banners, NO strings, NO drawings, NO writing, NO patterns, NO shadows, NO highlights — just ONE single perfectly uniform flat pure neon magenta rectangle.
+
+The magenta cyclorama must take up AT LEAST 88% of frame width and 88% of frame height (it touches the bottom of the frame). The edges of the magenta meet the building's interior walls and roof line crisply.
+
+NO sky strip at top — the building's roof IS the top edge of the frame.
+
+NO grass strip below the cyclorama — the cyclorama IS the bottom edge of the frame in the interior region.
+
+NO TEXT, NO LETTERS, NO NUMBERS anywhere. NO white margin, NO padding, NO border around the building."""
+
+
+EVENT_ICONS = [
+    ("icons-hd/school.png",
+     f"A cheerful smiling schoolhouse building with a red triangular gable roof, a tiny golden bell on the roof peak, two small windows with a smiling friendly face on the front of the building, an apple emblem above the entrance door. {STYLE}"),
+    ("icons-hd/grocery.png",
+     f"A cheerful smiling shopping cart with a happy face on the front, filled with colorful smiling fruits and vegetables (a red apple with a smile, a green leafy carrot, a small pumpkin), bright and joyful. {STYLE}"),
+    ("icons-hd/dining.png",
+     f"A cheerful smiling round dinner plate with a happy face on the plate, a fork and knife crossed behind the plate, small steam swirls rising up suggesting warm food, joyful and warm. {STYLE}"),
+]
+
+
+SCENES = [
+    ("light_scene_school.png",
+     make_scene_prompt(
+         "a friendly red-brick schoolhouse with a triangular gable roof and a tiny bell tower on the roof peak",
+         "Exterior cues: a small flagpole with a tiny flag on the left side of the roof, a tiny apple emblem painted on the front gable."),
+     "16:9"),
+    ("light_scene_grocery.png",
+     make_scene_prompt(
+         "a friendly small grocery store building with a flat-topped roof and a colorful red-and-white striped awning along the top edge",
+         "Exterior cues: a small wooden sign with a stylized tomato or apple icon hanging beside the entrance, a tiny shopping basket silhouette next to the wall."),
+     "16:9"),
+    ("light_scene_dining.png",
+     make_scene_prompt(
+         "a friendly diner-style restaurant building with a warm terracotta gable roof, a small chimney with curling smoke, and a TEAL-and-cream striped awning across the front above the entrance",
+         "Exterior cues: TWO small outdoor patio tables with chairs visible at the very base of the building (tiny silhouettes only, NOT inside the building), a small wooden sign hanging beside the entrance with a stylized FORK AND KNIFE crossed icon."),
+     "16:9"),
+]
+
+
+def chroma_key_remove(image_path, target_rgb=(255, 0, 255), tolerance=120):
+    """Knock out magenta pixels (and pinkish anti-aliased fringe) to transparent.
+
+    Two-pass:
+      1. Hard knockout: clear magenta pixels → alpha 0
+      2. Soft knockout: pinkish fringe (R, B dominant over G but blended) →
+         alpha proportional to "magenta-ness" so we get a smooth feathered edge
+    """
+    from PIL import Image
+    import numpy as np
+    img = Image.open(image_path).convert('RGBA')
+    data = np.array(img)
+    r = data[:, :, 0].astype(int)
+    g = data[:, :, 1].astype(int)
+    b = data[:, :, 2].astype(int)
+    a = data[:, :, 3].astype(int)
+
+    # Magenta-ness score: 0 (no R+B dominance) to 1 (pure magenta)
+    rb_avg = (r + b) / 2.0
+    rb_dominance = np.clip((rb_avg - g) / 128.0, 0, 1)
+
+    # Pass 1: clear magenta → fully transparent
+    is_clear = (rb_dominance > 0.55) & (rb_avg > 140) & (g < 180)
+    data[is_clear, 3] = 0
+    n_clear = int(is_clear.sum())
+
+    # Pass 2: pinkish fringe → fade alpha by magenta-ness
+    is_fringe = (rb_dominance > 0.20) & (~is_clear) & (rb_avg > 110) & (g < 220)
+    fade = np.clip(rb_dominance * 1.6, 0, 1)
+    new_alpha = (a * (1.0 - fade)).astype('uint8')
+    data[..., 3] = np.where(is_fringe, new_alpha, data[..., 3])
+    n_fringe = int(is_fringe.sum())
+
+    # Pass 3: morphological close + fill holes inside the keyed region.
+    # Imagen often draws objects (chairs, tripods, lamps) in front of the chroma backdrop;
+    # objects that touch the building floor/walls survive as "appendages" of the opaque
+    # exterior, not as enclosed islands, so binary_fill_holes alone misses them.
+    # Apply binary_closing first to bridge those thin necks → objects become enclosed
+    # islands inside the chroma region → fill_holes erases them.
+    n_filled = 0
+    try:
+        from scipy.ndimage import binary_fill_holes, binary_closing
+        transparent_mask = (data[:, :, 3] == 0)
+        # Close gaps up to ~40px wide (bridges tripod legs, narrow object stems, cart wheels, etc.)
+        closed = binary_closing(transparent_mask, iterations=20)
+        filled = binary_fill_holes(closed)
+        # Sanity: if the fill would erase >90% of image, abort
+        if filled.sum() < transparent_mask.size * 0.9:
+            new_transparent = filled & ~transparent_mask
+            data[new_transparent, 3] = 0
+            n_filled = int(new_transparent.sum())
+    except ImportError:
+        pass
+
+    Image.fromarray(data.astype('uint8')).save(image_path)
+    return n_clear, n_fringe, n_filled
+
+
+def crop_to_painted_area(image_path, white_threshold=235):
+    """Crop the image to the bounding box of non-white painted content.
+
+    Imagen tends to leave white margins/padding around generated illustrations.
+    This crops them off so the illustration fills the entire saved image, which
+    means object-fit:fill in the browser puts the building edge-to-edge.
+
+    Treats fully transparent pixels as "non-painted" too (chroma-keyed interior
+    counts as part of the building bounding box, since walls/roof define the bbox).
+    """
+    from PIL import Image
+    import numpy as np
+    img = Image.open(image_path).convert('RGBA')
+    data = np.array(img)
+    r, g, b, a = data[:, :, 0], data[:, :, 1], data[:, :, 2], data[:, :, 3]
+    # White margin: opaque AND near-white
+    is_white_margin = (a > 200) & (r > white_threshold) & (g > white_threshold) & (b > white_threshold)
+    is_painted = ~is_white_margin  # painted = anything that's not opaque white
+    ys, xs = np.where(is_painted)
+    if len(ys) == 0:
+        return None
+    y_min, y_max = int(ys.min()), int(ys.max())
+    x_min, x_max = int(xs.min()), int(xs.max())
+    cropped = img.crop((x_min, y_min, x_max + 1, y_max + 1))
+    cropped.save(image_path)
+    return (x_min, y_min, x_max - x_min + 1, y_max - y_min + 1)
+
+
+def pad_top_with_sky(image_path, ratio=0.30):
+    """Add a white-sky padding strip on top of the image.
+
+    After crop_to_painted_area, the building fills the entire image vertically.
+    But the JS sun arc lives in the top 5-20% of the stage, which would overlap
+    the building roof. Adding a top padding strip pushes the building down so
+    the sun arc lands in the open sky area above the building.
+    """
+    from PIL import Image
+    img = Image.open(image_path).convert('RGBA')
+    w, h = img.size
+    pad = int(h * ratio)
+    new_img = Image.new('RGBA', (w, h + pad), (255, 255, 255, 255))
+    new_img.paste(img, (0, pad))
+    new_img.save(image_path)
+    return pad
+
+
+def generate_scene_with_imagen(prompt, output_path, aspect_ratio="16:9"):
+    response = client.models.generate_images(
+        model='imagen-4.0-generate-001',
+        prompt=prompt,
+        config=types.GenerateImagesConfig(
+            number_of_images=1,
+            aspect_ratio=aspect_ratio,
+        ),
+    )
+    for image in response.generated_images:
+        image.image.save(output_path)
+        return True
+    return False
+
+
 def main():
     import sys
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     mode = sys.argv[1] if len(sys.argv) > 1 else "stickers"
+
+    if mode == "scenes":
+        targets = SCENES
+        if len(sys.argv) > 2:
+            wanted = set(sys.argv[2:])
+            targets = [s for s in SCENES if s[0] in wanted or s[0].rsplit('.', 1)[0] in wanted]
+        print(f"Generating {len(targets)} scene(s)...")
+        for i, (filename, prompt, aspect) in enumerate(targets, 1):
+            output_path = os.path.join(OUTPUT_DIR, filename)
+            print(f"[{i}/{len(targets)}] {filename} ({aspect})...", flush=True)
+            ok = False
+            try:
+                ok = generate_scene_with_imagen(prompt, output_path, aspect_ratio=aspect)
+                if ok:
+                    print(f"  OK via Imagen ({os.path.getsize(output_path):,} bytes)")
+            except Exception as e:
+                print(f"  Imagen failed: {e}")
+            if not ok:
+                try:
+                    if generate_with_gemini(filename, prompt, output_path):
+                        ok = True
+                        print(f"  OK via Gemini ({os.path.getsize(output_path):,} bytes)")
+                except Exception as e:
+                    print(f"  Gemini failed: {e}")
+            if ok:
+                try:
+                    n_clear, n_fringe, n_filled = chroma_key_remove(output_path)
+                    print(f"  Magenta knocked out: {n_clear:,} clear + {n_fringe:,} fringe + {n_filled:,} hole-fill → transparent")
+                except Exception as e:
+                    print(f"  Warning: chroma key failed: {e}")
+                try:
+                    bbox = crop_to_painted_area(output_path)
+                    if bbox:
+                        print(f"  Cropped to painted bbox: {bbox[2]}×{bbox[3]} (offset {bbox[0]},{bbox[1]})")
+                except Exception as e:
+                    print(f"  Warning: crop failed: {e}")
+                try:
+                    pad = pad_top_with_sky(output_path, ratio=0.30)
+                    print(f"  Added sky padding: {pad}px on top")
+                except Exception as e:
+                    print(f"  Warning: sky pad failed: {e}")
+                print(f"  Final size: {os.path.getsize(output_path):,} bytes")
+            else:
+                print(f"  FAILED")
+            if i < len(targets):
+                time.sleep(2)
+        return
 
     if mode == "lineart":
         # Generate lineart versions from existing colored PNGs

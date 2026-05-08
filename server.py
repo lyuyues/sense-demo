@@ -53,6 +53,10 @@ STICKER_STYLE = (
 )
 
 EVENT_CONTEXTS = {
+    "school": "at a young child's morning classroom, calm and welcoming",
+    "grocery": "at a family grocery store / supermarket aisle, everyday and bright",
+    "dining": "at a family-friendly restaurant / dining out scene, warm and cozy",
+    # legacy (kept for backward compatibility):
     "birthday": "at a children's birthday party, party-themed, festive and cheerful",
     "playground": "at a children's playground, outdoor and playful",
 }
@@ -256,7 +260,7 @@ Return JSON only: {{"observation": "一句中文行为观察（15-25字）"}}"""
 - Visual: color saturation preference (vivid vs soft), brightness preference
 - Spatial: social distance preference (close vs far), number of elements
 - Auditory: volume/complexity preference, processing latency
-- Temporal: rhythm speed, visual vs auditory processing difference
+- Temporal: rhythm speed during free play
 
 RULES:
 - 用温暖但信息丰富的语气，帮助家长理解孩子的感官偏好
@@ -335,7 +339,7 @@ Return JSON only:
 
 def main():
     port = 8443
-    server = http.server.HTTPServer(('0.0.0.0', port), Handler)
+    server = http.server.ThreadingHTTPServer(('0.0.0.0', port), Handler)
 
     cert = os.path.join(DIR, 'cert.pem')
     key = os.path.join(DIR, 'key.pem')

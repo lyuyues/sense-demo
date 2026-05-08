@@ -1,0 +1,31 @@
+{
+  "id": "school",
+  "name": "Going to School",
+  "icon": "🏫",
+  "backgroundImage": "assets/school_bg.png",
+  "background": {
+    "shapes": [
+      {"type": "rect", "x": 0, "y": 0, "w": 800, "h": 600, "fill": "none", "stroke": "#ccc", "label": "classroom"},
+      {"type": "rect", "x": 0, "y": 400, "w": 800, "h": 200, "fill": "none", "stroke": "#aaa", "label": "floor"},
+      {"type": "rect", "x": 250, "y": 250, "w": 300, "h": 150, "fill": "none", "stroke": "#999", "label": "circle-mat"},
+      {"type": "rect", "x": 50, "y": 50, "w": 150, "h": 120, "fill": "none", "stroke": "#bbb", "label": "window1"},
+      {"type": "rect", "x": 600, "y": 50, "w": 150, "h": 120, "fill": "none", "stroke": "#bbb", "label": "window2"},
+      {"type": "rect", "x": 350, "y": 10, "w": 100, "h": 30, "fill": "none", "stroke": "#ddd", "label": "blackboard"}
+    ]
+  },
+  "elements": [
+    {"type": "friend",  "id": "school_classmate1", "asset": "assets/friend1.png", "label": "Classmate", "dimension": "spatial"},
+    {"type": "friend",  "id": "school_classmate2", "asset": "assets/friend2.png", "label": "Classmate", "dimension": "spatial"},
+    {"type": "friend",  "id": "school_classmate3", "asset": "assets/friend3.png", "label": "Classmate", "dimension": "spatial"},
+    {"type": "balloon", "id": "school_book",       "asset": "assets/school_book.png",       "label": "Book",      "dimension": "decoration"},
+    {"type": "present", "id": "school_pencil",     "asset": "assets/school_pencil.png",     "label": "Pencil",    "dimension": "decoration"},
+    {"type": "cake",    "id": "school_plant",      "asset": "assets/school_plant.png",      "label": "Plant",     "dimension": "decoration"}
+  ],
+  "animations": {
+    "friend":  ["wave"],
+    "balloon": ["float"],
+    "cake":    ["glow"],
+    "present": ["shake"],
+    "lights":  ["twinkle"]
+  }
+}

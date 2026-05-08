@@ -1,0 +1,1077 @@
+/* ============================================
+   SENSE — Hand-drawn chrome theme
+   Iteration 1: Canvas top bar + phase tabs + color toolbar.
+   Loaded AFTER style.css; only OVERRIDES chrome surfaces.
+   Scenes/avatars/illustrations untouched.
+   ============================================ */
+
+:root {
+  --hd-paper:        #faf5e8;
+  --hd-paper-card:   #fffef9;
+  --hd-ink:          #2c2418;
+  --hd-ink-muted:    #5a4830;
+  --hd-ink-faint:    #c4a883;
+  --hd-tomato:       #ec6b4a;
+  --hd-mango:        #ffd166;
+  --hd-sage:         #a3c9a8;
+  --hd-shadow:       3px 3px 0 var(--hd-ink);
+  --hd-shadow-sm:    2px 2px 0 var(--hd-ink);
+  --hd-shadow-lg:    4px 4px 0 var(--hd-ink);
+  --hd-r-tab:        14px 22px 16px 24px / 18px 14px 22px 16px;
+  --hd-r-back:       18px 22px 16px 20px / 16px 22px 20px 18px;
+  --hd-r-next:       22px 16px 26px 14px / 16px 24px 14px 22px;
+  --hd-r-toolbar:    26px 18px 30px 16px / 22px 28px 18px 26px;
+  --hd-r-brush:      16px 12px 14px 18px / 12px 18px 16px 14px;
+  --hd-r-hint:       18px 24px 16px 22px / 14px 20px 22px 18px;
+}
+
+/* ===== Body / global typography ===== */
+body {
+  font-family: "Patrick Hand", "Caveat", -apple-system, system-ui, sans-serif !important;
+  background: var(--hd-paper) !important;
+  color: var(--hd-ink) !important;
+}
+
+/* ===== Canvas top bar ===== */
+.canvas-topbar {
+  background: var(--hd-paper) !important;
+  border-bottom: 2.5px dashed var(--hd-ink-faint) !important;
+  height: auto !important;
+  padding: 14px 22px 12px !important;
+  gap: 12px;
+}
+
+/* ===== Phase tabs ===== */
+.phase-tabs {
+  gap: 10px !important;
+  align-items: center;
+}
+.phase-tab {
+  background-color: var(--hd-paper-card) !important;
+  background-repeat: no-repeat !important;
+  background-position: 6px center !important;
+  background-size: 38px 38px !important;
+  border: 2.5px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-tab) !important;
+  padding: 6px 16px 4px 50px !important;  /* extra left padding for icon */
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  color: var(--hd-ink-muted) !important;
+  min-height: 52px !important;
+  letter-spacing: 0.01em;
+  /* hide original "🎨 Create" text — replace via ::before */
+  font-size: 0 !important;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: transform 200ms cubic-bezier(.34,1.56,.64,1), background-color 180ms, color 180ms;
+}
+.phase-tab::before {
+  display: inline-block;
+  font-family: "Patrick Hand", cursive;
+  font-size: 18px;
+  line-height: 1.2;
+  color: inherit;
+}
+.phase-tab[data-phase="add-elements"] { background-image: url("assets/icons-hd/star.png"); }
+.phase-tab[data-phase="color"]        { background-image: url("assets/icons-hd/crayon.png?v=3"); }
+.phase-tab[data-phase="light"]        { background-image: url("assets/icons-hd/sun.png"); }
+.phase-tab[data-phase="sound-studio"] { background-image: url("assets/icons-hd/note.png"); }
+.phase-tab[data-phase="animate"]      { background-image: url("assets/icons-hd/drum.png"); }
+.phase-tab[data-phase="add-elements"]::before { content: "Create"; }
+.phase-tab[data-phase="color"]::before        { content: "Color"; }
+.phase-tab[data-phase="light"]::before        { content: "Light"; }
+.phase-tab[data-phase="sound-studio"]::before { content: "Sound"; }
+.phase-tab[data-phase="animate"]::before      { content: "Rhythm"; }
+
+.phase-tab:nth-child(1) { transform: rotate(-1.4deg); }
+.phase-tab:nth-child(2) { transform: rotate(0.8deg); }
+.phase-tab:nth-child(3) { transform: rotate(-0.6deg); }
+.phase-tab:nth-child(4) { transform: rotate(1.1deg); }
+.phase-tab:nth-child(5) { transform: rotate(-1.0deg); }
+
+.phase-tab.active {
+  background-color: var(--hd-tomato) !important;
+  color: var(--hd-paper-card) !important;
+  border-color: var(--hd-ink) !important;
+  box-shadow: var(--hd-shadow);
+  transform: rotate(0deg) scale(1.05) !important;
+}
+.phase-tab.done {
+  background-color: var(--hd-sage) !important;
+  color: var(--hd-ink) !important;
+  border-color: var(--hd-ink) !important;
+  box-shadow: var(--hd-shadow-sm);
+}
+.phase-tab:active { transform: scale(0.96) rotate(0deg) !important; }
+
+/* ===== Back button ===== */
+.btn-canvas-back {
+  background: var(--hd-paper-card) !important;
+  border: 2.5px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-back) !important;
+  width: 50px; height: 46px;
+  color: var(--hd-ink) !important;
+  cursor: pointer;
+  transform: rotate(-1.5deg);
+  box-shadow: var(--hd-shadow-sm);
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 0 !important;  /* hide SVG-area sizing influence */
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 !important;
+}
+.btn-canvas-back svg { display: none !important; }
+.btn-canvas-back::before {
+  content: "←";
+  font-family: "Patrick Hand", cursive;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--hd-ink);
+}
+.btn-canvas-back:active { transform: rotate(-1.5deg) translate(2px, 2px); box-shadow: 1px 1px 0 var(--hd-ink); }
+
+/* ===== Canvas instruction ===== */
+.canvas-instruction {
+  font-family: "Caveat", cursive !important;
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  color: var(--hd-ink) !important;
+  transform: rotate(-1deg);
+  letter-spacing: 0.01em;
+}
+
+/* ===== Next button ===== */
+.btn-canvas-next {
+  background: var(--hd-mango) !important;
+  color: var(--hd-ink) !important;
+  border: 2.5px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-next) !important;
+  padding: 9px 22px 7px !important;
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 19px !important;
+  font-weight: 400 !important;
+  cursor: pointer;
+  box-shadow: var(--hd-shadow-lg);
+  transform: rotate(1.2deg);
+  min-height: auto !important;
+  letter-spacing: 0.02em;
+}
+.btn-canvas-next:active {
+  transform: rotate(1.2deg) translate(3px, 3px);
+  box-shadow: 1px 1px 0 var(--hd-ink);
+  opacity: 1 !important;
+}
+
+/* ===== Stage timer ===== */
+.stage-timer-bar {
+  height: 4px !important;
+  background: #e8d8b3 !important;
+}
+.stage-timer-fill {
+  background: var(--hd-tomato) !important;
+}
+.stage-timer-fill.warning { background: var(--hd-mango) !important; }
+.stage-timer-fill.overtime { background: #c8512f !important; }
+
+/* ===== Color toolbar ===== */
+.color-toolbar {
+  background: var(--hd-paper-card) !important;
+  border-top: 2.5px solid var(--hd-ink) !important;
+  padding: 14px 24px !important;
+  gap: 22px !important;
+}
+
+/* hue dropdown — replace SaaS pill with cinema-marquee chunk */
+.hue-dropdown-btn {
+  background: var(--hd-paper-card) !important;
+  border: 2.5px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-tab) !important;
+  height: 52px !important;
+  padding: 6px 16px 6px 8px !important;
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 17px !important;
+  color: var(--hd-ink) !important;
+  box-shadow: var(--hd-shadow-sm);
+  transition: transform 180ms;
+}
+.hue-dropdown-btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--hd-ink); }
+.hue-dropdown-btn[aria-expanded="true"] { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--hd-ink); }
+.hue-dropdown-dot {
+  border: 2.5px solid var(--hd-ink) !important;
+  box-shadow: 2px 2px 0 var(--hd-ink) !important;
+}
+.hue-dropdown-label {
+  font-family: "Patrick Hand", cursive;
+  font-weight: 400 !important;
+}
+.hue-dropdown-chevron { color: var(--hd-ink) !important; }
+
+/* hue dropdown menu (popup) */
+.hue-dropdown-menu {
+  background: var(--hd-paper-card) !important;
+  border: 2.5px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-toolbar) !important;
+  box-shadow: var(--hd-shadow-lg) !important;
+  padding: 14px !important;
+}
+.hue-tile {
+  border: 2px solid transparent !important;
+  border-radius: var(--hd-r-brush) !important;
+}
+.hue-tile.selected {
+  background: var(--hd-paper) !important;
+  border-color: var(--hd-ink) !important;
+  box-shadow: var(--hd-shadow-sm);
+}
+.hue-tile-dot {
+  border: 2px solid var(--hd-ink) !important;
+}
+.hue-tile-name {
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 0.8rem !important;
+  color: var(--hd-ink) !important;
+}
+
+/* sat carousel */
+.sat-swatch {
+  border: 2.5px solid var(--hd-ink) !important;
+  transition: transform 200ms cubic-bezier(.34,1.56,.64,1);
+}
+.sat-swatch:active { transform: scale(0.94); }
+.sat-swatch.selected {
+  transform: scale(1.18) rotate(-6deg);
+  box-shadow: var(--hd-shadow-sm);
+  border-color: var(--hd-ink) !important;
+}
+
+/* brush sizes */
+.brush-sizes {
+  border-left: 2.5px dashed var(--hd-ink-faint) !important;
+  padding-left: 18px !important;
+  gap: 6px !important;
+}
+.brush-size {
+  border: 2.5px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-brush) !important;
+  background: var(--hd-paper-card) !important;
+  width: 48px !important; height: 48px !important;
+  transition: transform 200ms;
+}
+.brush-size.selected {
+  background: var(--hd-ink) !important;
+  transform: rotate(2deg);
+  box-shadow: 2px 2px 0 var(--hd-ink-muted);
+}
+.brush-size.selected .brush-dot { background: var(--hd-paper-card) !important; }
+.brush-dot { background: var(--hd-ink) !important; }
+
+/* tool buttons (eraser/undo) — replace SVG with text */
+.toolbar-divider { background: var(--hd-ink-faint) !important; opacity: 0.4; }
+.btn-tool {
+  width: auto !important;
+  min-width: 56px;
+  height: 44px !important;
+  border-radius: var(--hd-r-brush) !important;
+  border: 2px solid transparent !important;
+  background: transparent !important;
+  font-size: 0 !important;
+  padding: 0 12px !important;
+  color: var(--hd-ink-muted) !important;
+}
+.btn-tool svg { display: none !important; }
+.btn-tool::before {
+  font-family: "Patrick Hand", cursive;
+  font-size: 17px;
+  line-height: 1;
+  color: var(--hd-ink-muted);
+  text-decoration: underline wavy transparent 2px;
+  transition: color 180ms, text-decoration-color 180ms;
+}
+.btn-tool:hover::before {
+  color: var(--hd-ink);
+  text-decoration-color: var(--hd-ink-faint);
+}
+#btn-eraser::before { content: "Erase"; }
+#btn-undo::before   { content: "Undo"; }
+.btn-tool.active {
+  background: var(--hd-paper) !important;
+  border-color: var(--hd-ink) !important;
+  box-shadow: var(--hd-shadow-sm);
+}
+.btn-tool.active::before {
+  content: "Erasing";
+  color: var(--hd-tomato);
+}
+
+/* btn-eraser outside btn-tool path (separate selector in CSS) */
+.btn-eraser {
+  width: auto !important;
+  min-width: 56px;
+  height: 44px !important;
+  border-radius: var(--hd-r-brush) !important;
+  border: 2px solid transparent !important;
+  background: transparent !important;
+  font-size: 0 !important;
+  color: var(--hd-ink-muted) !important;
+  padding: 0 12px !important;
+}
+.btn-eraser::before {
+  content: "Erase";
+  font-family: "Patrick Hand", cursive;
+  font-size: 17px;
+  color: var(--hd-ink-muted);
+}
+.btn-eraser.active {
+  background: var(--hd-paper) !important;
+  border-color: var(--hd-ink) !important;
+  box-shadow: var(--hd-shadow-sm);
+}
+.btn-eraser.active::before {
+  content: "Erasing";
+  color: var(--hd-tomato);
+}
+
+/* ===== Hint pill (e.g. light-hint, instruction overlays) =====
+   Matches the yellow Next-button style (mango bg + dark ink border) so
+   instruction pills feel like part of the same hand-drawn UI vocabulary. */
+.light-hint {
+  background: var(--hd-mango) !important;
+  border: 2.5px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-hint) !important;
+  font-family: "Caveat", cursive !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: var(--hd-ink) !important;
+  box-shadow: var(--hd-shadow);
+  padding: 9px 18px 7px !important;
+  transform: rotate(-1.5deg);
+}
+
+/* ============================================
+   Iteration 2 — sub-phase chrome (element/sound palette, sticker input,
+   magic meter, fab levels). Inner icons stay PNG/SVG; only chrome around them.
+   ============================================ */
+
+/* ===== Element palette (Create sub-phase) ===== */
+.element-palette {
+  background: var(--hd-paper-card) !important;
+  border-top: 2.5px solid var(--hd-ink) !important;
+  padding: 8px 18px !important;
+  gap: 10px !important;
+}
+.palette-item {
+  border: 2.5px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-brush) !important;
+  background: var(--hd-paper-card) !important;
+  box-shadow: var(--hd-shadow-sm);
+  padding: 4px !important;
+  width: 76px !important; min-width: 76px !important;
+  transition: transform 200ms cubic-bezier(.34,1.56,.64,1), box-shadow 180ms;
+}
+.palette-item:nth-child(odd)  { transform: rotate(-1.4deg); }
+.palette-item:nth-child(even) { transform: rotate(1.0deg); }
+.palette-item:hover { transform: rotate(0deg) scale(1.06); }
+.palette-item:active {
+  background: var(--hd-paper) !important;
+  transform: rotate(0deg) scale(0.96) translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--hd-ink) !important;
+}
+.palette-label {
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 13px !important;
+  color: var(--hd-ink-muted) !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.01em;
+}
+.palette-trash {
+  border: 2.5px dashed var(--hd-ink-faint) !important;
+  border-radius: var(--hd-r-brush) !important;
+  background: var(--hd-paper-card) !important;
+  box-shadow: var(--hd-shadow-sm);
+  color: var(--hd-ink-faint) !important;
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 0 !important;
+  width: 60px !important; min-width: 60px !important; height: 70px !important;
+}
+.palette-trash::before {
+  content: "Trash";
+  font-size: 14px;
+  font-family: "Patrick Hand", cursive;
+  color: var(--hd-ink-faint);
+}
+.palette-trash.active {
+  color: var(--hd-tomato) !important;
+  border-color: var(--hd-tomato) !important;
+  background: rgba(236,107,74,0.08) !important;
+  transform: scale(1.15) rotate(-3deg);
+}
+.palette-trash.active::before { color: var(--hd-tomato); content: "Drop!"; }
+
+.palette-add-btn {
+  border: 2.5px dashed var(--hd-ink) !important;
+  border-radius: var(--hd-r-brush) !important;
+  background: var(--hd-paper-card) !important;
+  box-shadow: var(--hd-shadow-sm);
+  width: 76px !important; min-width: 76px !important;
+  transform: rotate(1.5deg);
+  transition: transform 200ms, box-shadow 180ms;
+}
+.palette-add-btn:hover { transform: rotate(0deg) scale(1.06); }
+.palette-add-btn:active {
+  transform: rotate(0deg) scale(0.96) translate(1px, 1px);
+  background: var(--hd-paper) !important;
+  box-shadow: 1px 1px 0 var(--hd-ink) !important;
+}
+.palette-add-icon {
+  font-family: "Patrick Hand", cursive !important;
+  color: var(--hd-ink) !important;
+  font-size: 32px !important;
+  font-weight: 400 !important;
+}
+.palette-add-btn .palette-label {
+  color: var(--hd-ink) !important;
+}
+
+/* ===== Sound palette (Sound sub-phase) ===== */
+.sound-palette {
+  background: var(--hd-paper-card) !important;
+  border-top: 2.5px solid var(--hd-ink) !important;
+  padding: 8px 18px !important;
+  gap: 18px !important;
+}
+.sound-palette-item {
+  border: 2.5px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-brush) !important;
+  background: var(--hd-paper-card) !important;
+  box-shadow: var(--hd-shadow-sm);
+  padding: 6px !important;
+  transition: transform 200ms cubic-bezier(.34,1.56,.64,1), box-shadow 180ms;
+}
+.sound-palette-item:nth-child(odd)  { transform: rotate(-1.2deg); }
+.sound-palette-item:nth-child(even) { transform: rotate(0.9deg); }
+.sound-palette-item:hover { transform: rotate(0deg) scale(1.06); }
+.sound-palette-item:active {
+  background: var(--hd-paper) !important;
+  transform: rotate(0deg) scale(0.96) translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--hd-ink) !important;
+}
+.sound-palette-glyph {
+  font-family: "Caveat", cursive !important;
+  color: var(--hd-ink) !important;
+}
+.sound-palette-label {
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 13px !important;
+  color: var(--hd-ink-muted) !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.01em;
+}
+.trash-zone {
+  border: 2.5px dashed var(--hd-ink-faint) !important;
+  border-radius: var(--hd-r-brush) !important;
+  background: var(--hd-paper-card) !important;
+  box-shadow: var(--hd-shadow-sm);
+  color: var(--hd-ink-faint) !important;
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 0 !important;
+}
+.trash-zone::before {
+  content: "Trash";
+  font-size: 13px;
+  font-family: "Patrick Hand", cursive;
+  color: var(--hd-ink-faint);
+}
+.trash-zone.active {
+  color: var(--hd-tomato) !important;
+  border-color: var(--hd-tomato) !important;
+  background: rgba(236,107,74,0.08) !important;
+}
+.trash-zone.active::before { color: var(--hd-tomato); content: "Drop!"; }
+
+/* ===== Sticker input overlay ("Type an object name…") ===== */
+.sticker-input-card {
+  background: var(--hd-paper-card) !important;
+  border: 2.5px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-toolbar) !important;
+  box-shadow: var(--hd-shadow-lg) !important;
+  padding: 12px 14px !important;
+  gap: 10px !important;
+  transform: rotate(-0.8deg);
+}
+.sticker-name-input {
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 18px !important;
+  border: 2.5px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-brush) !important;
+  background: var(--hd-paper) !important;
+  color: var(--hd-ink) !important;
+  padding: 8px 14px !important;
+  width: 220px !important;
+}
+.sticker-name-input::placeholder {
+  color: var(--hd-ink-faint) !important;
+  font-style: italic;
+}
+.sticker-name-input:focus {
+  border-color: var(--hd-tomato) !important;
+  background: var(--hd-paper-card) !important;
+}
+.btn-sticker-generate {
+  background: var(--hd-mango) !important;
+  border: 2.5px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-next) !important;
+  color: var(--hd-ink) !important;
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  padding: 8px 18px 6px !important;
+  box-shadow: var(--hd-shadow-sm);
+  transform: rotate(1deg);
+}
+.btn-sticker-generate:active {
+  transform: rotate(1deg) translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--hd-ink);
+  background: var(--hd-mango) !important;
+}
+.btn-sticker-cancel {
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 22px !important;
+  color: var(--hd-ink-muted) !important;
+  background: transparent !important;
+}
+.btn-sticker-cancel:hover { color: var(--hd-ink) !important; }
+
+/* ===== Magic meter (Rhythm phase) ===== */
+.magic-meter-container {
+  font-family: "Patrick Hand", cursive !important;
+}
+.magic-label {
+  font-family: "Caveat", cursive !important;
+  font-size: 20px !important;
+  color: var(--hd-ink) !important;
+  font-weight: 700 !important;
+  text-shadow: none !important;
+  letter-spacing: 0.02em;
+}
+/* Hide emoji icons (✨⚡🎉) inside segments — replace with hand-lettered numbers */
+.magic-seg .seg-icon { display: none !important; }
+.magic-seg {
+  font-size: 0 !important;
+  border: 2.5px dashed var(--hd-ink-faint) !important;
+  background: var(--hd-paper-card) !important;
+  filter: none !important;
+  opacity: 0.55;
+}
+.magic-seg::before {
+  font-family: "Patrick Hand", cursive;
+  font-size: 32px;
+  line-height: 1;
+  color: var(--hd-ink-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.magic-seg:nth-child(1)::before { content: "1"; }
+.magic-seg:nth-child(2)::before { content: "2"; }
+.magic-seg:nth-child(3)::before { content: "3"; }
+.magic-seg.lit {
+  background: var(--hd-mango) !important;
+  border: 2.5px solid var(--hd-ink) !important;
+  opacity: 1;
+  box-shadow: var(--hd-shadow-sm);
+}
+.magic-seg.lit::before { color: var(--hd-ink); }
+
+/* ===== Fab levels (sound studio level switcher) — match phase-tab font size ===== */
+.fab-level-label {
+  font-family: "Caveat", cursive !important;
+  font-size: 20px !important;
+  color: var(--hd-ink) !important;
+  font-weight: 700 !important;
+}
+.fab-level {
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  border: 2.5px solid var(--hd-ink) !important;
+  background: var(--hd-paper-card) !important;
+  color: var(--hd-ink) !important;
+  border-radius: var(--hd-r-tab) !important;
+  padding: 6px 14px 4px !important;
+  letter-spacing: 0.01em;
+  transition: transform 200ms cubic-bezier(.34,1.56,.64,1);
+}
+.fab-level:nth-child(1) { transform: rotate(-1.0deg); }
+.fab-level:nth-child(2) { transform: rotate(0.6deg); }
+.fab-level:nth-child(3) { transform: rotate(-0.4deg); }
+.fab-level:nth-child(4) { transform: rotate(0.8deg); }
+.fab-level:hover { transform: rotate(0deg) translateY(-1px); }
+.fab-level.active {
+  background: var(--hd-tomato) !important;
+  color: var(--hd-paper-card) !important;
+  box-shadow: var(--hd-shadow-sm);
+  transform: rotate(0deg) scale(1.05) !important;
+}
+
+/* ===== Light stage hint (sun/moon arc) ===== */
+/* already covered above by .light-hint */
+
+/* ===== Sound studio staff hints (musical notes) — keep typography unified ===== */
+.staff-clef, .staff-note-hint {
+  font-family: "Caveat", cursive !important;
+}
+
+/* ===== Note display (music label) ===== */
+.note-display {
+  font-family: "Caveat", cursive !important;
+  color: var(--hd-ink) !important;
+}
+
+/* ============================================
+   Welcome screen — playful hand-drawn hero with floating decorations
+   ============================================ */
+.welcome-content {
+  background: var(--hd-paper) !important;
+  position: relative;
+  overflow: hidden;
+  padding: 2rem !important;
+}
+
+/* Four floating hand-drawn decorations using existing icons-hd assets.
+   Wrapper div is on .welcome-content::before / ::after, plus extra spans below. */
+.welcome-content::before,
+.welcome-content::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter: drop-shadow(2px 3px 0 rgba(44, 36, 24, 0.18));
+}
+.welcome-content::before {
+  top: 8%; left: 9%;
+  width: 110px; height: 110px;
+  background-image: url('assets/icons-hd/sun.png');
+  transform: rotate(-12deg);
+  animation: welcomeFloatA 4.4s ease-in-out infinite;
+}
+.welcome-content::after {
+  top: 14%; right: 11%;
+  width: 88px; height: 88px;
+  background-image: url('assets/icons-hd/star.png');
+  transform: rotate(14deg);
+  animation: welcomeFloatB 5.2s ease-in-out infinite 0.6s;
+}
+/* Two more bottom decorations injected via JS-free approach: layered
+   gradient-mask pseudo-elements on h1's wrapper instead — but simpler:
+   use box-shadow images on welcome-content itself. */
+.welcome-content > .welcome-deco-bl,
+.welcome-content > .welcome-deco-br {
+  position: absolute;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter: drop-shadow(2px 3px 0 rgba(44, 36, 24, 0.18));
+}
+@keyframes welcomeFloatA {
+  0%, 100% { transform: rotate(-12deg) translateY(0); }
+  50%      { transform: rotate(-7deg)  translateY(-14px); }
+}
+@keyframes welcomeFloatB {
+  0%, 100% { transform: rotate(14deg) translateY(0); }
+  50%      { transform: rotate(20deg) translateY(-12px); }
+}
+
+/* Title — handwritten, sits above the video hero */
+.welcome-content h1 {
+  font-family: "Caveat", cursive !important;
+  font-size: 3.6rem !important;
+  font-weight: 700 !important;
+  color: var(--hd-ink) !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1 !important;
+  transform: rotate(-2deg);
+  text-shadow: 2px 3px 0 rgba(196, 168, 131, 0.42);
+  margin-bottom: 0.4rem !important;
+  position: relative;
+  z-index: 2;
+}
+
+/* Subtitle */
+.welcome-subtitle {
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 1.2rem !important;
+  color: var(--hd-ink-muted) !important;
+  margin-bottom: 1.6rem !important;
+  font-weight: 400 !important;
+  transform: rotate(-0.5deg);
+  position: relative;
+  z-index: 2;
+}
+
+/* Welcome intro video — wrapped in a polaroid-style hand-drawn frame, hero of the screen */
+.welcome-video-frame {
+  width: 70%;
+  max-width: 640px;
+  aspect-ratio: 16 / 9;
+  background: var(--hd-paper-card);
+  border: 3px solid var(--hd-ink);
+  border-radius: 18px 22px 16px 24px / 16px 26px 18px 22px;
+  box-shadow: var(--hd-shadow-lg);
+  transform: rotate(-1.2deg);
+  padding: 12px;
+  position: relative;
+  margin-bottom: 1.8rem;
+  overflow: visible;
+  z-index: 2;
+}
+.welcome-video-frame video {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+  background: #2a2a26;
+}
+/* Tape strips on the polaroid frame — "stuck on the wall" feel */
+.welcome-video-frame::before,
+.welcome-video-frame::after {
+  content: '';
+  position: absolute;
+  height: 20px;
+  background: rgba(255, 209, 102, 0.55);
+  border: 1px solid rgba(44, 36, 24, 0.22);
+  pointer-events: none;
+}
+.welcome-video-frame::before {
+  top: -12px; left: 12%;
+  width: 80px;
+  transform: rotate(-4deg);
+}
+.welcome-video-frame::after {
+  top: -12px; right: 14%;
+  width: 80px;
+  transform: rotate(3deg);
+}
+
+/* Start button — big bouncy mango shutter */
+#screen-welcome .btn-primary {
+  background: var(--hd-mango) !important;
+  color: var(--hd-ink) !important;
+  border: 3px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-next) !important;
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 1.8rem !important;
+  font-weight: 400 !important;
+  padding: 14px 60px !important;
+  box-shadow: var(--hd-shadow-lg) !important;
+  transform: rotate(2deg);
+  letter-spacing: 0.04em !important;
+  animation: welcomeBounce 2.4s ease-in-out infinite;
+  position: relative;
+  z-index: 2;
+}
+@keyframes welcomeBounce {
+  0%, 100% { transform: rotate(2deg) translateY(0)    scale(1); }
+  50%      { transform: rotate(2deg) translateY(-6px) scale(1.03); }
+}
+#screen-welcome .btn-primary:active {
+  transform: rotate(2deg) translate(4px, 4px) !important;
+  box-shadow: 1px 1px 0 var(--hd-ink) !important;
+  opacity: 1 !important;
+  animation: none;
+}
+
+/* Skip button — quiet ghost link */
+#screen-welcome .btn-secondary {
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 0.95rem !important;
+  border: 2px dashed var(--hd-ink-faint) !important;
+  border-radius: var(--hd-r-back) !important;
+  color: var(--hd-ink-faint) !important;
+  margin-top: 1.4rem !important;
+  background: transparent !important;
+  transform: rotate(-1deg);
+  padding: 6px 16px !important;
+  position: relative;
+  z-index: 2;
+}
+
+/* ============================================
+   Photo-capture screen — polaroid + crosshair playful feel
+   ============================================ */
+.photo-content {
+  background: var(--hd-paper) !important;
+  padding: 1.5rem !important;
+  gap: 1.4rem !important;
+}
+
+/* Viewfinder = tilted polaroid card with bottom label area */
+.photo-viewfinder-wrap {
+  width: 75% !important;
+  max-width: 520px !important;
+  aspect-ratio: 4/3 !important;
+  background: var(--hd-paper-card) !important;
+  border: 3px solid var(--hd-ink) !important;
+  border-radius: 18px 22px 16px 24px / 16px 26px 18px 22px !important;
+  box-shadow: var(--hd-shadow-lg) !important;
+  transform: rotate(-1.2deg);
+  padding: 14px 14px 14px 14px !important;
+  position: relative;
+  overflow: visible !important;
+}
+#camera-preview, #camera-snapshot {
+  width: 100% !important;
+  height: 100% !important;
+  border: 2px solid var(--hd-ink-faint);
+  border-radius: 8px;
+  background: #2a2a26;
+  object-fit: cover;
+}
+/* Pulsing crosshair brackets in viewfinder corners — hint "framing happening" */
+.photo-viewfinder-wrap::before,
+.photo-viewfinder-wrap::after {
+  content: '';
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  pointer-events: none;
+  z-index: 5;
+  border: 3px solid var(--hd-tomato);
+  animation: crosshairPulse 1.6s ease-in-out infinite;
+}
+.photo-viewfinder-wrap::before {
+  top: 22px; left: 22px;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 4px 0 0 0;
+}
+.photo-viewfinder-wrap::after {
+  bottom: 22px; right: 22px;
+  border-left: none;
+  border-top: none;
+  border-radius: 0 0 4px 0;
+}
+@keyframes crosshairPulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+/* Photo prompt — Caveat handwritten, bigger */
+.photo-prompt {
+  font-family: "Caveat", cursive !important;
+  font-size: 2.2rem !important;
+  font-weight: 700 !important;
+  color: var(--hd-ink) !important;
+  transform: rotate(-1deg);
+  text-shadow: 1px 1px 0 rgba(196, 168, 131, 0.3);
+  margin-bottom: 0.2rem;
+}
+
+/* Capture button — big mango shutter with heartbeat pulse */
+.btn-capture {
+  width: 92px !important;
+  height: 92px !important;
+  background: var(--hd-mango) !important;
+  border: 4px solid var(--hd-ink) !important;
+  box-shadow: var(--hd-shadow-lg) !important;
+  position: relative;
+  animation: capturePulse 1.4s ease-in-out infinite;
+  margin-top: 0.4rem;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.18s, box-shadow 0.18s;
+}
+.btn-capture:active {
+  transform: translate(3px, 3px) !important;
+  box-shadow: 1px 1px 0 var(--hd-ink) !important;
+  animation: none;
+}
+.capture-ring {
+  display: block !important;
+  width: 64% !important;
+  height: 64% !important;
+  border-radius: 50% !important;
+  background: var(--hd-tomato) !important;
+  border: 3px solid var(--hd-paper-card) !important;
+  box-sizing: border-box;
+}
+@keyframes capturePulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.06); }
+}
+
+/* Polaroid thumbnails — tilted little prints with tape strips */
+.photo-previews {
+  gap: 2rem !important;
+  margin-top: 0.6rem !important;
+}
+.photo-thumb-wrap {
+  background: var(--hd-paper-card);
+  padding: 8px 8px 22px 8px !important;
+  border: 2.5px solid var(--hd-ink) !important;
+  border-radius: 6px 8px 4px 7px !important;
+  box-shadow: var(--hd-shadow);
+  position: relative;
+}
+.photo-thumb-wrap:nth-child(1) { transform: rotate(-3deg); }
+.photo-thumb-wrap:nth-child(2) { transform: rotate(2.4deg); }
+/* Tape strip across the top of each polaroid */
+.photo-thumb-wrap::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 25%;
+  width: 50%;
+  height: 18px;
+  background: rgba(255, 209, 102, 0.55);
+  border: 1px solid rgba(44, 36, 24, 0.2);
+  transform: rotate(-2deg);
+  pointer-events: none;
+}
+.photo-thumb {
+  width: 110px !important;
+  height: 110px !important;
+  border-radius: 4px !important;
+  border: 2px solid var(--hd-ink-faint) !important;
+  background: #f0e8d4 !important;
+  object-fit: cover;
+}
+.photo-thumb.captured {
+  border-color: var(--hd-ink) !important;
+  animation: photoDrop 0.55s cubic-bezier(.34, 1.56, .64, 1);
+}
+@keyframes photoDrop {
+  0%   { transform: scale(0.5) rotate(-18deg); opacity: 0; }
+  60%  { transform: scale(1.08) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.photo-thumb-label {
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 0.95rem !important;
+  font-weight: 400 !important;
+  color: var(--hd-ink) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  margin-top: 6px !important;
+}
+
+/* Action buttons row */
+.photo-actions {
+  flex-direction: row !important;
+  gap: 0.8rem !important;
+  margin-top: 0.4rem !important;
+}
+.photo-actions .btn-primary {
+  background: var(--hd-mango) !important;
+  color: var(--hd-ink) !important;
+  border: 2.5px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-next) !important;
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 1.2rem !important;
+  padding: 10px 28px !important;
+  box-shadow: var(--hd-shadow) !important;
+  transform: rotate(1deg);
+  letter-spacing: 0.02em;
+}
+.photo-actions .btn-primary:active {
+  transform: rotate(1deg) translate(3px, 3px) !important;
+  box-shadow: 1px 1px 0 var(--hd-ink) !important;
+}
+.photo-actions .btn-primary:disabled {
+  opacity: 0.4 !important;
+  pointer-events: none;
+}
+.photo-actions .btn-secondary {
+  font-family: "Patrick Hand", cursive !important;
+  border: 2.5px solid var(--hd-ink-faint) !important;
+  border-radius: var(--hd-r-back) !important;
+  background: transparent !important;
+  color: var(--hd-ink-muted) !important;
+  font-size: 1rem !important;
+  margin-top: 0 !important;
+  padding: 8px 18px !important;
+  transform: rotate(-0.6deg);
+}
+
+/* ============================================
+   Event-selection screen — hand-drawn cards (large, fills screen)
+   ============================================ */
+.event-content {
+  background: var(--hd-paper) !important;
+  padding: 1.5rem !important;
+  justify-content: center !important;
+}
+.event-title {
+  font-family: "Caveat", cursive !important;
+  font-weight: 700 !important;
+  font-size: 3rem !important;
+  color: var(--hd-ink) !important;
+  letter-spacing: 0.01em !important;
+  transform: rotate(-1deg);
+  text-shadow: 1px 1px 0 rgba(196, 168, 131, 0.35);
+  margin-bottom: 2.5rem !important;
+}
+.event-grid {
+  gap: 2rem !important;
+  max-width: 1100px !important;
+  width: 92% !important;
+}
+.event-card {
+  background: var(--hd-paper-card) !important;
+  border: 3px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-toolbar) !important;
+  box-shadow: var(--hd-shadow-lg) !important;
+  font-family: "Patrick Hand", cursive !important;
+  cursor: pointer;
+  transition: transform 220ms cubic-bezier(.34,1.56,.64,1),
+              box-shadow 180ms,
+              background 200ms;
+  min-height: 320px !important;
+  gap: 1.2rem !important;
+  padding: 2rem 1.5rem !important;
+}
+/* Slight asymmetric tilt per card — "torn from a sketchbook" feel */
+.event-card:nth-child(1) { transform: rotate(-1.6deg); }
+.event-card:nth-child(2) { transform: rotate(0.9deg); }
+.event-card:nth-child(3) { transform: rotate(-0.7deg); }
+.event-card:hover {
+  background: var(--hd-mango) !important;
+  transform: rotate(0deg) scale(1.03) !important;
+  box-shadow: 6px 6px 0 var(--hd-ink) !important;
+}
+.event-card:active {
+  transform: rotate(0deg) translate(4px, 4px) !important;
+  box-shadow: 1px 1px 0 var(--hd-ink) !important;
+  background: var(--hd-mango) !important;
+}
+.event-card.selected {
+  background: var(--hd-sage) !important;
+  border-color: var(--hd-ink) !important;
+  box-shadow: var(--hd-shadow) !important;
+}
+
+/* Replace emoji with hand-drawn PNG icon */
+.event-emoji {
+  font-size: 0 !important;             /* hide platform emoji glyph */
+  width: 180px !important;
+  height: 180px !important;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: drop-shadow(2px 3px 0 rgba(44, 36, 24, 0.15));
+}
+.event-card[data-event="school"]  .event-emoji { background-image: url("assets/icons-hd/school.png?v=1"); }
+.event-card[data-event="grocery"] .event-emoji { background-image: url("assets/icons-hd/grocery.png?v=1"); }
+.event-card[data-event="dining"]  .event-emoji { background-image: url("assets/icons-hd/dining.png?v=1"); }
+
+.event-name {
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 1.6rem !important;
+  font-weight: 400 !important;
+  color: var(--hd-ink) !important;
+  letter-spacing: 0.02em !important;
+}

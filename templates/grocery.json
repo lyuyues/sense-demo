@@ -1,0 +1,31 @@
+{
+  "id": "grocery",
+  "name": "Grocery Store",
+  "icon": "🛒",
+  "backgroundImage": "assets/grocery_bg.png",
+  "background": {
+    "shapes": [
+      {"type": "rect", "x": 0, "y": 0, "w": 800, "h": 600, "fill": "none", "stroke": "#ccc", "label": "store"},
+      {"type": "rect", "x": 0, "y": 400, "w": 800, "h": 200, "fill": "none", "stroke": "#aaa", "label": "floor"},
+      {"type": "rect", "x": 250, "y": 250, "w": 300, "h": 150, "fill": "none", "stroke": "#999", "label": "aisle-shelf"},
+      {"type": "rect", "x": 50, "y": 50, "w": 150, "h": 120, "fill": "none", "stroke": "#bbb", "label": "produce"},
+      {"type": "rect", "x": 600, "y": 50, "w": 150, "h": 120, "fill": "none", "stroke": "#bbb", "label": "checkout"},
+      {"type": "rect", "x": 350, "y": 10, "w": 100, "h": 30, "fill": "none", "stroke": "#ddd", "label": "sign"}
+    ]
+  },
+  "elements": [
+    {"type": "friend",  "id": "grocery_shopper1", "asset": "assets/friend1.png", "label": "Shopper", "dimension": "spatial"},
+    {"type": "friend",  "id": "grocery_shopper2", "asset": "assets/friend2.png", "label": "Shopper", "dimension": "spatial"},
+    {"type": "friend",  "id": "grocery_shopper3", "asset": "assets/friend3.png", "label": "Shopper", "dimension": "spatial"},
+    {"type": "balloon", "id": "grocery_cart",     "asset": "assets/grocery_cart.png",     "label": "Cart",    "dimension": "decoration"},
+    {"type": "present", "id": "grocery_apple",    "asset": "assets/grocery_apple.png",    "label": "Apple",   "dimension": "decoration"},
+    {"type": "cake",    "id": "grocery_broccoli", "asset": "assets/grocery_broccoli.png", "label": "Broccoli","dimension": "decoration"}
+  ],
+  "animations": {
+    "friend":  ["wave"],
+    "balloon": ["float"],
+    "cake":    ["glow"],
+    "present": ["shake"],
+    "lights":  ["twinkle"]
+  }
+}

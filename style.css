@@ -155,8 +155,8 @@ html, body {
   letter-spacing: -0.01em;
 }
 .event-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 1rem; max-width: 360px; width: 100%;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 0.8rem; max-width: 540px; width: 100%;
 }
 .event-card {
   display: flex; flex-direction: column; align-items: center;
@@ -293,6 +293,20 @@ html, body {
   z-index: 3;
 }
 
+/* Light stage: shrink the scene layers so they sit inside the building cutout
+   with margin. Anchor to bottom so avatar's feet stay aligned with the building
+   floor (cutout's bottom edge), instead of floating mid-air after the scale-down. */
+.canvas-container.light-stage-shrink #bg-canvas,
+.canvas-container.light-stage-shrink #color-canvas,
+.canvas-container.light-stage-shrink #element-layer {
+  transform: scale(0.65);
+  /* Anchor at 85% (not bottom) — the cutout's interior floor sits above the canvas's
+     true bottom edge by ~15%. Anchoring to 85% puts avatar's feet at the building's
+     floor line, not below it. */
+  transform-origin: center 85%;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 /* --- Element palette --- */
 .element-palette {
   display: flex; align-items: center;
@@ -401,37 +415,105 @@ html, body {
 
 /* --- Color toolbar --- */
 .color-toolbar {
-  display: flex; align-items: center; justify-content: center;
-  height: 88px; padding: 0 16px; gap: 16px;
+  display: flex; flex-direction: row; align-items: center; justify-content: center;
+  width: 100%;
+  height: 104px; padding: 8px 24px;
+  gap: 22px;
   background: #fafaf8; border-top: 1px solid #eee;
   flex-shrink: 0; z-index: 20;
+  box-sizing: border-box;
+  overflow: visible;
+  position: relative;
 }
-.color-swatches {
+.tool-group {
+  display: flex; align-items: center; gap: 14px;
+}
+
+/* Hue dropdown + saturation carousel row (replaces 12×6 grid). */
+.color-picker-row {
+  display: flex; align-items: center; gap: 16px;
+  position: relative;
+}
+.hue-dropdown-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; height: 52px;
+  background: #fff;
+  border: 1.5px solid #d8d4cc; border-radius: 999px;
+  cursor: pointer; user-select: none;
+  font-family: inherit; font-size: 0.95rem; color: #2c2c2c;
+  transition: border-color 0.15s, background 0.15s;
+  min-width: 132px;
+}
+.hue-dropdown-btn:active { background: #f4f1ea; }
+.hue-dropdown-btn[aria-expanded="true"] { border-color: #2c2c2c; }
+.hue-dropdown-dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 1.5px solid rgba(0,0,0,0.18);
+  flex-shrink: 0;
+}
+.hue-dropdown-label {
+  flex: 1; text-align: left; font-weight: 500;
+}
+.hue-dropdown-chevron {
+  font-size: 0.9rem; color: #888; line-height: 1;
+}
+
+/* Popup menu — anchored above the dropdown button */
+.hue-dropdown-menu {
+  position: absolute;
+  bottom: calc(100% + 8px); left: 0;
+  background: #fff;
+  border: 1.5px solid #d8d4cc; border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  padding: 10px;
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 5px;
-  align-items: center;
+  grid-template-columns: repeat(6, auto);
+  gap: 6px;
+  z-index: 50;
 }
-.color-swatch {
-  width: 30px; height: 30px; border-radius: 50%;
-  border: 2px solid transparent; cursor: pointer;
+.hue-tile {
+  width: 50px; height: 54px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px;
+  border: 2px solid transparent; border-radius: 10px;
+  background: transparent; cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+.hue-tile:active { background: #f4f1ea; }
+.hue-tile.selected { border-color: #2c2c2c; background: #f9f6ef; }
+.hue-tile-dot {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 1.5px solid rgba(0,0,0,0.18);
+}
+.hue-tile-name {
+  font-size: 0.6rem; color: #555; line-height: 1;
+}
+
+/* Saturation carousel — 6 swatches inline, finger-sized */
+.sat-carousel {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 6px;
+}
+.sat-swatch {
+  width: 48px; height: 48px; border-radius: 50%;
+  border: 2.5px solid transparent; cursor: pointer;
+  background-clip: padding-box;
   transition: transform 0.15s, border-color 0.15s;
-  min-width: 30px; min-height: 30px;
-  opacity: 0.8;
+  flex-shrink: 0;
 }
-.color-swatch:active { transform: scale(0.9); }
-.color-swatch.selected {
+.sat-swatch:active { transform: scale(0.92); }
+.sat-swatch.selected {
   border-color: #2c2c2c;
-  transform: scale(1.15);
-  opacity: 1;
+  transform: scale(1.08);
 }
 .brush-sizes {
-  display: flex; gap: 6px; align-items: center;
-  padding-left: 12px; border-left: 1px solid #eee;
+  display: flex; gap: 8px; align-items: center;
+  padding-left: 14px; border-left: 1px solid #eee;
 }
 .brush-size {
-  width: 40px; height: 40px; border-radius: 50%;
-  background: transparent; border: 1.5px solid transparent;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: transparent; border: 2px solid transparent;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   transition: border-color 0.15s;
 }
@@ -439,12 +521,12 @@ html, body {
 .brush-dot {
   display: block; border-radius: 50%; background: #2c2c2c;
 }
-.brush-s { width: 4px; height: 4px; }
-.brush-m { width: 8px; height: 8px; }
-.brush-l { width: 16px; height: 16px; }
+.brush-s { width: 6px; height: 6px; }
+.brush-m { width: 12px; height: 12px; }
+.brush-l { width: 22px; height: 22px; }
 .btn-eraser {
-  width: 40px; height: 40px; border-radius: 50%;
-  background: transparent; border: 1.5px solid transparent;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: transparent; border: 2px solid transparent;
   cursor: pointer; font-size: 1.1rem; color: #999;
   display: flex; align-items: center; justify-content: center;
   transition: border-color 0.15s, color 0.15s;
@@ -455,16 +537,17 @@ html, body {
 
 /* Toolbar tools (eraser, undo) */
 .toolbar-divider {
-  width: 1px; height: 24px; background: #eee; margin: 0 4px;
+  width: 1px; height: 32px; background: #eee; margin: 0 6px;
 }
 .btn-tool {
-  width: 44px; height: 44px; border-radius: 50%;
-  background: transparent; border: 1.5px solid transparent;
-  cursor: pointer; color: #999;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: transparent; border: 2px solid transparent;
+  cursor: pointer; color: #777;
   display: flex; align-items: center; justify-content: center;
   transition: color 0.15s, border-color 0.15s;
   font-family: inherit;
 }
+.btn-tool svg { width: 26px; height: 26px; }
 .btn-tool:active { color: #2c2c2c; }
 .btn-tool.active { border-color: #e74c3c; color: #e74c3c; }
 
@@ -483,6 +566,92 @@ html, body {
 .animate-bar { display: none; height: 0; flex-shrink: 0; }
 
 /* Drum overlay — floats on top of canvas, no extra space below */
+/* === Magic Energy Meter — 3 character icons at bottom, like Taiko mascots === */
+.magic-meter-container {
+  position: absolute;
+  bottom: 14px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  z-index: 25;
+  pointer-events: none;
+}
+.magic-label {
+  color: #FF8C42;
+  font-weight: bold; font-size: 13px;
+  text-shadow: 0 0 8px rgba(255,140,66,0.5), 0 1px 2px rgba(0,0,0,0.2);
+  letter-spacing: 0.5px;
+}
+.magic-meter {
+  display: flex; gap: 28px;
+  align-items: flex-end;
+}
+.magic-seg {
+  width: 72px; height: 72px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 44px;
+  border-radius: 50%;
+  background: rgba(220,220,220,0.3);
+  border: 3px dashed rgba(150,150,150,0.5);
+  filter: grayscale(1) opacity(0.45);
+  transition: all 0.5s ease;
+  position: relative;
+}
+/* Subtle idle sway for not-yet-lit segments */
+.magic-seg:not(.lit) {
+  animation: magicIdleSway 2.5s ease-in-out infinite;
+}
+.magic-seg:nth-child(2):not(.lit) { animation-delay: 0.3s; }
+.magic-seg:nth-child(3):not(.lit) { animation-delay: 0.6s; }
+@keyframes magicIdleSway {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-3px) rotate(2deg); }
+}
+.magic-seg.lit {
+  filter: none;
+  background: radial-gradient(circle, rgba(255,220,100,0.7), rgba(255,140,66,0.4));
+  border: 3px solid #FF8C42;
+  box-shadow: 0 0 28px rgba(255,200,100,0.9), inset 0 0 14px rgba(255,255,255,0.6);
+  animation: magicSegLightBurst 0.9s ease, magicSegDance 1.5s ease-in-out 0.9s infinite;
+}
+@keyframes magicSegLightBurst {
+  0%   { transform: scale(0.5) rotate(-25deg); }
+  40%  { transform: scale(1.5) rotate(20deg); }
+  70%  { transform: scale(0.95) rotate(-8deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@keyframes magicSegDance {
+  0%, 100% { transform: translateY(0) rotate(-5deg) scale(1); }
+  25%      { transform: translateY(-8px) rotate(5deg) scale(1.08); }
+  50%      { transform: translateY(0) rotate(-3deg) scale(1); }
+  75%      { transform: translateY(-5px) rotate(7deg) scale(1.05); }
+}
+/* Per-tap bounce on the icon inside the seg (independent of parent animation) */
+.seg-icon { display: inline-block; }
+.magic-seg.tap-bounce .seg-icon {
+  animation: tapBounceIcon 0.3s ease-out;
+}
+@keyframes tapBounceIcon {
+  0%   { transform: scale(1) translateY(0); }
+  40%  { transform: scale(1.4) translateY(-8px); }
+  100% { transform: scale(1) translateY(0); }
+}
+
+/* === Sparkle particles (burst from drum on session complete) === */
+.sparkle-particle {
+  position: absolute;
+  top: 50%; left: 50%;
+  font-size: 28px;
+  pointer-events: none;
+  z-index: 50;
+  animation: sparkleFly 1.4s ease-out forwards;
+  filter: drop-shadow(0 0 6px rgba(255,220,100,0.8));
+}
+@keyframes sparkleFly {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  20%  { opacity: 1; transform: translate(calc(-50% + var(--dx) * 0.3), calc(-50% + var(--dy) * 0.3)) scale(1.3); }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.6); opacity: 0; }
+}
+
 .drum-overlay {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
   display: flex; flex-direction: column; align-items: center;
@@ -663,12 +832,10 @@ html, body {
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   margin-top: 16px;
 }
-.drum-hint-inline {
-  font-size: 1.1rem; font-weight: 600; color: #555;
-  margin-left: 10px;
-}
+/* .drum-hint-inline removed 2026-05-07: drum hints now use .canvas-instruction directly
+   (textContent assignment) so Caveat cursive font + 26px size match other phases. */
 
-/* Energy bar for free play */
+/* Energy bar for free play (original green design) */
 .energy-bar-container {
   display: flex; gap: 4px; align-items: center;
   width: 100%; height: 100%;
@@ -733,10 +900,126 @@ html, body {
   60% { transform: translate(-50%, -50%) scale(0.8); opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
 }
-}
 @keyframes segPulse {
   0% { transform: scaleY(1.5); }
   100% { transform: scaleY(1.1); }
+}
+
+/* ============================================================
+   MAGIC ENERGY BUILDUP (drum 3-session redesign 2026-05-07)
+   See SENSE/docs/plans/2026-05-07-drum-flow-redesign.md
+   ============================================================ */
+
+/* Energy wave: a glowing ring that flies from drum center to a target element */
+.energy-wave {
+  position: fixed;
+  width: 60px; height: 60px;
+  margin-left: -30px; margin-top: -30px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 200, 80, 0.85);
+  box-shadow: 0 0 24px rgba(255, 200, 80, 0.6), inset 0 0 12px rgba(255, 230, 150, 0.5);
+  pointer-events: none;
+  z-index: 30;
+  --dx: 0px;
+  --dy: 0px;
+  animation: energyWaveFly 0.7s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+}
+.energy-wave-s1 {
+  border-color: rgba(255, 200, 100, 0.7);
+  box-shadow: 0 0 16px rgba(255, 200, 100, 0.4), inset 0 0 8px rgba(255, 230, 150, 0.3);
+}
+.energy-wave-s2 {
+  border-color: rgba(255, 180, 60, 0.85);
+  box-shadow: 0 0 22px rgba(255, 180, 60, 0.55), inset 0 0 12px rgba(255, 220, 130, 0.45);
+}
+.energy-wave-s3 {
+  border-color: rgba(255, 160, 40, 1);
+  border-width: 4px;
+  box-shadow: 0 0 36px rgba(255, 160, 40, 0.8), inset 0 0 18px rgba(255, 220, 120, 0.7);
+}
+.energy-wave-aimless {
+  animation: energyWaveDrift 0.8s ease-out forwards;
+}
+@keyframes energyWaveFly {
+  0%   { transform: translate(0, 0) scale(0.4); opacity: 0; }
+  15%  { transform: translate(0, 0) scale(0.7); opacity: 1; }
+  85%  { transform: translate(var(--dx), var(--dy)) scale(0.9); opacity: 0.85; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(1.6); opacity: 0; }
+}
+@keyframes energyWaveDrift {
+  0%   { transform: scale(0.4); opacity: 0; }
+  20%  { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* Charged element: warm halo that intensifies with each charge.
+   Halo opacity controlled by --charge-level CSS var (0 → 0.4). */
+.canvas-element.charged {
+  --charge-level: 0.15;
+  filter: drop-shadow(0 0 calc(8px + 12px * var(--charge-level)) rgba(255, 200, 80, var(--charge-level)));
+}
+/* Brief shudder on impact */
+.canvas-element.charge-shudder {
+  animation: chargeShudder 0.32s ease-out;
+}
+@keyframes chargeShudder {
+  0%   { transform: translate(0, 0) rotate(0); }
+  20%  { transform: translate(-2px, 1px) rotate(-1.5deg); }
+  40%  { transform: translate(2px, -1px) rotate(1.5deg); }
+  60%  { transform: translate(-1px, 1px) rotate(-1deg); }
+  80%  { transform: translate(1px, 0) rotate(0.5deg); }
+  100% { transform: translate(0, 0) rotate(0); }
+}
+
+/* Persistent breathing pulse — S2 = 1.2s period, S3 = 0.6s period.
+   Opacity oscillation is small (0.2 → 0.4 in S2; → 0.6 in S3) — element NOT fully on,
+   keeping room for the magic transition to push it to 1.0. */
+.canvas-element.breathing {
+  animation: elementBreathe 1.2s ease-in-out infinite;
+}
+.canvas-element.breathing.breathing-fast {
+  animation-duration: 0.6s;
+  --breathe-max: 0.6;
+}
+@keyframes elementBreathe {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(255, 200, 80, 0.2)); }
+  50%      { filter: drop-shadow(0 0 18px rgba(255, 200, 80, var(--breathe-max, 0.4))); }
+}
+
+/* Drum overlay phase visual — background brightness ramps via CSS var */
+.drum-overlay {
+  --bg-brightness-pct: 0;
+  --vignette-intensity: 0;
+}
+.drum-overlay.drum-s2,
+.drum-overlay.drum-s3 {
+  background: rgba(255, 240, 200, calc(var(--bg-brightness-pct, 0) * 0.005));
+  transition: background 0.4s ease-out;
+}
+
+/* Vignette glow at screen edges (S3 only) */
+.drum-overlay::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 50%,
+    rgba(255, 180, 60, var(--vignette-intensity, 0)) 100%
+  );
+  transition: background 0.3s ease-out;
+}
+
+/* Per-tap shake on last 5 taps of S3 — fixed 100ms (tempo-independent) */
+.drum-overlay.drum-shake {
+  animation: drumShakeOnce 0.11s ease-in-out;
+}
+@keyframes drumShakeOnce {
+  0%, 100% { transform: translate(0, 0); }
+  25%      { transform: translate(-2px, 1px); }
+  50%      { transform: translate(2px, -1px); }
+  75%      { transform: translate(-1px, 1px); }
 }
 
 
@@ -984,6 +1267,142 @@ html, body {
   animation: none;
 }
 
+/* === Light Stage — sun/moon arc overlay (transparent, scene shows through) === */
+.light-stage {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 30;
+  overflow: visible;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  background: transparent;
+}
+.light-stage.hidden { display: none; }
+/* light-sky retained but transparent — kept for backward compatibility with JS */
+.light-sky {
+  display: none;
+}
+/* House scene illustration (PNG) — interior chroma-keyed transparent so canvas scene shows through. */
+.light-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  object-fit: fill;       /* stretch to fill the stage so cutout aligns with stage coords */
+  transition: filter 0.4s ease;
+}
+
+/* Drag-hint hand: right hand tucked below the sun's noon position. Pivots
+   around the wrist (bottom-right of the image after right-hand orientation),
+   creating a "wrist swing" left-right gesture. */
+/* Drag-hint hand: position is JS-driven (follows the sun along the arc during demo).
+   Inner img animates a wrist-rotate independently for "alive" feel. */
+.light-drag-hint {
+  position: absolute;
+  width: 90px; height: 90px;
+  margin-left: -45px;            /* horizontal centering around inline left:Xpx set by JS */
+  pointer-events: none;
+  z-index: 4;                    /* above sun (z=3) so the hand is visibly "on top" of sun */
+  opacity: 0.85;
+  /* JS sets inline `left` and `top` each frame; no CSS animation on outer to avoid
+     overriding the inline-positioning. */
+}
+.light-drag-hint .hand-img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18));
+}
+.light-drag-hint.hidden { display: none !important; }
+
+/* (sunShake removed — JS demo loop now drives sun + hand together along the arc) */
+.light-arc-svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 2;  /* above light-frame (z=1) so the dotted trajectory is visible */
+}
+.light-celestial {
+  position: absolute;
+  width: 160px; height: 160px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: grab;
+  transform: translate(-50%, -50%);
+  user-select: none;
+  pointer-events: none;
+  /* Counter the canvas-container brightness filter so the sun stays vivid */
+  filter: drop-shadow(0 0 14px rgba(255, 220, 100, 0.85));
+  z-index: 3;  /* above arc (z=2) so sun rides on top of the trajectory line */
+}
+.light-celestial.dragging {
+  cursor: grabbing;
+  filter: drop-shadow(0 0 24px rgba(255, 220, 100, 1));
+}
+/* Sun: crayon image + face SVG overlay */
+.celestial-sun {
+  position: relative;
+  width: 100%; height: 100%;
+}
+.celestial-sun .celestial-img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+.celestial-sun .celestial-face {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 56%; height: 56%;
+  pointer-events: none;
+}
+/* Moon: crayon image to match sun.png style */
+.celestial-moon-wrap {
+  position: relative;
+  width: 100%; height: 100%;
+  display: none;
+  filter: drop-shadow(0 0 14px rgba(220, 200, 255, 0.7));
+}
+.celestial-moon-wrap .celestial-img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+/* Visibility toggle compatibility with old class name */
+.celestial-moon { display: none; }
+/* Visibility toggle (set via JS) */
+.light-celestial.is-moon .celestial-sun { display: none; }
+.light-celestial.is-moon .celestial-moon-wrap { display: block; }
+.light-celestial.is-sun .celestial-sun { display: block; }
+.light-celestial.is-sun .celestial-moon-wrap { display: none; }
+/* Subtle wobble animation for "hand-drawn feel" */
+.celestial-sun, .celestial-moon-wrap {
+  animation: celestialWobble 4s ease-in-out infinite;
+}
+@keyframes celestialWobble {
+  0%, 100% { transform: rotate(-2deg); }
+  50%      { transform: rotate(2deg); }
+}
+.light-hint {
+  position: absolute;
+  bottom: 20px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.55);
+  color: white;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-family: var(--font-system, system-ui, sans-serif);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 3;
+}
+
 /* === Sound Studio — semi-transparent overlay on canvas === */
 .sound-studio {
   position: absolute; bottom: 0; left: 0; width: 100%;
@@ -1010,6 +1429,38 @@ html, body {
 .staff-elements {
   position: absolute; top: 0; left: 30px; right: 30px; height: 100%;
 }
+/* Decorative unicode notes scattered on the staff — signal "this is a music staff" */
+.staff-hints {
+  position: absolute; top: 0; left: 30px; right: 30px;
+  height: calc(100% - 40px);
+  pointer-events: none;
+}
+.staff-note-hint {
+  position: absolute;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  color: rgba(60, 45, 30, 0.55);
+  line-height: 1;
+  transform: translate(-50%, -50%) rotate(var(--r, 0deg));
+  user-select: none;
+}
+.staff-note-hint.n1 { font-size: 44px; --r: -8deg; }
+.staff-note-hint.n2 { font-size: 36px; --r:  6deg; }
+.staff-note-hint.n3 { font-size: 62px; --r: -4deg; }
+.staff-note-hint.n4 { font-size: 48px; --r:  10deg; }
+.staff-note-hint.n5 { font-size: 68px; --r: -6deg; }
+.staff-note-hint.n6 { font-size: 40px; --r:  4deg; }
+.staff-note-hint.n7 { font-size: 52px; --r: -5deg; }
+
+.staff-clef {
+  position: absolute;
+  left: 4px; top: 50%;
+  transform: translateY(-50%);
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 130px;
+  line-height: 1;
+  color: rgba(50, 35, 20, 0.55);
+  user-select: none;
+}
 .volume-triangle {
   position: absolute; bottom: 0; left: 30px; right: 30px;
   height: 40px;
@@ -1029,6 +1480,15 @@ html, body {
 }
 .staff-element img {
   width: 100%; height: 100%; object-fit: contain; pointer-events: none;
+}
+.staff-element-glyph {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 56px; line-height: 1;
+  font-weight: 500;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.12));
 }
 .staff-element.dragging {
   transform: scale(1.15);
@@ -1064,8 +1524,21 @@ html, body {
   padding: 6px; border-radius: 10px;
 }
 .sound-palette-item:active { background: #f0f0ee; }
+.sound-palette-item.used {
+  opacity: 0.3;
+  filter: grayscale(0.8);
+  pointer-events: none;
+  cursor: default;
+}
 .sound-palette-icon {
   width: 44px; height: 44px;
+}
+.sound-palette-glyph {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 36px; line-height: 1;
+  font-weight: 500;
 }
 .sound-palette-icon img {
   width: 100%; height: 100%; object-fit: contain;
@@ -1513,9 +1986,20 @@ html, body {
   .palette-item { width: 58px; min-width: 58px; height: 72px; }
   .palette-icon { width: 38px; height: 38px; }
   .palette-label { font-size: 0.55rem; }
-  .color-toolbar { height: 78px; gap: 10px; }
-  .color-swatch { width: 28px; height: 28px; }
-  .color-swatches { gap: 5px; }
+  .color-toolbar { height: 92px; gap: 12px; padding: 4px 14px; }
+  .color-picker-row { gap: 10px; }
+  .hue-dropdown-btn { min-width: 118px; height: 48px; padding: 6px 12px; font-size: 0.85rem; }
+  .hue-dropdown-dot { width: 26px; height: 26px; }
+  .sat-carousel { gap: 6px; padding: 2px 4px; }
+  .sat-swatch { width: 44px; height: 44px; }
+  .hue-tile { width: 46px; height: 50px; }
+  .hue-tile-dot { width: 22px; height: 22px; }
+  .hue-tile-name { font-size: 0.55rem; }
+  .brush-size, .btn-tool, .btn-eraser { width: 46px; height: 46px; }
+  .btn-tool svg { width: 22px; height: 22px; }
+  .brush-s { width: 5px; height: 5px; }
+  .brush-m { width: 10px; height: 10px; }
+  .brush-l { width: 18px; height: 18px; }
   .photo-viewfinder-wrap { width: 88%; }
   .photo-prompt { font-size: 1rem; }
   .btn-capture { width: 56px; height: 56px; }

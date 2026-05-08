@@ -159,7 +159,14 @@ function goToPhase(phase) {
   // Phase-specific init
   if (phase === 'photo') initPhotoScreen();
   if (phase === 'canvas') initCanvasScreen();
-  if (phase === 'processing') runProcessing();
+  if (phase === 'processing') {
+    runProcessing();
+    // Auto-download behavior data once per session at Stage 1 -> Stage 2 boundary
+    if (!state.dataExported) {
+      state.dataExported = true;
+      try { exportData(); } catch (e) { console.warn('Auto-export failed:', e); }
+    }
+  }
   // drum is now a canvas sub-phase, not a separate screen
   if (phase === 'video') {
     // Clean up canvas state
