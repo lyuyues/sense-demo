@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lineart Test — SENSE</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #faf5e8; color: #2c2418;
+  }
+  h1 { font-family: "Caveat", cursive; font-size: 2rem; margin: 0 0 12px; }
+  .controls {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    padding: 16px; background: #fffef9; border: 2px solid #2c2418;
+    border-radius: 14px; margin-bottom: 24px;
+    box-shadow: 3px 3px 0 #2c2418;
+  }
+  .controls label {
+    cursor: pointer; padding: 8px 16px;
+    background: #ffd166; border: 2px solid #2c2418; border-radius: 12px;
+    font-weight: bold; box-shadow: 2px 2px 0 #2c2418;
+  }
+  .controls label:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 #2c2418; }
+  .controls input[type="file"] { display: none; }
+  .controls button {
+    padding: 8px 16px; background: #ec6b4a; color: #fffef9;
+    border: 2px solid #2c2418; border-radius: 12px;
+    font-weight: bold; cursor: pointer; box-shadow: 2px 2px 0 #2c2418;
+  }
+  .controls button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .controls button:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 #2c2418; }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 16px; margin-bottom: 24px;
+  }
+  .panel {
+    background: #fffef9; border: 2px solid #2c2418; border-radius: 14px;
+    padding: 12px; box-shadow: 3px 3px 0 #2c2418;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .panel h2 { margin: 0; font-size: 1.1rem; font-family: "Caveat", cursive; }
+  .panel .img-box {
+    width: 100%; aspect-ratio: 1; background: #faf5e8;
+    border: 1.5px dashed #c4a883; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; position: relative;
+  }
+  .panel img {
+    max-width: 100%; max-height: 100%; object-fit: contain;
+  }
+  .panel .placeholder { color: #c4a883; font-size: 0.95rem; }
+  .panel .meta {
+    font-family: "SF Mono", Menlo, monospace; font-size: 0.78rem;
+    color: #5a4830; min-height: 36px; white-space: pre-wrap;
+  }
+  .log {
+    background: #1e1a14; color: #d4c89a; padding: 12px 16px;
+    border-radius: 10px; font-family: "SF Mono", Menlo, monospace;
+    font-size: 0.78rem; white-space: pre-wrap; min-height: 80px; max-height: 200px;
+    overflow-y: auto;
+  }
+  .log .err { color: #ec8a6a; }
+  .log .ok { color: #a3c9a8; }
+</style>
+</head>
+<body>
+<h1>Lineart de-color test</h1>
+
+<div class="controls">
+  <label>
+    Pick image
+    <input type="file" id="file-input" accept="image/*">
+  </label>
+  <button id="btn-test-builtin">Use built-in test_avatar.png</button>
+  <button id="btn-run" disabled>Run both</button>
+  <span id="src-info" style="font-size:0.85rem;color:#5a4830"></span>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>1. Original (input)</h2>
+    <div class="img-box"><img id="img-src" hidden><span class="placeholder" id="ph-src">No image loaded</span></div>
+    <div class="meta" id="meta-src"></div>
+  </div>
+  <div class="panel">
+    <h2>2. Client-side (pixel algorithm)</h2>
+    <div class="img-box"><img id="img-client" hidden><span class="placeholder" id="ph-client">—</span></div>
+    <div class="meta" id="meta-client"></div>
+  </div>
+  <div class="panel">
+    <h2>3. Server-side (Gemini LINEART_PROMPT)</h2>
+    <div class="img-box"><img id="img-server" hidden><span class="placeholder" id="ph-server">—</span></div>
+    <div class="meta" id="meta-server"></div>
+  </div>
+</div>
+
+<div class="log" id="log">Ready. Pick an image, then click "Run both".</div>
+
+<script>
+const API_BASE = location.protocol.startsWith('http') ? location.origin : '';
+
+function log(msg, cls = '') {
+  const el = document.getElementById('log');
+  const t = new Date().toLocaleTimeString();
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = `[${t}] ${msg}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+let currentDataUrl = null;
+
+function setImage(boxId, dataUrl, label) {
+  const img = document.getElementById('img-' + boxId);
+  const ph = document.getElementById('ph-' + boxId);
+  img.src = dataUrl;
+  img.hidden = false;
+  if (ph) ph.style.display = 'none';
+  document.getElementById('meta-' + boxId).textContent = label || '';
+}
+
+function clearOutput() {
+  ['client', 'server'].forEach(id => {
+    document.getElementById('img-' + id).hidden = true;
+    const ph = document.getElementById('ph-' + id);
+    if (ph) { ph.style.display = ''; ph.textContent = '—'; }
+    document.getElementById('meta-' + id).textContent = '';
+  });
+}
+
+// ===== Client-side pixel algorithm (mirrors generateLineart in app.js) =====
+function generateLineartClient(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.width;
+      c.height = img.height;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, c.width, c.height);
+      const d = imageData.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], g = d[i+1], b = d[i+2], a = d[i+3];
+        if (a < 30) { d[i+3] = 0; continue; }
+
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+        const sat = mx === 0 ? 0 : (mx - mn) / mx;
+
+        if (gray < 55) {
+          d[i] = d[i+1] = d[i+2] = 40;
+          d[i+3] = 255;
+          continue;
+        }
+        if (gray < 100 && sat < 0.25) {
+          const v = Math.round(80 + (gray - 55) * 1.5);
+          d[i] = d[i+1] = d[i+2] = v;
+          d[i+3] = 255;
+          continue;
+        }
+        const isSkin = r > 140 && g > 90 && b > 60 && r > g && g >= b - 5 && sat > 0.10 && sat < 0.55;
+        if (isSkin) continue;
+        const isAccent = sat > 0.45 && r > g && r > b && gray < 160;
+        if (isAccent) continue;
+
+        d[i] = d[i+1] = d[i+2] = 255;
+        d[i+3] = 18;
+      }
+      ctx.putImageData(imageData, 0, 0);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.onerror = (e) => reject(new Error('client img load failed'));
+    img.src = dataUrl;
+  });
+}
+
+// ===== Server-side via /api/generate-lineart =====
+async function generateLineartServer(dataUrl) {
+  const resp = await fetch(API_BASE + '/api/generate-lineart', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: dataUrl }),
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+  const data = await resp.json();
+  if (!data.image) throw new Error('No image in API response: ' + JSON.stringify(data).slice(0, 200));
+  return data.image;
+}
+
+// ===== File pick handler =====
+document.getElementById('file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    currentDataUrl = reader.result;
+    setImage('src', currentDataUrl, `${file.name}\n${(file.size / 1024).toFixed(1)} KB`);
+    document.getElementById('src-info').textContent = file.name;
+    document.getElementById('btn-run').disabled = false;
+    clearOutput();
+    log(`Loaded ${file.name} (${file.size} bytes)`, 'ok');
+  };
+  reader.readAsDataURL(file);
+});
+
+// Built-in test image (the demo's default test_avatar.png)
+document.getElementById('btn-test-builtin').addEventListener('click', async () => {
+  try {
+    const resp = await fetch('assets/test_avatar.png');
+    const blob = await resp.blob();
+    const reader = new FileReader();
+    reader.onload = () => {
+      currentDataUrl = reader.result;
+      setImage('src', currentDataUrl, `test_avatar.png\n${(blob.size / 1024).toFixed(1)} KB`);
+      document.getElementById('src-info').textContent = 'test_avatar.png';
+      document.getElementById('btn-run').disabled = false;
+      clearOutput();
+      log('Loaded built-in test_avatar.png', 'ok');
+    };
+    reader.readAsDataURL(blob);
+  } catch (e) {
+    log('Built-in load failed: ' + e.message, 'err');
+  }
+});
+
+// Run both pipelines
+document.getElementById('btn-run').addEventListener('click', async () => {
+  if (!currentDataUrl) return;
+  const btn = document.getElementById('btn-run');
+  btn.disabled = true;
+  btn.textContent = 'Running...';
+  clearOutput();
+
+  // Client
+  const tc0 = performance.now();
+  try {
+    const out = await generateLineartClient(currentDataUrl);
+    const dt = (performance.now() - tc0).toFixed(0);
+    setImage('client', out, `pixel algo · ${dt} ms\nrules: outline / soft-edge / skin / accent / white`);
+    log(`Client done in ${dt} ms`, 'ok');
+  } catch (e) {
+    log('Client error: ' + e.message, 'err');
+    document.getElementById('meta-client').textContent = 'ERROR: ' + e.message;
+  }
+
+  // Server
+  const ts0 = performance.now();
+  try {
+    const out = await generateLineartServer(currentDataUrl);
+    const dt = (performance.now() - ts0).toFixed(0);
+    setImage('server', out, `Gemini 2.5 Flash Image · ${dt} ms\nLINEART_PROMPT → coloring book style`);
+    log(`Server done in ${dt} ms`, 'ok');
+  } catch (e) {
+    log('Server error: ' + e.message, 'err');
+    document.getElementById('meta-server').textContent = 'ERROR: ' + e.message + '\n(is server.py running?)';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Run both';
+});
+</script>
+</body>
+</html>

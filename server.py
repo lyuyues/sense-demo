@@ -30,10 +30,17 @@ if not API_KEY:
 client = genai.Client(api_key=API_KEY)
 
 AVATAR_PROMPT = (
-    "Redraw this child as if a 5-year-old drew them with wax crayons on paper. "
-    "Chunky wobbly crayon lines, visible crayon texture and wax strokes. "
-    "Keep the child's likeness - hair color, skin tone, clothing colors. "
-    "Full body standing, white paper background. NOT clean digital art."
+    "Redraw this child as a children's storybook illustration combining "
+    "BOLD DARK INK OUTLINES with crayon-style coloring inside. "
+    "EVERY shape — body silhouette, head, hair, face, eyes, mouth, collar, "
+    "sleeves, hem, pockets, pants, shoes — must be surrounded by a crisp, "
+    "clearly visible dark black ink outline (NOT faint, NOT gray, NOT thin "
+    "watercolor edges). Inside the dark outlines, fill colors with chunky "
+    "wobbly crayon strokes and visible wax texture. "
+    "Keep the child's likeness — hair color, skin tone, clothing colors. "
+    "Full body standing, plain white paper background. "
+    "Style reference: classic children's coloring book where dark ink lines "
+    "define every shape, with vibrant crayon shading inside."
 )
 
 BACKGROUND_PROMPT = (
@@ -45,15 +52,20 @@ BACKGROUND_PROMPT = (
 
 LINEART_PROMPT = (
     'Look at this image. Create a "coloring book" version of the EXACT same character/object:\n'
-    '- Keep the EXACT same pose, proportions, and outline\n'
-    '- Keep small details colored: face/skin, hair, eyes, shoes, small accessories\n'
-    '- Make large clothing areas and big color blocks WHITE (empty, ready to be colored in)\n'
-    '- Keep all outlines and line work visible\n'
-    '- Keep the same art style (crayon/watercolor look)\n'
-    '- The background MUST be pure white (#FFFFFF), NOT black, NOT gray, NOT any other color\n'
-    '- Do NOT add any background color at all — just the character/object on a clean white background\n'
-    'Think of it like a children\'s coloring page where the big areas are left white for kids '
-    'to color in, but the face and hair are already colored.'
+    '- Keep the EXACT same pose, proportions, and silhouette.\n'
+    '- Keep small details colored: face/skin, hair, eyes, lips, shoes, socks, small accessories.\n'
+    '- Make large clothing areas and big color blocks WHITE (empty, ready to be colored in).\n'
+    '- CRITICAL: ALL outlines and line work must be CRISP, DARK BLACK ink lines, '
+    'clearly visible and bold (NOT faint, NOT gray, NOT thin watercolor edges). '
+    'Every clothing edge — collar, sleeves, hem, hood, pocket, waistband, pant leg — '
+    'must have a clearly visible dark black outline so a child can see exactly which '
+    'area to color in. The full body silhouette must be outlined with a bold dark line.\n'
+    '- Keep the overall hand-drawn / crayon character of the image, but ink lines must '
+    'be DARK and READABLE, not faded.\n'
+    '- The background MUST be pure white (#FFFFFF), NOT black, NOT gray, NOT any other '
+    'color. Do NOT add any background color — just the character on clean white.\n'
+    'Think of a real children\'s coloring page: bold dark outlines surrounding empty '
+    'white shapes, with the face/hair pre-colored as a guide.'
 )
 
 DIR = os.path.dirname(os.path.abspath(__file__))

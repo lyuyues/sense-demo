@@ -1169,6 +1169,33 @@ html, body {
   animation: fadeIn 0.3s ease-out;
 }
 
+/* Loading shimmer shown over avatar while server-side lineart is being generated */
+.avatar-lineart-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 209, 102, 0.25);
+  border-radius: 12px;
+  z-index: 5;
+  pointer-events: none;
+  animation: lineartShimmer 1.4s ease-in-out infinite;
+}
+.avatar-lineart-loading span {
+  font-size: 36px;
+  filter: drop-shadow(0 2px 4px rgba(44, 36, 24, 0.3));
+  animation: lineartSpin 2s linear infinite;
+}
+@keyframes lineartShimmer {
+  0%, 100% { background: rgba(255, 209, 102, 0.18); }
+  50%      { background: rgba(255, 209, 102, 0.42); }
+}
+@keyframes lineartSpin {
+  0%, 100% { transform: scale(1) rotate(-8deg); }
+  50%      { transform: scale(1.15) rotate(8deg); }
+}
+
 /* Color hint on each element — must float above color-canvas (z-index 10) */
 .color-hint-overlay {
   position: absolute;
@@ -1181,13 +1208,13 @@ html, body {
   animation: hintBounce 1s ease-in-out infinite;
 }
 .color-hint-icon {
-  font-size: 22px;
+  font-size: 44px;
   filter: drop-shadow(0 1px 3px rgba(0,0,0,0.2));
 }
 .color-hint-text {
   background: rgba(44,44,44,0.8); color: #fff;
-  font-size: 0.6rem; font-weight: 600;
-  padding: 2px 6px; border-radius: 6px;
+  font-size: 1.2rem; font-weight: 600;
+  padding: 4px 12px; border-radius: 10px;
   white-space: nowrap;
 }
 @keyframes hintBounce {

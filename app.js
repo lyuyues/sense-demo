@@ -306,6 +306,13 @@ document.getElementById('btn-photo-next').addEventListener('click', async () => 
     } catch (e) {
       console.warn('Avatar conversion failed, using original photo:', e);
     }
+    // Pre-generate the "Color me!" lineart in the background so it's ready by
+    // the time the child reaches the Color stage. Doesn't block the UI.
+    if (state.childPhoto && !state.childPhoto.includes('test_avatar')) {
+      state._lineartPromise = generateLineartViaApi(state.childPhoto)
+        .then(url => { state.childAvatarLineart = url; return url; })
+        .catch(e => { console.warn('Pre-generate lineart failed:', e); return null; });
+    }
   }
 
   // Convert scene photo to crayon background
@@ -347,6 +354,12 @@ document.getElementById('btn-photo-skip').addEventListener('click', async () => 
       console.warn('Avatar conversion failed:', e);
     }
     btn.textContent = 'Skip';
+    // Pre-generate the lineart in the background (non-blocking)
+    if (state.childPhoto && !state.childPhoto.includes('test_avatar')) {
+      state._lineartPromise = generateLineartViaApi(state.childPhoto)
+        .then(url => { state.childAvatarLineart = url; return url; })
+        .catch(e => { console.warn('Pre-generate lineart failed:', e); return null; });
+    }
   }
 
   goToPhase('event');
@@ -632,8 +645,9 @@ function setCanvasSubPhase(subPhase) {
   hideTouchCrayon();
   hideColorHint();
 
-  // Capture screenshot and trigger AI for the stage we're leaving
-  if (subPhase === 'add-elements' || subPhase === 'color' || subPhase === 'sound-studio' || subPhase === 'animate') {
+  // Capture screenshot and trigger AI for the stage we're leaving.
+  // (Skip 'place-self' which is the intro dummy stage with no prior phase to capture.)
+  if (subPhase !== 'place-self') {
     // Determine what we're leaving based on the SUB_PHASE_ORDER
     const order = SUB_PHASE_ORDER;
     const newIdx = order.indexOf(subPhase);
@@ -2798,21 +2812,27 @@ function showColorHint() {
 
       if (el.id === 'avatar-main') {
         img.style.filter = '';
-        // If the user took a real photo (not the default test avatar), generate
-        // lineart from THEIR avatar instead of falling back to the canned boy.
         const usingCustomPhoto = state.childPhoto && !state.childPhoto.includes('test_avatar');
         if (usingCustomPhoto) {
           if (state.childAvatarLineart) {
+            // Pre-generated lineart is ready — swap immediately.
             img.src = state.childAvatarLineart;
           } else {
-            // Prefer server-side Gemini coloring-book conversion (matches the
-            // boy reference style). Falls back to client-side pixel algorithm
-            // if the API isn't available.
-            generateLineartViaApi(state.childPhoto)
+            // Pre-generation still in flight (or the photo step skipped pre-gen).
+            // Show a loading shimmer over the avatar while we wait for the
+            // server response, then swap. Falls back to client pixel algo on error.
+            const loading = document.createElement('div');
+            loading.className = 'avatar-lineart-loading';
+            loading.innerHTML = '<span>✨</span>';
+            el.appendChild(loading);
+            const promise = state._lineartPromise || generateLineartViaApi(state.childPhoto);
+            promise
+              .then(url => url || generateLineart(state.childPhoto))
               .catch(() => generateLineart(state.childPhoto))
               .then(url => {
                 state.childAvatarLineart = url;
                 img.src = url;
+                loading.remove();
               });
           }
         } else {
