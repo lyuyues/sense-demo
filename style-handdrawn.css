@@ -561,6 +561,7 @@ body {
   border-top: 2.5px solid var(--hd-ink) !important;
   padding: 8px 18px !important;
   gap: 10px !important;
+  justify-content: center !important;  /* Center items, leave room for absolute trash on right */
 }
 .palette-item {
   border: 2.5px solid var(--hd-ink) !important;
@@ -676,20 +677,24 @@ body {
   box-shadow: var(--hd-shadow-sm);
   color: var(--hd-ink-faint) !important;
   font-family: "Patrick Hand", cursive !important;
-  font-size: 0 !important;
+  font-size: 26px !important;       /* show 🗑 emoji */
+  flex-direction: column;
+  line-height: 1;
 }
-.trash-zone::before {
+.trash-zone::after {
   content: "Trash";
-  font-size: 13px;
+  display: block;
+  font-size: 12px;
   font-family: "Patrick Hand", cursive;
   color: var(--hd-ink-faint);
+  margin-top: 2px;
 }
 .trash-zone.active {
   color: var(--hd-tomato) !important;
   border-color: var(--hd-tomato) !important;
   background: rgba(236,107,74,0.08) !important;
 }
-.trash-zone.active::before { color: var(--hd-tomato); content: "Drop!"; }
+.trash-zone.active::after { color: var(--hd-tomato); content: "Drop!"; }
 
 /* ===== Sticker input overlay ("Type an object name…") ===== */
 .sticker-input-card {
