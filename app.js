@@ -4169,23 +4169,30 @@ function setupAnimatePhase() {
     }, theme.intro);
   }
 
-  function updateEnergyBar(tapCount) {
+  function updateEnergyBar(tapCount, tapX, tapY) {
     const bar = document.getElementById('free-energy-bar');
     if (!bar) return;
     const segs = bar.querySelectorAll('.energy-seg');
     const targetSeg = segs[tapCount - 1];
     if (!targetSeg || targetSeg.classList.contains('lit') || targetSeg.dataset.starInflight) return;
-    flyStarToSeg(targetSeg);
+    flyStarToSeg(targetSeg, tapX, tapY);
   }
 
-  // Star flies from drum center → target energy-bar segment, then lights it on arrival
-  function flyStarToSeg(targetSeg) {
-    if (!drumImg || !targetSeg) return;
+  // Star flies from tap point → target energy-bar segment, then lights it on arrival
+  function flyStarToSeg(targetSeg, tapX, tapY) {
+    if (!targetSeg) return;
     targetSeg.dataset.starInflight = '1';
-    const dRect = drumImg.getBoundingClientRect();
+    let startX, startY;
+    if (tapX != null && tapY != null) {
+      startX = tapX; startY = tapY;
+    } else if (drumImg) {
+      const dRect = drumImg.getBoundingClientRect();
+      startX = dRect.left + dRect.width / 2;
+      startY = dRect.top + dRect.height * 0.4;
+    } else {
+      return;
+    }
     const tRect = targetSeg.getBoundingClientRect();
-    const startX = dRect.left + dRect.width / 2;
-    const startY = dRect.top + dRect.height * 0.4;
     const endX = tRect.left + tRect.width / 2;
     const endY = tRect.top + tRect.height / 2;
 

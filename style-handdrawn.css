@@ -1011,6 +1011,141 @@ body {
 }
 
 /* ============================================
+   Processing screen — "Creating Your Video" hand-drawn loading
+   ============================================ */
+.processing-content {
+  background: var(--hd-paper) !important;
+  position: relative;
+  overflow: hidden;
+  padding: 2rem !important;
+}
+/* Floating doodle decorations to match welcome screen */
+.processing-content::before,
+.processing-content::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter: drop-shadow(2px 3px 0 rgba(44, 36, 24, 0.18));
+}
+.processing-content::before {
+  top: 10%; left: 10%;
+  width: 84px; height: 84px;
+  background-image: url('assets/icons-hd/star.png');
+  transform: rotate(-10deg);
+  animation: welcomeFloatA 4.4s ease-in-out infinite;
+}
+.processing-content::after {
+  bottom: 12%; right: 10%;
+  width: 96px; height: 96px;
+  background-image: url('assets/icons-hd/sun.png');
+  transform: rotate(12deg);
+  animation: welcomeFloatB 5.2s ease-in-out infinite 0.6s;
+}
+
+/* 🎬 clapperboard — hand-drawn-feel hero icon */
+.processing-icon {
+  font-size: 64px !important;
+  filter: drop-shadow(3px 4px 0 rgba(44, 36, 24, 0.18));
+  transform: rotate(-3deg);
+  animation: hdProcBounce 2.6s ease-in-out infinite !important;
+  position: relative;
+  z-index: 2;
+}
+@keyframes hdProcBounce {
+  0%, 100% { transform: rotate(-3deg) translateY(0); }
+  50%      { transform: rotate(2deg) translateY(-8px); }
+}
+
+/* Title — handwritten, matches welcome */
+.processing-content h1 {
+  font-family: "Caveat", cursive !important;
+  font-size: 2.6rem !important;
+  font-weight: 700 !important;
+  color: var(--hd-ink) !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1 !important;
+  transform: rotate(-1.5deg);
+  text-shadow: 2px 3px 0 rgba(196, 168, 131, 0.42);
+  margin: 1rem 0 1.6rem !important;
+  position: relative;
+  z-index: 2;
+}
+
+/* Step list = stack of hand-drawn pill rows */
+.processing-steps {
+  gap: 0.8rem !important;
+  position: relative;
+  z-index: 2;
+  align-items: stretch;
+}
+.processing-step {
+  background: var(--hd-paper-card) !important;
+  border: 2.5px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-tab) !important;
+  box-shadow: var(--hd-shadow-sm);
+  padding: 8px 18px 6px !important;
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 1.05rem !important;
+  color: var(--hd-ink-muted) !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.01em;
+  gap: 12px !important;
+  min-width: 240px;
+  transition: background 220ms, color 220ms, transform 220ms;
+}
+.processing-step:nth-child(1) { transform: rotate(-1.2deg); }
+.processing-step:nth-child(2) { transform: rotate(0.8deg); }
+.processing-step:nth-child(3) { transform: rotate(-0.6deg); }
+.processing-step:nth-child(4) { transform: rotate(1.0deg); }
+
+/* Active step = sage green pill, lit up */
+.processing-step.active {
+  background: var(--hd-sage) !important;
+  color: var(--hd-ink) !important;
+  box-shadow: var(--hd-shadow);
+  transform: rotate(0deg) scale(1.04);
+}
+/* Done step = muted mango */
+.processing-step.done {
+  background: var(--hd-mango) !important;
+  color: var(--hd-ink) !important;
+  box-shadow: var(--hd-shadow-sm);
+}
+
+/* Step dot — hand-drawn ring; fills when active */
+.step-dot {
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  background: var(--hd-paper-card) !important;
+  border: 2.5px solid var(--hd-ink) !important;
+  box-shadow: 1px 1px 0 var(--hd-ink) !important;
+  flex-shrink: 0;
+  transition: background 220ms;
+}
+.step-dot.active {
+  background: var(--hd-tomato) !important;
+}
+.processing-step.done .step-dot {
+  background: var(--hd-ink) !important;
+}
+
+/* AI observation/summary captions */
+.ai-observation,
+.ai-summary {
+  font-family: "Patrick Hand", cursive !important;
+  color: var(--hd-ink-muted) !important;
+  font-style: normal !important;
+  position: relative;
+  z-index: 2;
+}
+.ai-observation { font-size: 1.05rem !important; }
+.ai-summary { font-size: 1rem !important; color: var(--hd-ink) !important; }
+
+/* ============================================
    Photo-capture screen — polaroid + crosshair playful feel
    ============================================ */
 .photo-content {
