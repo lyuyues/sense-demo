@@ -171,6 +171,9 @@ function goToPhase(phase) {
     }
   }
   // drum is now a canvas sub-phase, not a separate screen
+  if (phase === 'transition') {
+    runTransition();
+  }
   if (phase === 'video') {
     // Clean up canvas state
     stopAllSpriteAnimations();
@@ -178,6 +181,38 @@ function goToPhase(phase) {
     if (cc) { cc.style.transform = ''; cc.style.filter = ''; }
     initVideoPlayer();
   }
+}
+
+// ============================================================
+// MAGIC TRANSITION (phase 1 → phase 2)
+// ============================================================
+function runTransition() {
+  const video = document.getElementById('transition-video');
+  if (!video) { goToPhase('video'); return; }
+  // Reset
+  try { video.currentTime = 0; } catch (e) {}
+  video.muted = true; // autoplay-safe on iOS
+  const goNext = () => {
+    video.onended = null;
+    video.ontimeupdate = null;
+    goToPhase('video');
+  };
+  video.onended = goNext;
+  // Safety net: if 'ended' doesn't fire (some iPad cases), advance after duration + buffer
+  video.ontimeupdate = () => {
+    if (video.duration && video.currentTime >= video.duration - 0.05) goNext();
+  };
+  const playPromise = video.play();
+  if (playPromise && playPromise.catch) {
+    playPromise.catch(err => {
+      console.warn('Transition video play failed, advancing immediately:', err);
+      goNext();
+    });
+  }
+  // Hard timeout in case nothing fires (corrupt file, etc.)
+  setTimeout(() => {
+    if (state.phase === 'transition') goNext();
+  }, 12000);
 }
 
 // ============================================================
@@ -205,6 +240,15 @@ document.getElementById('btn-skip').addEventListener('click', () => {
   // Skip photo, use test avatar, go to event selection
   state.childPhoto = 'assets/test_avatar.png?v=' + Date.now();
   goToPhase('event');
+});
+
+// Dev: skip straight to phase 2 (video player). Uses default 0.5 preference scores
+// because no elicitation data is collected.
+document.getElementById('btn-skip-to-video')?.addEventListener('click', () => {
+  state.childPhoto = 'assets/test_avatar.png?v=' + Date.now();
+  state.eventType = 'grocery';
+  state.dataExported = true; // suppress export-on-processing
+  goToPhase('video');
 });
 
 // ============================================================
@@ -606,7 +650,14 @@ function setCanvasSubPhase(subPhase) {
   // Light stage: shrink the scene (bg/color/element layers) so it sits inside
   // the building cutout with margin, instead of filling the whole stage.
   const ccForShrink = document.getElementById('canvas-container');
-  if (ccForShrink) ccForShrink.classList.toggle('light-stage-shrink', subPhase === 'light');
+  if (ccForShrink) {
+    ccForShrink.classList.toggle('light-stage-shrink', subPhase === 'light');
+    // Color phase: center + scale up avatar so the child has a big surface to color on,
+    // dim the rest. mergeColorOntoElement runs while this class is still active so the
+    // strokes get baked into the avatar's overlay canvas at the scaled bbox — they then
+    // render correctly when the class is removed and the avatar returns to placed size.
+    ccForShrink.classList.toggle('color-stage-active', subPhase === 'color');
+  }
 
   const palette = document.getElementById('element-palette');
   const colorToolbar = document.getElementById('color-toolbar');
@@ -4445,7 +4496,11 @@ function extractPreferences() {
       lightArcPosition: lightArc,
       timeOfDay: getTimeOfDay(lightArc),
     },
-    temporal: { score: temporalScore, animatedCount: state.animatedElements.size, totalCount: nonAvatarElements.length },
+    temporal: {
+      score: temporalScore,
+      animatedCount: state.animatedElements.size,
+      totalCount: state.placedElements.filter(e => e.type !== 'avatar').length,
+    },
   };
 }
 
@@ -4709,9 +4764,9 @@ function runProcessing() {
       if (summaryResult && summaryResult.summary && summaryEl) {
         summaryEl.textContent = summaryResult.summary;
         summaryEl.classList.add('visible');
-        setTimeout(() => goToPhase('video'), 4000);
+        setTimeout(() => goToPhase('transition'), 4000);
       } else {
-        setTimeout(() => goToPhase('video'), 1000);
+        setTimeout(() => goToPhase('transition'), 1000);
       }
     }
   }, 1500);
@@ -4723,22 +4778,35 @@ function runProcessing() {
 let videoPreferences = null;
 let currentLevel = 2; // 1=gentle, 2=baseline, 3=challenge
 let s2PauseTriggered = false;
+// Audio chain (lowpass)
+let videoMediaSource = null;
+let videoLowpass = null;
+// Temporal markers (% of duration) excluding 22% which is S2 pause
+const TEMPORAL_MARKERS = [42, 61, 81];
+let temporalMarkersFired = new Set();
+let freezeCountdownTimer = null;
 
 function initVideoPlayer() {
   videoPreferences = extractPreferences();
   s2PauseTriggered = false;
+  temporalMarkersFired = new Set();
+  if (freezeCountdownTimer) { clearInterval(freezeCountdownTimer); freezeCountdownTimer = null; }
+  document.getElementById('freeze-overlay')?.classList.add('hidden');
+  console.log('[Phase 2] preferences:', videoPreferences);
 
   const video = document.getElementById('sense-video');
 
   // Select video based on spatial preference (friend distance)
+  // PLACEHOLDER: all 3 slots point to base_50s.mp4 (50s loop) until per-spatial
+  // assets are generated. Spatial selection logic preserved.
   const spatialScore = videoPreferences.spatial.score;
-  let videoFile = 'video/base_medium.mp4';
+  let videoFile = 'video/base_50s.mp4'; // baseline (medium)
   if (spatialScore > 0.65) {
-    videoFile = 'video/base_far.mp4';    // child placed friends far → show far perspective
+    videoFile = 'video/base_50s.mp4';    // child placed friends far → show far perspective
   } else if (spatialScore < 0.35) {
-    videoFile = 'video/base_near.mp4';   // child placed friends close → show near perspective
+    videoFile = 'video/base_50s.mp4';    // child placed friends close → show near perspective
   }
-  videoFile += '?v=168';  // cache-bust when video content is updated
+  videoFile += '?v=1';  // cache-bust when video content is updated
   const source = video.querySelector('source');
   if (source && source.src !== videoFile) {
     source.src = videoFile;
@@ -4752,6 +4820,9 @@ function initVideoPlayer() {
   const overlay = document.getElementById('video-play-overlay');
   const overlayIcon = document.getElementById('play-overlay-icon');
   const videoWrap = document.querySelector('.video-fullscreen');
+
+  // Set up Web Audio lowpass for auditory (once per video element)
+  setupVideoAudioChain(video);
 
   // Apply initial preferences
   applyVideoPreferences();
@@ -4793,7 +4864,9 @@ function initVideoPlayer() {
       playPause.innerHTML = '&#9654;';
       videoWrap.classList.add('paused');
       document.getElementById('s2-pause-overlay').classList.remove('hidden');
+      return;
     }
+    // Temporal freeze: removed (caregiver-controlled instead — TBD)
   };
 
   // Timeline seek
@@ -4854,9 +4927,7 @@ function applyVideoPreferences() {
   const video = document.getElementById('sense-video');
   const levelMultiplier = currentLevel === 1 ? 0.5 : currentLevel === 3 ? 1.5 : 1.0;
 
-  // Visual: prefer the brightness the child set on the Light stage.
-  // The light stage outputs 0.4–1.15; level 1/3 nudges it down/up.
-  // Fall back to the color-saturation–driven mapping if the child skipped Light.
+  // --- Visual: brightness ---
   let brightness;
   const lightB = videoPreferences.visual.lightBrightness;
   if (typeof lightB === 'number') {
@@ -4866,6 +4937,83 @@ function applyVideoPreferences() {
   }
   brightness = Math.max(0.4, Math.min(1.5, brightness));
   video.style.filter = `brightness(${brightness.toFixed(2)})`;
+
+  // --- Auditory: lowpass cutoff ---
+  // Baseline (level 2) cutoff: low score → 800Hz (more filtered) ... high score → 8000Hz (less filtered)
+  // Level 1 (gentle) ×0.4, level 3 (challenge) ×2.5, bypass-clamped to [200, 20000].
+  if (videoLowpass) {
+    const score = videoPreferences.auditory.score; // 0..1
+    const baseCutoff = 800 + score * 7200;
+    const levelMult = currentLevel === 1 ? 0.4 : currentLevel === 3 ? 2.5 : 1.0;
+    const cutoff = Math.max(200, Math.min(20000, baseCutoff * levelMult));
+    try {
+      videoLowpass.frequency.setTargetAtTime(cutoff, videoLowpass.context.currentTime, 0.05);
+    } catch (e) { videoLowpass.frequency.value = cutoff; }
+    console.log('[Phase 2] lowpass cutoff:', Math.round(cutoff), 'Hz (level', currentLevel + ')');
+  }
+}
+
+// --- Web Audio chain: <video> → MediaElementSource → BiquadFilter (lowpass) → destination ---
+function setupVideoAudioChain(videoEl) {
+  if (videoMediaSource) return; // already set up (MediaElementSource is one-shot per element)
+  try {
+    if (!state.audioCtx) {
+      state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const ctx = state.audioCtx;
+    if (ctx.state === 'suspended') ctx.resume();
+    videoMediaSource = ctx.createMediaElementSource(videoEl);
+    videoLowpass = ctx.createBiquadFilter();
+    videoLowpass.type = 'lowpass';
+    videoLowpass.frequency.value = 20000; // start fully open; applyVideoPreferences will set real value
+    videoLowpass.Q.value = 0.7;
+    videoMediaSource.connect(videoLowpass);
+    videoLowpass.connect(ctx.destination);
+  } catch (e) {
+    console.warn('Web Audio routing failed (lowpass disabled):', e);
+    videoMediaSource = null;
+    videoLowpass = null;
+  }
+}
+
+// --- Temporal freeze: pause + countdown overlay, then resume. Tap to skip. ---
+function triggerTemporalFreeze(video, playPauseBtn, videoWrap) {
+  if (!videoPreferences) return;
+  // Level 3 (challenge) skips freezes entirely
+  if (currentLevel === 3) return;
+  // Duration: low temporal score (slow tapper, wants prep time) → longer freeze
+  const tScore = videoPreferences.temporal.score; // 0..1
+  const baseFreeze = 2.5 - tScore * 1.5; // 1.0s (fast) → 2.5s (slow)
+  const levelMult = currentLevel === 1 ? 1.6 : 1.0;
+  const freezeSec = Math.max(0.6, Math.min(4, baseFreeze * levelMult));
+
+  video.pause();
+  if (playPauseBtn) playPauseBtn.innerHTML = '&#9654;';
+  if (videoWrap) videoWrap.classList.add('paused');
+  const overlay = document.getElementById('freeze-overlay');
+  const countdownEl = overlay?.querySelector('.freeze-countdown');
+  overlay.classList.remove('hidden');
+
+  let remaining = freezeSec;
+  if (countdownEl) countdownEl.textContent = remaining.toFixed(1) + 's';
+  if (freezeCountdownTimer) clearInterval(freezeCountdownTimer);
+
+  const resume = () => {
+    if (freezeCountdownTimer) { clearInterval(freezeCountdownTimer); freezeCountdownTimer = null; }
+    overlay.classList.add('hidden');
+    overlay.onclick = null;
+    video.play();
+    if (playPauseBtn) playPauseBtn.innerHTML = '&#9646;&#9646;';
+    if (videoWrap) videoWrap.classList.remove('paused');
+  };
+
+  freezeCountdownTimer = setInterval(() => {
+    remaining -= 0.1;
+    if (countdownEl) countdownEl.textContent = Math.max(0, remaining).toFixed(1) + 's';
+    if (remaining <= 0) resume();
+  }, 100);
+
+  overlay.onclick = resume;
 }
 
 function populateProfile() {

@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:opsz,ital,wght@9..144,0,500;9..144,1,500&family=Patrick+Hand&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=227">
-  <link rel="stylesheet" href="style-handdrawn.css?v=10">
+  <link rel="stylesheet" href="style.css?v=229">
+  <link rel="stylesheet" href="style-handdrawn.css?v=11">
 </head>
 <body>
 
@@ -28,6 +28,7 @@
       </div>
       <button id="btn-start" class="btn-primary bounce-hover">Start</button>
       <button id="btn-skip" class="btn-secondary">Skip Photoshot (Testing)</button>
+      <button id="btn-skip-to-video" class="btn-secondary">Skip to Video (Dev)</button>
     </div>
   </div>
 
@@ -302,11 +303,20 @@
 
   <!-- Drum screen removed — now integrated into canvas as drum-overlay -->
 
+  <!-- Screen 6.5: Magic Transition -->
+  <div id="screen-transition" class="screen">
+    <div class="transition-fullscreen">
+      <video id="transition-video" playsinline muted preload="auto">
+        <source src="video/intro_transition.mp4" type="video/mp4">
+      </video>
+    </div>
+  </div>
+
   <!-- Screen 7: Video Playback -->
   <div id="screen-video" class="screen">
     <div class="video-fullscreen">
       <video id="sense-video" playsinline preload="auto">
-        <source src="video/base_medium.mp4?v=200" type="video/mp4">
+        <source src="video/base_50s.mp4?v=1" type="video/mp4">
       </video>
       <!-- YouTube-style bottom control bar -->
       <div class="video-controls" id="video-controls">
@@ -446,6 +456,6 @@
     </defs>
   </svg>
 
-  <script src="app.js?v=222"></script>
+  <script src="app.js?v=224"></script>
 </body>
 </html>
