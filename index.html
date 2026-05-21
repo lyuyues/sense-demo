@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:opsz,ital,wght@9..144,0,500;9..144,1,500&family=Patrick+Hand&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=229">
-  <link rel="stylesheet" href="style-handdrawn.css?v=11">
+  <link rel="stylesheet" href="style.css?v=232">
+  <link rel="stylesheet" href="style-handdrawn.css?v=19">
 </head>
 <body>
 
@@ -29,6 +29,7 @@
       <button id="btn-start" class="btn-primary bounce-hover">Start</button>
       <button id="btn-skip" class="btn-secondary">Skip Photoshot (Testing)</button>
       <button id="btn-skip-to-video" class="btn-secondary">Skip to Video (Dev)</button>
+      <button id="btn-skip-to-wrapup" class="btn-secondary">Skip to Wrap-up (Dev)</button>
     </div>
   </div>
 
@@ -80,9 +81,9 @@
     <div class="event-content">
       <h1 class="event-title">Where are you going?</h1>
       <div class="event-grid">
-        <button class="event-card" data-event="school">
-          <span class="event-emoji">🏫</span>
-          <span class="event-name">Going to School</span>
+        <button class="event-card" data-event="dental">
+          <span class="event-emoji">🦷</span>
+          <span class="event-name">Dental Visit</span>
         </button>
         <button class="event-card" data-event="grocery">
           <span class="event-emoji">🛒</span>
@@ -316,7 +317,7 @@
   <div id="screen-video" class="screen">
     <div class="video-fullscreen">
       <video id="sense-video" playsinline preload="auto">
-        <source src="video/base_50s.mp4?v=1" type="video/mp4">
+        <source src="video/birthday_party.mp4?v=1" type="video/mp4">
       </video>
       <!-- YouTube-style bottom control bar -->
       <div class="video-controls" id="video-controls">
@@ -424,6 +425,130 @@
           <div class="freeze-hint">tap to skip</div>
         </div>
       </div>
+
+      <!-- Dev: per-sub-dimension sliders (0..1) for continuous A/B sweep.
+           Each slider overrides the canvas-derived input. Reset button on each row →
+           use canvas value (slider readout shows "—"). All five sub-dims are continuous
+           direct-mapping per spec; bucketed sub-dims (none yet) would use buttons. -->
+      <div id="dev-channel-panel" class="dev-channel-panel">
+        <div class="dev-cp-title">A/B sliders (Dev)</div>
+        <div class="dev-cp-grid">
+          <div class="dev-cp-row" data-sub="brightness">
+            <span class="dev-cp-name">Brightness</span>
+            <input type="range" class="dev-cp-slider" data-sub="brightness" min="0" max="100" value="50">
+            <span class="dev-cp-value" data-sub="brightness">&mdash;</span>
+            <button class="dev-cp-reset" data-sub="brightness" title="Use canvas value">&#8634;</button>
+          </div>
+          <div class="dev-cp-row" data-sub="saturation">
+            <span class="dev-cp-name">Saturation</span>
+            <input type="range" class="dev-cp-slider" data-sub="saturation" min="0" max="100" value="50">
+            <span class="dev-cp-value" data-sub="saturation">&mdash;</span>
+            <button class="dev-cp-reset" data-sub="saturation" title="Use canvas value">&#8634;</button>
+          </div>
+          <div class="dev-cp-row" data-sub="pitch">
+            <span class="dev-cp-name">Pitch</span>
+            <input type="range" class="dev-cp-slider" data-sub="pitch" min="0" max="100" value="50">
+            <span class="dev-cp-value" data-sub="pitch">&mdash;</span>
+            <button class="dev-cp-reset" data-sub="pitch" title="Use canvas value">&#8634;</button>
+          </div>
+          <div class="dev-cp-row" data-sub="voice">
+            <span class="dev-cp-name">Voice</span>
+            <input type="range" class="dev-cp-slider" data-sub="voice" min="0" max="100" value="100">
+            <span class="dev-cp-value" data-sub="voice">&mdash;</span>
+            <button class="dev-cp-reset" data-sub="voice" title="Use canvas value">&#8634;</button>
+          </div>
+          <div class="dev-cp-row" data-sub="bgm">
+            <span class="dev-cp-name">BGM</span>
+            <input type="range" class="dev-cp-slider" data-sub="bgm" min="0" max="100" value="100">
+            <span class="dev-cp-value" data-sub="bgm">&mdash;</span>
+            <button class="dev-cp-reset" data-sub="bgm" title="Use canvas value">&#8634;</button>
+          </div>
+          <div class="dev-cp-row" data-sub="sfx">
+            <span class="dev-cp-name">SFX</span>
+            <input type="range" class="dev-cp-slider" data-sub="sfx" min="0" max="100" value="100">
+            <span class="dev-cp-value" data-sub="sfx">&mdash;</span>
+            <button class="dev-cp-reset" data-sub="sfx" title="Use canvas value">&#8634;</button>
+          </div>
+          <div class="dev-cp-row dev-cp-row-bucket" data-sub="prep">
+            <span class="dev-cp-name">Prep interval</span>
+            <div class="dev-cp-buckets">
+              <button class="dev-cp-bucket-btn" data-sub="prep" data-bucket="hyper"   title="Hyper-sensitive · 0.5 s">0.5s</button>
+              <button class="dev-cp-bucket-btn" data-sub="prep" data-bucket="typical" title="Typical · 1.0 s">1.0s</button>
+              <button class="dev-cp-bucket-btn" data-sub="prep" data-bucket="hypo"    title="Hypo-sensitive · 1.5 s">1.5s</button>
+            </div>
+            <button class="dev-cp-reset" data-sub="prep" title="Use canvas value">&#8634;</button>
+          </div>
+          <div class="dev-cp-row dev-cp-all">
+            <span class="dev-cp-name">Reset</span>
+            <button class="dev-cp-reset dev-cp-reset-all" data-sub="all" title="Clear all overrides">&#8634; all</button>
+          </div>
+        </div>
+        <button id="dev-cp-rewind" class="dev-cp-rewind" title="Rewind 3 seconds">&#8630; rewind 3s</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen 7: Wrap-up (Pick + Readiness) -->
+  <div id="screen-wrapup" class="screen">
+    <div class="wrapup-content">
+      <h1 id="wrapup-title" class="wrapup-title">After ____, what happens next?</h1>
+      <p class="wrapup-subtitle">Grown-up: read it together and let your child point. There&rsquo;s no wrong answer &mdash; this is to help the procedure feel familiar.</p>
+
+      <!-- 3 cards populated dynamically from a question pool by initWrapupScreen.
+           Procedure-focused: "after X, what happens next?" — anchors are universal
+           procedure beats, options are 1 canonical + 2 plausible distractors. -->
+      <div class="wrapup-grid" id="wrapup-strategy-grid">
+        <button class="wrapup-card" data-option-index="0">
+          <span class="wrapup-emoji"></span>
+          <span class="wrapup-name"></span>
+        </button>
+        <button class="wrapup-card" data-option-index="1">
+          <span class="wrapup-emoji"></span>
+          <span class="wrapup-name"></span>
+        </button>
+        <button class="wrapup-card" data-option-index="2">
+          <span class="wrapup-emoji"></span>
+          <span class="wrapup-name"></span>
+        </button>
+      </div>
+
+      <!-- One shared "see what happens" button — reveals the canonical next step
+           by playing the corresponding segment of the video. Not per-option:
+           there's a single right-as-shown next step (no scoring on the child's pick). -->
+      <button id="wrapup-reveal" class="wrapup-reveal" title="See what happens next">
+        &#127909; See what happens
+      </button>
+
+      <div class="readiness-panel hidden" id="readiness-panel">
+        <h2 class="readiness-title" id="readiness-title">How are you feeling?</h2>
+        <div class="readiness-grid">
+          <button class="readiness-card" data-feeling="nervous">
+            <span class="readiness-emoji">&#128543;</span>
+            <span class="readiness-name">A little nervous</span>
+          </button>
+          <button class="readiness-card" data-feeling="ok">
+            <span class="readiness-emoji">&#128578;</span>
+            <span class="readiness-name">Okay</span>
+          </button>
+          <button class="readiness-card" data-feeling="ready">
+            <span class="readiness-emoji">&#128512;</span>
+            <span class="readiness-name">Ready!</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Done panel: appears after the child picks a readiness state.
+           Two exits: restart the whole flow, or draw a fresh question from
+           the pool to try another procedure beat. -->
+      <div class="wrapup-done hidden" id="wrapup-done">
+        <p class="wrapup-done-message">All set. See you there!</p>
+        <div class="wrapup-done-actions">
+          <button id="btn-wrapup-restart" class="btn-primary">Start over</button>
+          <button id="wrapup-try-another" class="wrapup-try-another" title="Pick a different anchor from the pool">
+            &#8634; Try another question
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -456,6 +581,6 @@
     </defs>
   </svg>
 
-  <script src="app.js?v=224"></script>
+  <script src="app.js?v=245"></script>
 </body>
 </html>

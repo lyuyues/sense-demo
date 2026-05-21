@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SENSE Chrome — 4 Direction Picker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,ital,wght@9..144,0,400;9..144,0,500;9..144,0,700;9..144,1,500&family=Nunito:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Caveat:wght@500;700&family=Patrick+Hand&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body { font-family: -apple-system, system-ui, sans-serif; }
+
+  /* ============ THEME PICKER (top control) ============ */
+  .picker {
+    position: fixed; top: 12px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: flex; gap: 6px;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0,0,0,0.08);
+    padding: 6px;
+    border-radius: 999px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+  }
+  .picker button {
+    background: transparent; border: 0;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-family: -apple-system, system-ui, sans-serif;
+    font-size: 13px; font-weight: 600;
+    color: #555;
+    cursor: pointer;
+    transition: background 180ms;
+  }
+  .picker button:hover { background: rgba(0,0,0,0.05); }
+  .picker button.active {
+    background: #1d1d1d; color: white;
+  }
+  .meta {
+    position: fixed; left: 18px; bottom: 18px;
+    z-index: 999;
+    font-family: -apple-system, system-ui, sans-serif;
+    font-size: 11px;
+    background: rgba(255,255,255,0.9);
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(0,0,0,0.08);
+    color: #444;
+    line-height: 1.5;
+    max-width: 360px;
+  }
+  .meta strong { color: #1d1d1d; font-weight: 700; }
+
+  /* ============ STAGE (shared layout) ============ */
+  .stage {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .topbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 22px 12px;
+    flex-shrink: 0;
+  }
+  .phase-tabs { display: flex; gap: 6px; align-items: center; }
+  .phase-tab { cursor: pointer; user-select: none; }
+  .instruction { margin-left: auto; }
+  .timer { height: 4px; flex-shrink: 0; }
+  .timer-fill { height: 100%; width: 42%; }
+  .canvas-wrap { flex: 1; position: relative; overflow: hidden; }
+  .scene-bg {
+    position: absolute; inset: 0;
+    background-image: url("../assets/school_bg.png");
+    background-size: cover;
+    background-position: center 35%;
+  }
+  .avatar-stage {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .avatar-img {
+    width: 240px;
+    filter: drop-shadow(0 10px 18px rgba(80,50,20,0.18));
+    animation: breathe 4.2s cubic-bezier(.22,1,.36,1) infinite;
+  }
+  @keyframes breathe {
+    0%,100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-3px) scale(1.012); }
+  }
+  .toolbar {
+    position: absolute; left: 50%; bottom: 26px;
+    transform: translateX(-50%);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .sat-row { display: flex; gap: 8px; }
+  .sat-chip { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; }
+  .brush-row { display: flex; gap: 4px; }
+  .brush-btn { display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .hint { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); }
+
+  /* ================================================
+     THEME 1 — EDITORIAL (Aesop / Apple Books)
+     refined typography, classic, restrained
+     ================================================ */
+  body.t-editorial { background: #efe9dd; color: #1f1a14; font-family: "Fraunces", Georgia, serif; }
+  body.t-editorial .topbar {
+    background: #f5efe0;
+    border-bottom: 1px solid #d6cdb6;
+  }
+  body.t-editorial .phase-tab {
+    background: transparent;
+    border: 0;
+    padding: 8px 4px 6px;
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 14;
+    font-size: 14px; font-weight: 500;
+    color: #8a7e63;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-bottom: 1.5px solid transparent;
+    transition: all 200ms;
+  }
+  body.t-editorial .phase-tab:hover { color: #1f1a14; }
+  body.t-editorial .phase-tab.active {
+    color: #1f1a14;
+    border-bottom-color: #b8472b;
+  }
+  body.t-editorial .phase-tab.done {
+    color: #b8472b;
+  }
+  body.t-editorial .phase-tabs { gap: 22px; padding: 0 16px; }
+  body.t-editorial .btn-back {
+    background: transparent; border: 0;
+    font-family: "Fraunces", serif; font-style: italic;
+    font-size: 14px; color: #8a7e63;
+    cursor: pointer; padding: 4px 8px;
+  }
+  body.t-editorial .btn-back:hover { color: #1f1a14; }
+  body.t-editorial .instruction {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-size: 19px;
+    font-weight: 400;
+    color: #1f1a14;
+    letter-spacing: -0.01em;
+  }
+  body.t-editorial .btn-next {
+    background: transparent;
+    border: 1px solid #1f1a14;
+    color: #1f1a14;
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-size: 14px;
+    padding: 8px 22px;
+    border-radius: 0;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: all 200ms;
+  }
+  body.t-editorial .btn-next:hover { background: #1f1a14; color: #f5efe0; }
+  body.t-editorial .timer { background: #d6cdb6; }
+  body.t-editorial .timer-fill { background: #b8472b; }
+  body.t-editorial .canvas-wrap { background: #efe9dd; }
+  body.t-editorial .toolbar {
+    background: #f5efe0;
+    border: 1px solid #d6cdb6;
+    padding: 14px 20px;
+    border-radius: 0;
+    box-shadow: 0 8px 32px rgba(80,50,20,0.10);
+  }
+  body.t-editorial .hue-pill {
+    background: transparent;
+    border: 0;
+    border-right: 1px solid #d6cdb6;
+    padding: 4px 18px 4px 0;
+    display: flex; align-items: center; gap: 10px;
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-size: 14px;
+    color: #1f1a14;
+    cursor: pointer;
+  }
+  body.t-editorial .hue-dot { width: 18px; height: 18px; border-radius: 50%; background: #b8472b; }
+  body.t-editorial .sat-chip {
+    border: 1px solid rgba(0,0,0,0.10);
+    box-shadow: none;
+    transition: transform 200ms;
+  }
+  body.t-editorial .sat-chip:hover { transform: scale(1.1); }
+  body.t-editorial .sat-chip.selected {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 1.5px #1f1a14;
+  }
+  body.t-editorial .brush-btn {
+    width: 36px; height: 36px;
+    border: 0; background: transparent;
+    border-radius: 0;
+  }
+  body.t-editorial .brush-btn .dot { background: #1f1a14; border-radius: 50%; }
+  body.t-editorial .brush-btn.selected { border-bottom: 2px solid #1f1a14; }
+  body.t-editorial .tool-btn {
+    background: transparent; border: 0;
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-size: 13px;
+    color: #8a7e63;
+    padding: 4px 10px;
+    cursor: pointer;
+  }
+  body.t-editorial .tool-btn:hover { color: #1f1a14; }
+  body.t-editorial .hint {
+    background: transparent; border: 0;
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-size: 16px;
+    color: #1f1a14;
+    text-align: center;
+    padding: 0;
+  }
+
+  /* ================================================
+     THEME 2 — CHUNKY (Toca / Sago / Khan Kids)
+     warm 3D pills, kid-game playful
+     ================================================ */
+  body.t-chunky { background: #fef8eb; color: #3a2e22; font-family: "Nunito", sans-serif; }
+  body.t-chunky .topbar { background: #fef8eb; border-bottom: 2px solid #ead7b8; }
+  body.t-chunky .phase-tab {
+    background: #ffffff;
+    border: 2px solid #ead7b8;
+    border-radius: 999px;
+    padding: 10px 18px 9px;
+    font-size: 14px; font-weight: 700;
+    color: #8a7a66;
+    box-shadow: 0 1px 0 rgba(58,46,34,0.04), 0 2px 6px rgba(120,80,40,0.07);
+    transition: all 200ms cubic-bezier(.34,1.56,.64,1);
+  }
+  body.t-chunky .phase-tab:hover { transform: translateY(-1px); border-color: #d6bf95; }
+  body.t-chunky .phase-tab.active {
+    background: #ec6b4a; color: #fff7e8;
+    border-color: #c8512f;
+    box-shadow: 0 3px 0 #c8512f, 0 8px 18px rgba(236,107,74,0.30);
+    transform: translateY(-1px);
+  }
+  body.t-chunky .phase-tab.done {
+    background: #5fb88f; color: #fff;
+    border-color: #46966f;
+    box-shadow: 0 2px 0 #46966f;
+  }
+  body.t-chunky .btn-back {
+    width: 46px; height: 46px;
+    border-radius: 999px;
+    background: #ffffff;
+    border: 2px solid #ead7b8;
+    color: #3a2e22;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 18px; font-weight: 700;
+    box-shadow: 0 1px 0 rgba(58,46,34,0.04), 0 2px 6px rgba(120,80,40,0.07);
+  }
+  body.t-chunky .instruction {
+    font-family: "Fraunces", serif;
+    font-size: 19px; font-weight: 500;
+    color: #3a2e22;
+  }
+  body.t-chunky .instruction em {
+    font-style: italic;
+    background: linear-gradient(transparent 70%, rgba(255,184,77,0.45) 70%);
+  }
+  body.t-chunky .btn-next {
+    background: #ffb84d; color: #3a2e22;
+    border: 2px solid #e09a2f;
+    padding: 10px 22px 9px;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 15px; font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #e09a2f, 0 10px 22px rgba(255,184,77,0.30);
+  }
+  body.t-chunky .timer { background: #ead7b8; }
+  body.t-chunky .timer-fill {
+    background: linear-gradient(90deg, #ec6b4a, #ffb84d);
+    box-shadow: 0 0 8px rgba(236,107,74,0.5);
+  }
+  body.t-chunky .canvas-wrap { background: #fdf3df; }
+  body.t-chunky .toolbar {
+    background: #ffffff;
+    border: 2px solid #ead7b8;
+    border-radius: 999px;
+    padding: 12px 16px 11px;
+    box-shadow: 0 3px 0 rgba(58,46,34,0.06), 0 12px 28px rgba(120,80,40,0.16);
+  }
+  body.t-chunky .hue-pill {
+    display: flex; align-items: center; gap: 10px;
+    background: #fef8eb; border: 2px solid #ead7b8;
+    border-radius: 999px;
+    padding: 6px 14px 5px 7px;
+    font-size: 14px; font-weight: 700; color: #3a2e22;
+    cursor: pointer;
+  }
+  body.t-chunky .hue-dot {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #ec6b4a;
+    box-shadow:
+      inset 0 -3px 5px rgba(0,0,0,0.18),
+      inset 0 3px 4px rgba(255,255,255,0.28),
+      0 0 0 2px #fff, 0 0 0 4px #ec6b4a;
+  }
+  body.t-chunky .sat-chip {
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.10);
+    transition: transform 200ms cubic-bezier(.34,1.56,.64,1);
+  }
+  body.t-chunky .sat-chip:hover { transform: scale(1.15); }
+  body.t-chunky .sat-chip.selected {
+    transform: scale(1.22);
+    box-shadow: 0 0 0 3px #3a2e22;
+  }
+  body.t-chunky .brush-btn {
+    width: 44px; height: 44px;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background: #fef8eb;
+  }
+  body.t-chunky .brush-btn .dot { background: #3a2e22; border-radius: 50%; }
+  body.t-chunky .brush-btn.selected { background: #3a2e22; border-color: #3a2e22; }
+  body.t-chunky .brush-btn.selected .dot { background: #fef8eb; }
+  body.t-chunky .tool-btn {
+    background: #fef8eb; border: 2px solid transparent;
+    border-radius: 999px;
+    padding: 8px 18px;
+    font-family: inherit;
+    font-size: 13px; font-weight: 700;
+    color: #8a7a66; cursor: pointer;
+    transition: all 180ms;
+  }
+  body.t-chunky .tool-btn:hover { border-color: #ead7b8; color: #3a2e22; }
+  body.t-chunky .hint {
+    background: #ffffff;
+    border: 2px solid #ead7b8;
+    padding: 9px 18px 8px;
+    border-radius: 999px;
+    font-family: "Quicksand", sans-serif;
+    font-size: 14px; font-weight: 600;
+    color: #3a2e22;
+    box-shadow: 0 2px 0 rgba(58,46,34,0.05), 0 6px 18px rgba(120,80,40,0.10);
+  }
+
+  /* ================================================
+     THEME 3 — PAPER (Apple Notes / Things 3 / iA Writer)
+     quiet, neutral paper, minimal accent
+     ================================================ */
+  body.t-paper { background: #f4f1ea; color: #2a2520; font-family: "Inter", sans-serif; }
+  body.t-paper .topbar { background: #f9f6ee; border-bottom: 1px solid #e3ddd0; }
+  body.t-paper .phase-tab {
+    background: transparent; border: 0;
+    padding: 9px 14px;
+    font-family: "Inter", sans-serif;
+    font-size: 13px; font-weight: 500;
+    color: #908778;
+    border-radius: 8px;
+    transition: all 180ms;
+  }
+  body.t-paper .phase-tab:hover { background: rgba(0,0,0,0.03); color: #2a2520; }
+  body.t-paper .phase-tab.active {
+    background: #2a2520;
+    color: #f9f6ee;
+    font-weight: 600;
+  }
+  body.t-paper .phase-tab.done { color: #2a2520; font-weight: 500; }
+  body.t-paper .phase-tab.done::after { content: " ·"; color: #c8a85a; }
+  body.t-paper .btn-back {
+    background: transparent; border: 0;
+    font-size: 13px; font-weight: 500; color: #908778;
+    cursor: pointer; padding: 6px 10px;
+    border-radius: 8px;
+    font-family: inherit;
+  }
+  body.t-paper .btn-back:hover { background: rgba(0,0,0,0.03); color: #2a2520; }
+  body.t-paper .instruction {
+    font-size: 14px; font-weight: 500; color: #6e6557;
+  }
+  body.t-paper .btn-next {
+    background: #2a2520; color: #f9f6ee;
+    border: 0;
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+  }
+  body.t-paper .timer { background: #e3ddd0; }
+  body.t-paper .timer-fill { background: #c8a85a; }
+  body.t-paper .canvas-wrap { background: #f4f1ea; }
+  body.t-paper .toolbar {
+    background: #f9f6ee;
+    border: 1px solid #e3ddd0;
+    border-radius: 12px;
+    padding: 10px 14px;
+    box-shadow: 0 4px 16px rgba(80,50,20,0.06);
+  }
+  body.t-paper .hue-pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 8px 4px 4px;
+    font-size: 13px; font-weight: 500;
+    color: #2a2520;
+    cursor: pointer;
+  }
+  body.t-paper .hue-dot {
+    width: 20px; height: 20px; border-radius: 50%; background: #c25a3a;
+    border: 2px solid #fff; box-shadow: 0 0 0 1px #d6cdb6;
+  }
+  body.t-paper .sat-chip {
+    border: 1.5px solid #fff;
+    box-shadow: 0 0 0 1px #d6cdb6;
+    transition: transform 180ms;
+  }
+  body.t-paper .sat-chip:hover { transform: scale(1.10); }
+  body.t-paper .sat-chip.selected { box-shadow: 0 0 0 1.5px #2a2520; transform: scale(1.10); }
+  body.t-paper .brush-btn {
+    width: 30px; height: 30px;
+    border: 0;
+    background: transparent;
+    border-radius: 6px;
+  }
+  body.t-paper .brush-btn:hover { background: rgba(0,0,0,0.04); }
+  body.t-paper .brush-btn .dot { background: #2a2520; border-radius: 50%; }
+  body.t-paper .brush-btn.selected { background: rgba(0,0,0,0.06); }
+  body.t-paper .tool-btn {
+    background: transparent; border: 0;
+    font-family: inherit;
+    font-size: 12px; font-weight: 500; color: #908778;
+    padding: 6px 10px; border-radius: 6px;
+    cursor: pointer;
+  }
+  body.t-paper .tool-btn:hover { background: rgba(0,0,0,0.04); color: #2a2520; }
+  body.t-paper .hint {
+    background: rgba(249,246,238,0.95);
+    backdrop-filter: blur(6px);
+    border: 1px solid #e3ddd0;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 12px; font-weight: 500;
+    color: #6e6557;
+  }
+
+  /* ================================================
+     THEME 4 — HAND-DRAWN (chrome merges INTO crayon)
+     wobbly borders, ribbons, handwritten labels
+     ================================================ */
+  body.t-handdrawn { background: #faf5e8; color: #2c2418; font-family: "Patrick Hand", "Caveat", cursive; font-size: 17px; }
+  body.t-handdrawn .topbar { background: #faf5e8; border-bottom: 2.5px dashed #c4a883; padding: 16px 22px 14px; }
+  body.t-handdrawn .phase-tab {
+    background: #fffef9;
+    /* wobbly border via SVG-ish doubled border + slight rotation */
+    border: 2.5px solid #2c2418;
+    border-radius: 14px 22px 16px 24px / 18px 14px 22px 16px;  /* irregular */
+    padding: 7px 18px 5px;
+    font-family: "Patrick Hand", cursive;
+    font-size: 18px;
+    color: #5a4830;
+    cursor: pointer;
+    transition: all 200ms;
+  }
+  body.t-handdrawn .phase-tab:nth-child(1) { transform: rotate(-1.4deg); }
+  body.t-handdrawn .phase-tab:nth-child(2) { transform: rotate(0.8deg); }
+  body.t-handdrawn .phase-tab:nth-child(3) { transform: rotate(-0.6deg); }
+  body.t-handdrawn .phase-tab:nth-child(4) { transform: rotate(1.1deg); }
+  body.t-handdrawn .phase-tab:nth-child(5) { transform: rotate(-1.0deg); }
+  body.t-handdrawn .phase-tab.active {
+    background: #ec6b4a;
+    color: #fffef9;
+    transform: rotate(0deg) scale(1.05) !important;
+    box-shadow: 3px 4px 0 #2c2418;
+  }
+  body.t-handdrawn .phase-tab.done {
+    background: #a3c9a8;
+    color: #2c2418;
+    box-shadow: 2px 2px 0 #2c2418;
+  }
+  body.t-handdrawn .btn-back {
+    background: #fffef9;
+    border: 2.5px solid #2c2418;
+    border-radius: 18px 22px 16px 20px / 16px 22px 20px 18px;
+    width: 50px; height: 46px;
+    font-family: "Patrick Hand", cursive;
+    font-size: 22px;
+    color: #2c2418; cursor: pointer;
+    transform: rotate(-1.5deg);
+    box-shadow: 2px 2px 0 #2c2418;
+  }
+  body.t-handdrawn .instruction {
+    font-family: "Caveat", cursive;
+    font-size: 28px; font-weight: 700;
+    color: #2c2418;
+    transform: rotate(-1deg);
+  }
+  body.t-handdrawn .instruction em {
+    font-style: normal;
+    color: #ec6b4a;
+    text-decoration: underline wavy #ec6b4a 2px;
+  }
+  body.t-handdrawn .btn-next {
+    background: #ffd166; color: #2c2418;
+    border: 2.5px solid #2c2418;
+    border-radius: 22px 16px 26px 14px / 16px 24px 14px 22px;
+    padding: 10px 24px 8px;
+    font-family: "Patrick Hand", cursive;
+    font-size: 19px;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 #2c2418;
+    transform: rotate(1.2deg);
+  }
+  body.t-handdrawn .timer { background: #e8d8b3; }
+  body.t-handdrawn .timer-fill { background: #ec6b4a; }
+  body.t-handdrawn .canvas-wrap { background: #faf5e8; }
+  body.t-handdrawn .toolbar {
+    background: #fffef9;
+    border: 2.5px solid #2c2418;
+    border-radius: 26px 18px 30px 16px / 22px 28px 18px 26px;
+    padding: 14px 20px;
+    box-shadow: 5px 5px 0 #2c2418;
+  }
+  body.t-handdrawn .hue-pill {
+    background: transparent; border: 0;
+    display: flex; align-items: center; gap: 10px;
+    font-family: "Patrick Hand", cursive;
+    font-size: 18px; color: #2c2418;
+    cursor: pointer;
+  }
+  body.t-handdrawn .hue-dot {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #ec6b4a;
+    border: 2.5px solid #2c2418;
+    box-shadow: 2px 2px 0 #2c2418;
+  }
+  body.t-handdrawn .sat-chip {
+    border: 2px solid #2c2418;
+    transition: transform 200ms;
+  }
+  body.t-handdrawn .sat-chip:hover { transform: scale(1.15) rotate(8deg); }
+  body.t-handdrawn .sat-chip.selected {
+    transform: scale(1.25) rotate(-6deg);
+    box-shadow: 2px 2px 0 #2c2418;
+  }
+  body.t-handdrawn .brush-btn {
+    width: 40px; height: 40px;
+    border: 2px solid #2c2418;
+    background: #fffef9;
+    border-radius: 16px 12px 14px 18px / 12px 18px 16px 14px;
+  }
+  body.t-handdrawn .brush-btn .dot { background: #2c2418; border-radius: 50%; }
+  body.t-handdrawn .brush-btn.selected {
+    background: #2c2418; transform: rotate(2deg);
+    box-shadow: 2px 2px 0 #5a4830;
+  }
+  body.t-handdrawn .brush-btn.selected .dot { background: #fffef9; }
+  body.t-handdrawn .tool-btn {
+    background: transparent; border: 0;
+    font-family: "Patrick Hand", cursive;
+    font-size: 17px; color: #5a4830;
+    padding: 6px 12px; cursor: pointer;
+    text-decoration: underline wavy transparent 2px;
+    transition: text-decoration-color 180ms, color 180ms;
+  }
+  body.t-handdrawn .tool-btn:hover {
+    color: #2c2418;
+    text-decoration-color: #c4a883;
+  }
+  body.t-handdrawn .hint {
+    background: #fffef9;
+    border: 2.5px solid #2c2418;
+    padding: 9px 18px 7px;
+    border-radius: 18px 24px 16px 22px / 14px 20px 22px 18px;
+    font-family: "Caveat", cursive;
+    font-size: 22px; font-weight: 700;
+    color: #2c2418;
+    box-shadow: 3px 3px 0 #2c2418;
+    transform: translateX(-50%) rotate(-1.5deg);
+  }
+
+  /* common helpers */
+  .sizes-s { width: 7px; height: 7px; }
+  .sizes-m { width: 12px; height: 12px; }
+  .sizes-l { width: 18px; height: 18px; }
+
+</style>
+</head>
+<body class="t-chunky">
+
+  <!-- THEME PICKER -->
+  <div class="picker">
+    <button data-theme="t-editorial">1 · Editorial</button>
+    <button data-theme="t-chunky" class="active">2 · Chunky</button>
+    <button data-theme="t-paper">3 · Paper</button>
+    <button data-theme="t-handdrawn">4 · Hand-drawn</button>
+  </div>
+
+  <div class="meta" id="meta">
+    <strong>Chunky</strong> · Toca Boca / Sago Mini / Khan Kids — warm 3D pills, kid-game playful
+  </div>
+
+  <div class="stage">
+
+    <div class="topbar">
+      <button class="btn-back">← Back</button>
+      <div class="phase-tabs">
+        <button class="phase-tab done">Create</button>
+        <button class="phase-tab active">Color</button>
+        <button class="phase-tab">Light</button>
+        <button class="phase-tab">Sound</button>
+        <button class="phase-tab">Rhythm</button>
+      </div>
+      <div class="instruction">Color your <em>friend</em></div>
+      <button class="btn-next">Next →</button>
+    </div>
+
+    <div class="timer"><div class="timer-fill"></div></div>
+
+    <div class="canvas-wrap">
+      <div class="scene-bg"></div>
+
+      <div class="hint">Pick a color and tap your friend</div>
+
+      <div class="avatar-stage">
+        <img class="avatar-img" src="../assets/school_classmate1.png" alt="">
+      </div>
+
+      <div class="toolbar">
+        <div class="hue-pill">
+          <span class="hue-dot"></span>
+          <span>Tomato</span>
+          <span style="color:#999; font-size:11px;">▾</span>
+        </div>
+
+        <div class="sat-row">
+          <span class="sat-chip" style="background:#fde0d4"></span>
+          <span class="sat-chip" style="background:#f7b39d"></span>
+          <span class="sat-chip selected" style="background:#ec6b4a"></span>
+          <span class="sat-chip" style="background:#c8512f"></span>
+          <span class="sat-chip" style="background:#8f3920"></span>
+        </div>
+
+        <div class="brush-row">
+          <button class="brush-btn"><span class="dot sizes-s"></span></button>
+          <button class="brush-btn selected"><span class="dot sizes-m"></span></button>
+          <button class="brush-btn"><span class="dot sizes-l"></span></button>
+        </div>
+
+        <button class="tool-btn">Erase</button>
+        <button class="tool-btn">Undo</button>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+  const META = {
+    "t-editorial": "<strong>Editorial</strong> · Aesop / Apple Books — refined italic serif, restrained palette, no chrome decoration",
+    "t-chunky":    "<strong>Chunky</strong> · Toca Boca / Sago Mini / Khan Kids — warm 3D pills, kid-game playful",
+    "t-paper":     "<strong>Paper</strong> · Apple Notes / Things 3 — quiet neutral, minimal, type-led",
+    "t-handdrawn": "<strong>Hand-drawn</strong> · chrome merges INTO crayon — wobbly borders, hand-lettered, ribbon shapes",
+  };
+  document.querySelectorAll(".picker button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const theme = btn.dataset.theme;
+      document.body.className = theme;
+      document.querySelectorAll(".picker button").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("meta").innerHTML = META[theme];
+    });
+  });
+</script>
+
+</body>
+</html>

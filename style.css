@@ -324,10 +324,9 @@ html, body {
 .canvas-container.light-stage-shrink #color-canvas,
 .canvas-container.light-stage-shrink #element-layer {
   transform: scale(0.65);
-  /* Anchor at 85% (not bottom) — the cutout's interior floor sits above the canvas's
-     true bottom edge by ~15%. Anchoring to 85% puts avatar's feet at the building's
-     floor line, not below it. */
-  transform-origin: center 85%;
+  /* Anchor near vertical middle — puts the scaled scene inside the upper part
+     of the cutout. Lower the Y to move the scene up further. */
+  transform-origin: center 55%;
   transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -349,6 +348,12 @@ html, body {
   transition: background 0.15s;
 }
 .palette-item:active { background: #f0f0ee; }
+.palette-item.used {
+  opacity: 0.3 !important;
+  filter: grayscale(0.8) !important;
+  pointer-events: none !important;
+  cursor: default !important;
+}
 .palette-icon {
   width: 48px; height: 48px;
   display: flex; align-items: center; justify-content: center;

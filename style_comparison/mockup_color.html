@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280, initial-scale=1">
+<title>SENSE Color Phase — Style Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-cream: #faf6ef;
+    --bg-warm: #fff4e3;
+    --ink-primary: #2a2622;
+    --ink-muted: #6b6357;
+    --accent-coral: #ff7a59;
+    --accent-coral-dark: #e8654a;
+    --accent-butter: #ffd166;
+    --accent-teal: #4cb8a8;
+    --accent-rose: #ec6b8e;
+    --accent-violet: #9b7bd8;
+    --surface-card: #ffffff;
+    --surface-border: #e8e0d2;
+    --radius-card: 20px;
+    --radius-button: 14px;
+    --radius-pill: 999px;
+    --shadow-rest: 0 2px 8px rgba(80, 50, 20, 0.06);
+    --shadow-hover: 0 8px 24px rgba(80, 50, 20, 0.12);
+    --shadow-press: 0 1px 3px rgba(80, 50, 20, 0.08);
+    --shadow-floating: 0 12px 32px rgba(80, 50, 20, 0.16);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+    --font-display: "Fraunces", Georgia, serif;
+    --font-ui: "Inter", -apple-system, system-ui, sans-serif;
+    --font-kid: "Quicksand", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg-cream);
+    color: var(--ink-primary);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  .stage {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ======= TOP BAR ======= */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 20px;
+    background: var(--surface-card);
+    border-bottom: 1px solid var(--surface-border);
+    box-shadow: var(--shadow-rest);
+    z-index: 10;
+  }
+  .btn-back {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-cream);
+    border: 1px solid var(--surface-border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-primary);
+    transition: transform var(--ease-spring) 220ms, box-shadow 180ms;
+  }
+  .btn-back:hover { transform: scale(1.06); box-shadow: var(--shadow-rest); }
+  .btn-back:active { transform: scale(0.94); }
+
+  .phase-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-cream);
+    border-radius: var(--radius-pill);
+    padding: 4px;
+    border: 1px solid var(--surface-border);
+  }
+  .phase-tab {
+    background: transparent;
+    border: 0;
+    padding: 9px 18px;
+    border-radius: var(--radius-pill);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 220ms var(--ease-soft);
+  }
+  .phase-tab .ico { font-size: 16px; }
+  .phase-tab:hover { color: var(--ink-primary); }
+  .phase-tab.active {
+    background: var(--ink-primary);
+    color: #fff7ec;
+    box-shadow: var(--shadow-rest);
+  }
+  .phase-tab.active.color-active {
+    background: var(--accent-coral);
+    color: #fff;
+  }
+
+  .instruction {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--ink-primary);
+    margin-left: auto;
+    letter-spacing: -0.01em;
+  }
+  .btn-next {
+    background: var(--accent-coral);
+    color: white;
+    border: 0;
+    padding: 11px 26px;
+    border-radius: var(--radius-button);
+    font-family: var(--font-ui);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 3px 0 var(--accent-coral-dark), var(--shadow-rest);
+    transition: transform 220ms var(--ease-spring), box-shadow 180ms;
+  }
+  .btn-next:hover { transform: translateY(-1px); box-shadow: 0 4px 0 var(--accent-coral-dark), var(--shadow-hover); }
+  .btn-next:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--accent-coral-dark); }
+
+  /* ======= STAGE TIMER ======= */
+  .stage-timer {
+    height: 3px;
+    background: var(--surface-border);
+  }
+  .stage-timer-fill {
+    height: 100%;
+    width: 42%;
+    background: linear-gradient(90deg, var(--accent-coral), var(--accent-butter));
+    border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+    transition: width 600ms var(--ease-soft);
+  }
+
+  /* ======= CANVAS AREA ======= */
+  .canvas-wrap {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    background: var(--bg-warm);
+  }
+  .scene-bg {
+    position: absolute;
+    inset: 0;
+    background-image: url("scene_classroom.png");
+    background-size: cover;
+    background-position: center;
+    /* desaturate slightly so the lineart avatar pops, but keep the world feeling alive */
+    filter: saturate(0.85) brightness(1.04);
+  }
+  .scene-vignette {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at center, transparent 35%, rgba(255, 244, 227, 0.55) 100%);
+    pointer-events: none;
+  }
+
+  .avatar-stage {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .avatar-lineart {
+    width: 380px;
+    height: 380px;
+    object-fit: contain;
+    filter: drop-shadow(0 12px 24px rgba(80,50,20,0.18));
+    animation: breathe 4.2s var(--ease-soft) infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-4px) scale(1.012); }
+  }
+
+  .floating-hint {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--surface-border);
+    padding: 9px 18px;
+    border-radius: var(--radius-pill);
+    font-family: var(--font-kid);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-primary);
+    box-shadow: var(--shadow-rest);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .floating-hint .pulse {
+    width: 8px;
+    height: 8px;
+    background: var(--accent-coral);
+    border-radius: 50%;
+    animation: pulseDot 1.4s var(--ease-soft) infinite;
+  }
+  @keyframes pulseDot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.6); opacity: 0.4; }
+  }
+
+  /* ======= COLOR TOOLBAR (BOTTOM) ======= */
+  .color-toolbar {
+    position: absolute;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(8px);
+    padding: 14px 18px;
+    border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-floating);
+    border: 1px solid var(--surface-border);
+  }
+  .hue-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-cream);
+    border-radius: var(--radius-pill);
+    padding: 8px 14px;
+    cursor: pointer;
+    border: 1px solid var(--surface-border);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .hue-dot {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent-coral);
+    box-shadow: inset 0 -2px 4px rgba(0,0,0,0.12), 0 0 0 2px white, 0 0 0 3px var(--accent-coral);
+  }
+  .sat-row {
+    display: flex;
+    gap: 6px;
+  }
+  .sat-chip {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 220ms var(--ease-spring);
+    border: 2px solid white;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+  .sat-chip:hover { transform: scale(1.15); }
+  .sat-chip.selected {
+    transform: scale(1.22);
+    box-shadow: 0 0 0 2px var(--ink-primary), 0 2px 6px rgba(0,0,0,0.16);
+  }
+
+  .divider {
+    width: 1px;
+    height: 28px;
+    background: var(--surface-border);
+  }
+
+  .brush-row { display: flex; gap: 4px; }
+  .brush-btn {
+    width: 40px; height: 40px;
+    border-radius: var(--radius-pill);
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 200ms;
+  }
+  .brush-btn:hover { background: var(--bg-cream); }
+  .brush-btn.selected { background: var(--ink-primary); }
+  .brush-btn.selected .dot { background: white; }
+  .brush-btn .dot {
+    border-radius: 50%;
+    background: var(--ink-primary);
+  }
+  .brush-btn .dot.s { width: 6px; height: 6px; }
+  .brush-btn .dot.m { width: 10px; height: 10px; }
+  .brush-btn .dot.l { width: 16px; height: 16px; }
+
+  .tool-btn {
+    width: 40px; height: 40px;
+    border-radius: var(--radius-pill);
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    color: var(--ink-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 200ms;
+  }
+  .tool-btn:hover { background: var(--bg-cream); color: var(--ink-primary); }
+
+  /* fake painted strokes on lineart to communicate "it works" */
+  .stroke {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 50%;
+    filter: blur(0.6px);
+    mix-blend-mode: multiply;
+    opacity: 0.85;
+  }
+
+  /* corner watermark for context */
+  .watermark {
+    position: absolute;
+    top: 12px;
+    right: 18px;
+    font-family: var(--font-ui);
+    font-size: 11px;
+    color: var(--ink-muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    background: rgba(255,255,255,0.7);
+    padding: 4px 10px;
+    border-radius: var(--radius-pill);
+    z-index: 99;
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <button class="btn-back" title="Back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="phase-tabs">
+      <button class="phase-tab"><span class="ico">🎨</span>Create</button>
+      <button class="phase-tab active color-active"><span class="ico">🖍️</span>Color</button>
+      <button class="phase-tab"><span class="ico">☀️</span>Light</button>
+      <button class="phase-tab"><span class="ico">🎵</span>Sound</button>
+      <button class="phase-tab"><span class="ico">🥁</span>Rhythm</button>
+    </div>
+    <div class="instruction">Color your friend</div>
+    <button class="btn-next">Next</button>
+  </div>
+
+  <!-- Stage timer -->
+  <div class="stage-timer"><div class="stage-timer-fill"></div></div>
+
+  <!-- Canvas area -->
+  <div class="canvas-wrap">
+    <div class="scene-bg"></div>
+    <div class="scene-vignette"></div>
+
+    <span class="watermark">Mockup · Color Phase · A1 + A pipeline</span>
+
+    <div class="floating-hint">
+      <span class="pulse"></span>
+      Pick a color and tap your friend to paint
+    </div>
+
+    <!-- Painted stroke decorations to suggest active coloring -->
+    <div class="avatar-stage">
+      <div style="position:relative; width: 380px; height: 380px;">
+        <img class="avatar-lineart" src="A1_outlined__avatar__LINEART.png" alt="">
+        <!-- fake strokes -->
+        <span class="stroke" style="left: 36%; top: 42%; width: 80px; height: 90px; background: #ffd9a8;"></span>
+        <span class="stroke" style="left: 28%; top: 55%; width: 140px; height: 110px; background: #4cb8a8;"></span>
+        <span class="stroke" style="left: 32%; top: 72%; width: 120px; height: 80px; background: #5a89c2;"></span>
+      </div>
+    </div>
+
+    <!-- Color toolbar -->
+    <div class="color-toolbar">
+      <div class="hue-pill">
+        <span class="hue-dot"></span>
+        <span>Coral</span>
+        <span style="color: var(--ink-muted); font-size: 12px;">▾</span>
+      </div>
+
+      <div class="sat-row">
+        <span class="sat-chip" style="background:#ffe2d3"></span>
+        <span class="sat-chip" style="background:#ffb39a"></span>
+        <span class="sat-chip selected" style="background:#ff7a59"></span>
+        <span class="sat-chip" style="background:#e8654a"></span>
+        <span class="sat-chip" style="background:#b54a35"></span>
+      </div>
+
+      <span class="divider"></span>
+
+      <div class="brush-row">
+        <button class="brush-btn"><span class="dot s"></span></button>
+        <button class="brush-btn selected"><span class="dot m"></span></button>
+        <button class="brush-btn"><span class="dot l"></span></button>
+      </div>
+
+      <span class="divider"></span>
+
+      <button class="tool-btn" title="Eraser">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 20H7L3 16l9-9 8 8-4 4"/><path d="M6.5 13.5l5 5"/></svg>
+      </button>
+      <button class="tool-btn" title="Undo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15-6.7L21 9"/></svg>
+      </button>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

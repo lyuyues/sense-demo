@@ -13,6 +13,7 @@ const state = {
   scenePhoto: null,
   placedElements: [],
   colorStrokes: [],
+  colorSelections: [],  // hexes the child tapped in the swatch carousel — the *preference* signal (selection ≠ stroke)
   animatedElements: new Set(),
   interactionLog: [],
   selectedColor: '#FF6B6B',
@@ -181,6 +182,9 @@ function goToPhase(phase) {
     if (cc) { cc.style.transform = ''; cc.style.filter = ''; }
     initVideoPlayer();
   }
+  if (phase === 'wrapup') {
+    initWrapupScreen();
+  }
 }
 
 // ============================================================
@@ -249,6 +253,15 @@ document.getElementById('btn-skip-to-video')?.addEventListener('click', () => {
   state.eventType = 'grocery';
   state.dataExported = true; // suppress export-on-processing
   goToPhase('video');
+});
+
+// Dev: skip straight to wrap-up screen (Screen 7).
+// Use 'birthday' to match the currently-deployed test video so the wrap-up title fits.
+document.getElementById('btn-skip-to-wrapup')?.addEventListener('click', () => {
+  state.childPhoto = 'assets/test_avatar.png?v=' + Date.now();
+  state.eventType = 'birthday';
+  state.dataExported = true;
+  goToPhase('wrapup');
 });
 
 // ============================================================
@@ -426,7 +439,7 @@ document.querySelectorAll('.event-card').forEach(card => {
 
 async function loadTemplate(eventId) {
   try {
-    const resp = await fetch(`templates/${eventId}.json`);
+    const resp = await fetch(`templates/${eventId}.json?v=${Date.now()}`);
     state.template = await resp.json();
   } catch (e) {
     console.error('Failed to load template:', e);
@@ -1023,6 +1036,7 @@ function renderElementPalette() {
   for (const elemDef of state.template.elements) {
     const item = document.createElement('div');
     item.className = 'palette-item';
+    item.dataset.elemId = elemDef.id;
 
     // Use PNG with SVG fallback, cache-bust
     const pngSrc = elemDef.asset.replace('.svg', '.png') + '?v=' + Date.now();
@@ -1037,6 +1051,8 @@ function renderElementPalette() {
     // Tap to spawn element at center of canvas
     item.addEventListener('pointerdown', (e) => {
       e.preventDefault();
+      // Only one instance of each palette element allowed on canvas
+      if (item.classList.contains('used')) return;
       // Init audio on first interaction (iOS)
       if (!state.audioCtx) {
         state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1264,12 +1280,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function spawnElement(elemDef, startEvent) {
+  // Only one instance of each palette element allowed on canvas
+  if (document.querySelector(`.canvas-element[data-elem-id="${CSS.escape(elemDef.id)}"]`)) return;
   const layer = document.getElementById('element-layer');
   const el = document.createElement('div');
   const uniqueId = `placed-${elemDef.id}-${Date.now()}`;
   el.className = `canvas-element ${elemDef.type}-element`;
   el.id = uniqueId;
   el.dataset.type = elemDef.type;
+  el.dataset.elemId = elemDef.id;
   el.dataset.dimension = elemDef.dimension || 'decoration';
   if (elemDef.audioLayer) el.dataset.audiolayer = elemDef.audioLayer;
 
@@ -1327,6 +1346,7 @@ function spawnElement(elemDef, startEvent) {
   });
 
   logEvent('element_placed', { id: uniqueId, type: elemDef.type });
+  refreshElementPaletteState();
 
   // Play feedback sound/effect on placement (slight delay for iOS audio init)
   setTimeout(() => playPlacementFeedback(elemDef), 100);
@@ -1600,6 +1620,7 @@ const LIGHT_SCENE_BY_EVENT = {
   school: 'assets/light_scene_school.png?v=209',
   grocery: 'assets/light_scene_grocery.png?v=209',
   dining: 'assets/light_scene_dining.png?v=209',
+  dental: 'assets/light_scene_dental.png?v=243',
 };
 const LIGHT_SCENE_DEFAULT = 'assets/light_house_scene.png?v=209';
 
@@ -1922,6 +1943,14 @@ async function generateCustomSound(name) {
     console.warn('Custom sound generation failed:', e);
     alert('Could not generate sound: ' + e.message);
   }
+}
+
+function refreshElementPaletteState() {
+  const placed = new Set();
+  document.querySelectorAll('#element-layer .canvas-element[data-elem-id]').forEach(el => placed.add(el.dataset.elemId));
+  document.querySelectorAll('#element-palette .palette-item[data-elem-id]').forEach(item => {
+    item.classList.toggle('used', placed.has(item.dataset.elemId));
+  });
 }
 
 function refreshSoundPaletteState() {
@@ -2323,11 +2352,6 @@ function playPlacementFeedback(elemDef) {
     playMusicalNote(2, audioLayer);
   }
 
-  if (elemDef.type === 'friend') {
-    // Say "Hi!" with gender-appropriate child voice
-    sayHi(elemDef.id);
-  }
-
   if (elemDef.type === 'dog') {
     // Dog barks
     playDogBark();
@@ -2395,6 +2419,7 @@ function showDeleteButton(el) {
     state.animatedElements.delete(el.id);
     btn.remove();
     logEvent('element_deleted', { id: el.id, type: el.dataset.type });
+    refreshElementPaletteState();
   });
 
   el.appendChild(btn);
@@ -2444,6 +2469,7 @@ function startDrag(el, e, onMoveCallback) {
         state.placedElements = state.placedElements.filter(p => p.id !== el.id);
         state.animatedElements.delete(el.id);
         logEvent('element_trashed', { id: el.id, type: el.dataset.type });
+        refreshElementPaletteState();
         return;
       }
     }
@@ -3140,6 +3166,11 @@ function updateHueDropdownButton() {
 function selectColor(hex) {
   state.selectedColor = hex;
   state.isEraser = false;
+  // Selection is the preference signal (per ASD color literature: saturation aversion
+  // shows up in *what they pick*, not in how big the strokes are). Stroke area is
+  // execution, not intent — so we record the chosen hex here.
+  state.colorSelections.push(hex);
+  logEvent('color_selection', { hex });
   const eraserBtn = document.getElementById('btn-eraser');
   if (eraserBtn) eraserBtn.classList.remove('active');
   updateCrayonCursor();
@@ -4461,14 +4492,29 @@ function extractPreferences() {
   const normBright = normalizeLightBrightness(lightBrightness);
   const haveLight = normBright !== null;
 
-  let visualScore = 0.5;
-  if (haveColor && haveLight) {
-    const satValues = realStrokes.map(s => getColorSaturation(s.color));
-    const avgSat = satValues.reduce((a, b) => a + b, 0) / satValues.length;
-    visualScore = 0.5 * avgSat + 0.5 * normBright;
+  // avgSaturation: normalized perceptual chroma (CIE Lab C*), averaged over the
+  // child's *swatch selections* — not stroke area. Rationale: selection moment is
+  // the preference signal (ASD color-aversion lit shows up in choice, not stroke
+  // size); stroke area mostly reflects motor execution. Falls back to strokes
+  // when no selection history exists.
+  let avgSaturation = null;
+  const selections = state.colorSelections.filter(h => h && h !== 'eraser');
+  if (selections.length > 0) {
+    const cVals = selections.map(getColorSaturation);
+    avgSaturation = cVals.reduce((a, b) => a + b, 0) / cVals.length;
   } else if (haveColor) {
+    // Backward-compat: if no selection events captured (legacy session / external draw),
+    // fall back to stroke-averaged chroma.
     const satValues = realStrokes.map(s => getColorSaturation(s.color));
-    visualScore = satValues.reduce((a, b) => a + b, 0) / satValues.length;
+    avgSaturation = satValues.reduce((a, b) => a + b, 0) / satValues.length;
+  }
+  const haveChroma = avgSaturation !== null;
+
+  let visualScore = 0.5;
+  if (haveChroma && haveLight) {
+    visualScore = 0.5 * avgSaturation + 0.5 * normBright;
+  } else if (haveChroma) {
+    visualScore = avgSaturation;
   } else if (haveLight) {
     visualScore = normBright;
   }
@@ -4491,6 +4537,7 @@ function extractPreferences() {
     },
     visual: {
       score: visualScore,
+      avgSaturation,
       strokeCount: realStrokes.length,
       lightBrightness,
       lightArcPosition: lightArc,
@@ -4498,23 +4545,40 @@ function extractPreferences() {
     },
     temporal: {
       score: temporalScore,
+      smt: state.drumAvgInterval ?? null,   // median ISI in ms (alias for spec field "drumSMT")
       animatedCount: state.animatedElements.size,
       totalCount: state.placedElements.filter(e => e.type !== 'avatar').length,
     },
   };
 }
 
+// Perceptual chroma from a hex color, via CIE Lab.
+// Returns C*ab normalized to ~[0, 1] (typical max ~120 for vivid sRGB, clamped).
+// HSL "saturation" has no perceptual meaning (Aurélien Pierre 2022; Wikipedia HSL),
+// so we route through Lab C* (Lch chroma) instead, which is approximately
+// perceptually linear and matches the "vividness" axis ASD sensory work cares about.
 function getColorSaturation(hexColor) {
   if (!hexColor || hexColor.length < 7) return 0;
-  const r = parseInt(hexColor.slice(1, 3), 16) / 255;
-  const g = parseInt(hexColor.slice(3, 5), 16) / 255;
-  const b = parseInt(hexColor.slice(5, 7), 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  if (max === min) return 0;
-  const d = max - min;
-  return l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  // sRGB → linear RGB
+  const srgb = [
+    parseInt(hexColor.slice(1, 3), 16) / 255,
+    parseInt(hexColor.slice(3, 5), 16) / 255,
+    parseInt(hexColor.slice(5, 7), 16) / 255,
+  ];
+  const lin = srgb.map(c => (c <= 0.04045) ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  // Linear RGB → XYZ (D65)
+  const X = lin[0] * 0.4124564 + lin[1] * 0.3575761 + lin[2] * 0.1804375;
+  const Y = lin[0] * 0.2126729 + lin[1] * 0.7151522 + lin[2] * 0.0721750;
+  const Z = lin[0] * 0.0193339 + lin[1] * 0.1191920 + lin[2] * 0.9503041;
+  // XYZ → Lab (D65 white point)
+  const Xn = 0.95047, Yn = 1.0, Zn = 1.08883;
+  const f = (t) => (t > 0.008856) ? Math.cbrt(t) : (7.787 * t + 16 / 116);
+  const fx = f(X / Xn), fy = f(Y / Yn), fz = f(Z / Zn);
+  const a = 500 * (fx - fy);
+  const b = 200 * (fy - fz);
+  const cStar = Math.sqrt(a * a + b * b);
+  // Normalize: 0 = neutral gray; vivid sRGB tops out around C*≈120. Clamp to [0,1].
+  return Math.max(0, Math.min(1, cStar / 120));
 }
 
 // ============================================================
@@ -4776,11 +4840,48 @@ function runProcessing() {
 // VIDEO PLAYER (Stage 2 — simplified)
 // ============================================================
 let videoPreferences = null;
-let currentLevel = 2; // 1=gentle, 2=baseline, 3=challenge
+let currentLevel = 2; // 1=gentle, 2=baseline, 3=challenge — kept for fab-level UI compat
+
+// Dev overrides: continuous sub-dims (brightness/saturation/pitch/voice/bgm/sfx) take a
+// number in 0..1 (from a slider) when overriding; `prep` takes a bucket key
+// ('hyper'/'typical'/'hypo') when overriding. null = use canvas-derived value.
+// `volume` is the legacy single-stem control; replaced by independent voice/bgm/sfx
+// after Demucs source separation (2026-05-14).
+let devOverrides = {
+  brightness: null, saturation: null, pitch: null,
+  voice: null, bgm: null, sfx: null,
+  prep: null,
+};
+
+// Prep interval is bucketed (not continuous) per spec — see
+// SENSE/paper/_design_notes/prep_cue_design_20260514.md.
+// 3 anchor values from advisor meeting 2026-04-10 (Monier & Droit-Volet 2019;
+// Los & Van den Heuvel 2001).
+const PREP_BUCKETS = { hyper: 0.5, typical: 1.0, hypo: 1.5 };
+function prepBucketFromSMT(smtMs) {
+  if (typeof smtMs !== 'number') return 'typical';
+  if (smtMs < 700)  return 'hyper';
+  if (smtMs < 1100) return 'typical';
+  return 'hypo';
+}
 let s2PauseTriggered = false;
 // Audio chain (lowpass)
-let videoMediaSource = null;
+let videoMediaSource = null;  // legacy — unused when stems are wired
 let videoLowpass = null;
+let videoGain = null;          // legacy — replaced by per-stem gains
+
+// Multi-stem audio: voice / bgm / sfx are 3 separate AudioBuffers decoded once
+// from .wav files alongside the video. Each playback creates fresh
+// AudioBufferSourceNodes that feed dedicated gain nodes → mixer → lowpass → master.
+// The <video> element is muted; audio comes only through the Web Audio graph.
+const STEM_KEYS = ['voice', 'bgm', 'sfx'];
+const STEM_FILES = { voice: 'video/vocals.wav', bgm: 'video/bgm.wav', sfx: 'video/drums.wav' };
+let stemBuffers = { voice: null, bgm: null, sfx: null };
+let stemGains   = { voice: null, bgm: null, sfx: null };
+let stemSources = { voice: null, bgm: null, sfx: null };
+let stemMixer = null;   // GainNode summing the 3 stem chains
+let stemsLoading = null; // Promise — resolved when all 3 buffers decoded
+let stemsPlaying = false;
 // Temporal markers (% of duration) excluding 22% which is S2 pause
 const TEMPORAL_MARKERS = [42, 61, 81];
 let temporalMarkersFired = new Set();
@@ -4797,14 +4898,16 @@ function initVideoPlayer() {
   const video = document.getElementById('sense-video');
 
   // Select video based on spatial preference (friend distance)
-  // PLACEHOLDER: all 3 slots point to base_50s.mp4 (50s loop) until per-spatial
-  // assets are generated. Spatial selection logic preserved.
+  // PLACEHOLDER: all 3 slots point to birthday_party.mp4 (Veo full birthday party
+  // render, 53s) until per-spatial assets are generated. Spatial selection logic
+  // preserved. Demucs stems for this file live alongside as vocals/bgm/drums.wav
+  // — multi-stem audio player wiring TBD.
   const spatialScore = videoPreferences.spatial.score;
-  let videoFile = 'video/base_50s.mp4'; // baseline (medium)
+  let videoFile = 'video/birthday_party.mp4'; // baseline (medium)
   if (spatialScore > 0.65) {
-    videoFile = 'video/base_50s.mp4';    // child placed friends far → show far perspective
+    videoFile = 'video/birthday_party.mp4';   // child placed friends far → show far perspective
   } else if (spatialScore < 0.35) {
-    videoFile = 'video/base_50s.mp4';    // child placed friends close → show near perspective
+    videoFile = 'video/birthday_party.mp4';   // child placed friends close → show near perspective
   }
   videoFile += '?v=1';  // cache-bust when video content is updated
   const source = video.querySelector('source');
@@ -4849,6 +4952,21 @@ function initVideoPlayer() {
   playPause.onclick = togglePlay;
   overlay.onclick = togglePlay;
 
+  // Stem audio sync: <video> is muted; stem AudioBufferSources start/stop in lockstep
+  // with the video. AudioBufferSourceNode is one-shot, so we restart on play/seek.
+  video.muted = true;
+  const stemKickoff = () => {
+    if (video.paused) return;
+    if (stemBuffers.voice || stemBuffers.bgm || stemBuffers.sfx) {
+      startStems(video.currentTime);
+    } else if (stemsLoading) {
+      stemsLoading.then(() => { if (!video.paused) startStems(video.currentTime); });
+    }
+  };
+  video.onplay   = stemKickoff;
+  video.onpause  = () => stopStems();
+  video.onseeked = () => { if (!video.paused) stemKickoff(); else stopStems(); };
+
   // Time update
   video.ontimeupdate = () => {
     if (!video.duration) return;
@@ -4857,8 +4975,10 @@ function initVideoPlayer() {
     progressThumb.style.left = pct + '%';
     timeDisplay.textContent = formatTime(video.currentTime) + ' / ' + formatTime(video.duration);
 
-    // S2 pause at 22%
-    if (!s2PauseTriggered && pct >= 22) {
+    // S2 pause at 22% — caregiver-facing "How is your child feeling?" overlay.
+    // Disabled 2026-05-14: paused per Yue's request while wrap-up logic is reworked.
+    // Re-enable by removing the `false &&` once design is settled.
+    if (false && !s2PauseTriggered && pct >= 22) {
       s2PauseTriggered = true;
       video.pause();
       playPause.innerHTML = '&#9654;';
@@ -4866,7 +4986,21 @@ function initVideoPlayer() {
       document.getElementById('s2-pause-overlay').classList.remove('hidden');
       return;
     }
-    // Temporal freeze: removed (caregiver-controlled instead — TBD)
+    // Preparation interval (Temporal): pause at 42 / 61 / 81 % markers.
+    // NOTE: these pcts are visual placeholders. Once each event's priming video
+    // has a finalized script, swap to per-event script-beat markers.
+    const TEMPORAL_MARKERS = [42, 61, 81];
+    for (const m of TEMPORAL_MARKERS) {
+      if (temporalMarkersFired.has(m)) continue;
+      if (pct >= m && pct < m + 1.5) {
+        temporalMarkersFired.add(m);
+        triggerTemporalFreeze(video, playPause, videoWrap);
+        return;
+      }
+      if (pct >= m + 1.5) {
+        temporalMarkersFired.add(m);
+      }
+    }
   };
 
   // Timeline seek
@@ -4886,7 +5020,8 @@ function initVideoPlayer() {
     document.getElementById('fab-profile').classList.toggle('hidden');
   };
 
-  // Level buttons
+  // Level buttons (legacy fab-level menu — no longer modulates post-proc; left in place
+  // for UI continuity. Actual customization is continuous from canvas inputs.)
   document.querySelectorAll('.fab-level').forEach(btn => {
     btn.onclick = () => {
       document.querySelectorAll('.fab-level').forEach(b => b.classList.remove('active'));
@@ -4919,101 +5054,281 @@ function initVideoPlayer() {
     document.getElementById('vc-play-pause').innerHTML = '&#9646;&#9646;';
     document.querySelector('.video-fullscreen').classList.remove('paused');
   };
+
+  // Advance to wrap-up screen when the priming video finishes.
+  video.onended = () => {
+    logEvent('priming_video_ended');
+    stopStems();
+    // Reset playback chrome so a rewatch starts clean
+    playPause.innerHTML = '&#9654;';
+    videoWrap.classList.add('paused');
+    goToPhase('wrapup');
+  };
+
+  // Dev A/B panel: continuous sub-dims use sliders (brightness/saturation/pitch/volume);
+  // bucketed sub-dims use buttons (prep). Override null → canvas value.
+  const devPanel = document.getElementById('dev-channel-panel');
+  if (devPanel) {
+    const CONT_SUBS = ['brightness', 'saturation', 'pitch', 'voice', 'bgm', 'sfx'];
+    const BUCKET_SUBS = ['prep'];
+    const SUBS = [...CONT_SUBS, ...BUCKET_SUBS];
+
+    const updateReadouts = () => {
+      CONT_SUBS.forEach(sub => {
+        const slider = devPanel.querySelector(`.dev-cp-slider[data-sub="${sub}"]`);
+        const readout = devPanel.querySelector(`.dev-cp-value[data-sub="${sub}"]`);
+        if (!slider) return;
+        const o = devOverrides[sub];
+        if (typeof o === 'number') {
+          slider.value = String(Math.round(o * 100));
+          if (readout) readout.textContent = o.toFixed(2);
+        } else if (readout) {
+          readout.textContent = '—';
+        }
+      });
+      BUCKET_SUBS.forEach(sub => {
+        const cur = devOverrides[sub];
+        devPanel.querySelectorAll(`.dev-cp-bucket-btn[data-sub="${sub}"]`).forEach(btn => {
+          btn.classList.toggle('active', cur === btn.dataset.bucket);
+        });
+      });
+    };
+    updateReadouts();
+
+    devPanel.querySelectorAll('.dev-cp-slider').forEach(slider => {
+      slider.addEventListener('input', () => {
+        const sub = slider.dataset.sub;
+        const v = parseInt(slider.value, 10) / 100;
+        devOverrides[sub] = v;
+        applyVideoPreferences();
+        const readout = devPanel.querySelector(`.dev-cp-value[data-sub="${sub}"]`);
+        if (readout) readout.textContent = v.toFixed(2);
+        logEvent('dev_slider', { sub, value: v });
+      });
+    });
+
+    devPanel.querySelectorAll('.dev-cp-bucket-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sub = btn.dataset.sub;
+        const bucket = btn.dataset.bucket;
+        devOverrides[sub] = bucket;
+        applyVideoPreferences();
+        updateReadouts();
+        logEvent('dev_bucket', { sub, bucket });
+      });
+    });
+
+    devPanel.querySelectorAll('.dev-cp-reset').forEach(btn => {
+      btn.onclick = () => {
+        const sub = btn.dataset.sub;
+        if (sub === 'all') {
+          SUBS.forEach(s => { devOverrides[s] = null; });
+        } else {
+          devOverrides[sub] = null;
+        }
+        applyVideoPreferences();
+        updateReadouts();
+        logEvent('dev_reset', { sub });
+      };
+    });
+
+    const rewindBtn = document.getElementById('dev-cp-rewind');
+    if (rewindBtn) {
+      rewindBtn.onclick = () => {
+        try { video.currentTime = Math.max(0, video.currentTime - 3); }
+        catch (_) {}
+        if (video.paused) {
+          video.play().catch(() => {});
+          playPause.innerHTML = '&#9646;&#9646;';
+          videoWrap.classList.remove('paused');
+        }
+        logEvent('dev_rewind_3s');
+      };
+    }
+  }
 }
 
 function applyVideoPreferences() {
   if (!videoPreferences) return;
-
   const video = document.getElementById('sense-video');
-  const levelMultiplier = currentLevel === 1 ? 0.5 : currentLevel === 3 ? 1.5 : 1.0;
 
-  // --- Visual: brightness ---
-  let brightness;
+  // For each sub-dimension, normalized input = override (if dev slider set) else canvas value.
+  const norm = (sub, canvasVal) => {
+    const o = devOverrides[sub];
+    return (typeof o === 'number') ? o : (typeof canvasVal === 'number' ? canvasVal : 0.5);
+  };
+
+  // --- Visual: brightness — direct lerp 0.5 .. 1.5, midpoint 1.0 = CSS identity ---
   const lightB = videoPreferences.visual.lightBrightness;
-  if (typeof lightB === 'number') {
-    brightness = lightB * levelMultiplier;
-  } else {
-    brightness = 0.6 + videoPreferences.visual.score * 0.4 * levelMultiplier;
-  }
-  brightness = Math.max(0.4, Math.min(1.5, brightness));
-  video.style.filter = `brightness(${brightness.toFixed(2)})`;
+  const brightCanvas = (typeof lightB === 'number')
+    ? (normalizeLightBrightness(lightB) ?? 0.5)
+    : (videoPreferences.visual.score ?? 0.5);
+  const brightNorm = norm('brightness', brightCanvas);
+  const brightness = 0.5 + brightNorm * 1.0;
 
-  // --- Auditory: lowpass cutoff ---
-  // Baseline (level 2) cutoff: low score → 800Hz (more filtered) ... high score → 8000Hz (less filtered)
-  // Level 1 (gentle) ×0.4, level 3 (challenge) ×2.5, bypass-clamped to [200, 20000].
+  // --- Visual: saturation — direct lerp 0.3 .. 1.7, midpoint 1.0 = CSS identity ---
+  const satNorm = norm('saturation', videoPreferences.visual.avgSaturation);
+  const saturation = 0.3 + satNorm * 1.4;
+
+  video.style.filter = `brightness(${brightness.toFixed(2)}) saturate(${saturation.toFixed(2)})`;
+
+  // --- Auditory: lowpass cutoff — direct lerp 300 .. 8000 Hz (spec range) from staffPitch ---
   if (videoLowpass) {
-    const score = videoPreferences.auditory.score; // 0..1
-    const baseCutoff = 800 + score * 7200;
-    const levelMult = currentLevel === 1 ? 0.4 : currentLevel === 3 ? 2.5 : 1.0;
-    const cutoff = Math.max(200, Math.min(20000, baseCutoff * levelMult));
-    try {
-      videoLowpass.frequency.setTargetAtTime(cutoff, videoLowpass.context.currentTime, 0.05);
-    } catch (e) { videoLowpass.frequency.value = cutoff; }
-    console.log('[Phase 2] lowpass cutoff:', Math.round(cutoff), 'Hz (level', currentLevel + ')');
+    const pitchCanvas = (typeof videoPreferences.auditory.staffPitch === 'number')
+      ? videoPreferences.auditory.staffPitch
+      : (videoPreferences.auditory.score ?? 0.5);
+    const pitchNorm = norm('pitch', pitchCanvas);
+    const cutoff = 300 + pitchNorm * 7700;
+    try { videoLowpass.frequency.setTargetAtTime(cutoff, videoLowpass.context.currentTime, 0.05); }
+    catch (e) { videoLowpass.frequency.value = cutoff; }
   }
+
+  // --- Auditory: per-stem gain (voice / bgm / sfx) ---
+  // Spec's "source combo" realized after Demucs separation as 3 independent gains.
+  // Canvas-derived default: staffVolume (+ layer boost) is the master that every
+  // stem starts from; dev sliders override per-stem.
+  if (stemMixer && state.audioCtx) {
+    const ctx = state.audioCtx;
+    const volCanvas = (typeof videoPreferences.auditory.staffVolume === 'number')
+      ? videoPreferences.auditory.staffVolume
+      : (videoPreferences.auditory.score ?? 0.5);
+    const layers = videoPreferences.auditory.layerCount || 0;
+    const layerBoost = Math.min(0.2, (layers / 3) * 0.2);
+    const canvasMaster = Math.max(0.05, Math.min(1.5, 0.1 + volCanvas * 1.4 + layerBoost));
+    STEM_KEYS.forEach(k => {
+      if (!stemGains[k]) return;
+      const o = devOverrides[k];
+      const g = (typeof o === 'number') ? o : canvasMaster;
+      try { stemGains[k].gain.setTargetAtTime(g, ctx.currentTime, 0.05); }
+      catch (_) { stemGains[k].gain.value = g; }
+    });
+  }
+
+  // playbackRate stays native — preparation interval is realized as pause-at-marker,
+  // not playback speed. See triggerTemporalFreeze().
+  try { video.playbackRate = 1.0; } catch (e) {}
+
+  console.log('[applyVideoPreferences]',
+    'overrides=' + JSON.stringify(devOverrides),
+    'brightness=' + brightness.toFixed(2),
+    'saturation=' + saturation.toFixed(2),
+    'lowpass=' + (videoLowpass ? Math.round(videoLowpass.frequency.value) + 'Hz' : '—'),
+    'gain=' + (videoGain ? videoGain.gain.value.toFixed(2) : '—'));
 }
 
-// --- Web Audio chain: <video> → MediaElementSource → BiquadFilter (lowpass) → destination ---
+// --- Web Audio chain (multi-stem):
+//   3 × AudioBufferSourceNode (voice/bgm/sfx) → 3 × GainNode → stemMixer → lowpass → destination
+// The <video> element itself is muted; audio comes only through this graph.
 function setupVideoAudioChain(videoEl) {
-  if (videoMediaSource) return; // already set up (MediaElementSource is one-shot per element)
+  if (stemMixer) return; // already built
   try {
     if (!state.audioCtx) {
       state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
     const ctx = state.audioCtx;
     if (ctx.state === 'suspended') ctx.resume();
-    videoMediaSource = ctx.createMediaElementSource(videoEl);
+
+    // Per-stem gain nodes (sources are created fresh each playback in startStems)
+    STEM_KEYS.forEach(k => {
+      const g = ctx.createGain();
+      g.gain.value = 1.0;
+      stemGains[k] = g;
+    });
+    stemMixer = ctx.createGain();
+    stemMixer.gain.value = 1.0;
+    STEM_KEYS.forEach(k => stemGains[k].connect(stemMixer));
+
     videoLowpass = ctx.createBiquadFilter();
     videoLowpass.type = 'lowpass';
-    videoLowpass.frequency.value = 20000; // start fully open; applyVideoPreferences will set real value
+    videoLowpass.frequency.value = 20000;
     videoLowpass.Q.value = 0.7;
-    videoMediaSource.connect(videoLowpass);
+    stemMixer.connect(videoLowpass);
     videoLowpass.connect(ctx.destination);
+
+    // Mute the video element — all audio routes through stems now.
+    videoEl.muted = true;
+
+    // Kick off the async decode of all 3 stems (idempotent on re-entry).
+    loadStems(ctx);
   } catch (e) {
-    console.warn('Web Audio routing failed (lowpass disabled):', e);
-    videoMediaSource = null;
+    console.warn('Multi-stem audio routing failed:', e);
+    stemMixer = null;
     videoLowpass = null;
   }
 }
 
-// --- Temporal freeze: pause + countdown overlay, then resume. Tap to skip. ---
+function loadStems(ctx) {
+  if (stemsLoading) return stemsLoading;
+  stemsLoading = Promise.all(STEM_KEYS.map(async (k) => {
+    try {
+      const res = await fetch(STEM_FILES[k] + '?v=1');
+      const buf = await res.arrayBuffer();
+      stemBuffers[k] = await ctx.decodeAudioData(buf);
+      console.log('[stems] loaded', k, stemBuffers[k].duration.toFixed(2) + 's');
+    } catch (e) {
+      console.warn('[stems] failed to load', k, e);
+      stemBuffers[k] = null;
+    }
+  }));
+  return stemsLoading;
+}
+
+// Start the 3 AudioBufferSourceNodes at the given video offset (seconds).
+// AudioBufferSourceNode is one-shot, so we create a fresh trio every time.
+function startStems(offsetSec) {
+  const ctx = state.audioCtx;
+  if (!ctx || !stemMixer) return;
+  stopStems();
+  STEM_KEYS.forEach(k => {
+    const buf = stemBuffers[k];
+    if (!buf || !stemGains[k]) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(stemGains[k]);
+    const clipped = Math.max(0, Math.min(buf.duration - 0.01, offsetSec));
+    try { src.start(0, clipped); } catch (e) { console.warn('[stems] start failed', k, e); }
+    stemSources[k] = src;
+  });
+  stemsPlaying = true;
+}
+
+function stopStems() {
+  STEM_KEYS.forEach(k => {
+    const s = stemSources[k];
+    if (s) {
+      try { s.stop(); } catch (_) {}
+      try { s.disconnect(); } catch (_) {}
+      stemSources[k] = null;
+    }
+  });
+  stemsPlaying = false;
+}
+
+// --- Preparation interval (Temporal): silent freeze, then resume.
+// Just pauses the video for `freezeSec`; audio cuts out with it so the gap is already
+// obvious without any overlay text or countdown. Spec: pause length = drumSMT directly. ---
 function triggerTemporalFreeze(video, playPauseBtn, videoWrap) {
   if (!videoPreferences) return;
-  // Level 3 (challenge) skips freezes entirely
-  if (currentLevel === 3) return;
-  // Duration: low temporal score (slow tapper, wants prep time) → longer freeze
-  const tScore = videoPreferences.temporal.score; // 0..1
-  const baseFreeze = 2.5 - tScore * 1.5; // 1.0s (fast) → 2.5s (slow)
-  const levelMult = currentLevel === 1 ? 1.6 : 1.0;
-  const freezeSec = Math.max(0.6, Math.min(4, baseFreeze * levelMult));
+  // Bucketed: dev override key ('hyper'/'typical'/'hypo') wins, else derive bucket
+  // from canvas drumSMT. See prep_cue_design_20260514.md.
+  const bucket = devOverrides.prep
+    ? devOverrides.prep
+    : prepBucketFromSMT(videoPreferences.temporal.smt);
+  const freezeSec = PREP_BUCKETS[bucket] ?? 1.0;
+  if (freezeSec < 0.15) return;
 
-  video.pause();
+  video.pause(); // also fires `pause` event → stopStems()
   if (playPauseBtn) playPauseBtn.innerHTML = '&#9654;';
   if (videoWrap) videoWrap.classList.add('paused');
-  const overlay = document.getElementById('freeze-overlay');
-  const countdownEl = overlay?.querySelector('.freeze-countdown');
-  overlay.classList.remove('hidden');
 
-  let remaining = freezeSec;
-  if (countdownEl) countdownEl.textContent = remaining.toFixed(1) + 's';
-  if (freezeCountdownTimer) clearInterval(freezeCountdownTimer);
-
-  const resume = () => {
-    if (freezeCountdownTimer) { clearInterval(freezeCountdownTimer); freezeCountdownTimer = null; }
-    overlay.classList.add('hidden');
-    overlay.onclick = null;
-    video.play();
+  if (freezeCountdownTimer) { clearTimeout(freezeCountdownTimer); freezeCountdownTimer = null; }
+  freezeCountdownTimer = setTimeout(() => {
+    freezeCountdownTimer = null;
+    video.play().catch(() => {}); // `play` event will re-kick stems at the new currentTime
     if (playPauseBtn) playPauseBtn.innerHTML = '&#9646;&#9646;';
     if (videoWrap) videoWrap.classList.remove('paused');
-  };
-
-  freezeCountdownTimer = setInterval(() => {
-    remaining -= 0.1;
-    if (countdownEl) countdownEl.textContent = Math.max(0, remaining).toFixed(1) + 's';
-    if (remaining <= 0) resume();
-  }, 100);
-
-  overlay.onclick = resume;
+  }, Math.round(freezeSec * 1000));
+  logEvent('prep_freeze', { seconds: +freezeSec.toFixed(2) });
 }
 
 function populateProfile() {
@@ -5171,5 +5486,217 @@ function formatTime(s) {
     }
   });
 })();
+
+// ============================================================
+// WRAP-UP SCREEN (Screen 7)
+// Caregiver-guided closing beat: child picks a strategy for the
+// upcoming social moment, optionally rewatches a video segment,
+// then self-reports readiness. Logs both choices.
+// ============================================================
+// Wrap-up question pool, per event. Each question:
+//   • anchors at a universal procedure beat (canonical next step transfers to real life)
+//   • offers 3 options: exactly 1 canonical (real next step) + 2 plausible distractors
+//   • has a single revealSegment timestamp (0..1) — the position in the video that
+//     shows the canonical answer. There's only ONE video entry per question.
+//   • is NOT scored — wrap-up purpose is procedure familiarity, not testing.
+// At runtime, initWrapupScreen() picks one question at random from the event's pool.
+const WRAPUP_QUESTIONS = {
+  birthday: [
+    {
+      anchor: 'After you walk in',
+      options: [
+        { label: 'Walk to the cake', emoji: '🎂', canonical: true },
+        { label: 'Hear loud music',  emoji: '🔊' },
+        { label: 'Find a chair',     emoji: '🪑' },
+      ],
+      revealSegment: 0.13,
+    },
+    {
+      anchor: 'After the candles are lit',
+      options: [
+        { label: 'Everyone sings Happy Birthday', emoji: '🎵', canonical: true },
+        { label: 'Eat the cake right away',       emoji: '🍴' },
+        { label: 'Open presents',                 emoji: '🎁' },
+      ],
+      revealSegment: 0.50,
+    },
+    {
+      anchor: 'After everyone sings',
+      options: [
+        { label: 'Blow out the candles', emoji: '💨', canonical: true },
+        { label: 'Eat the cake',         emoji: '🍴' },
+        { label: 'Take a photo',         emoji: '📷' },
+      ],
+      revealSegment: 0.63,
+    },
+    {
+      anchor: 'After you blow out the candles',
+      options: [
+        { label: 'Cut and share the cake', emoji: '🎂', canonical: true },
+        { label: 'Light them again',       emoji: '🕯️' },
+        { label: 'Leave the party',        emoji: '🚪' },
+      ],
+      revealSegment: 0.78,
+    },
+  ],
+  // Other events fall back to birthday until per-event videos + scripts exist.
+};
+
+function pickWrapupQuestion(eventType) {
+  const pool = WRAPUP_QUESTIONS[eventType] || WRAPUP_QUESTIONS.birthday;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function initWrapupScreen() {
+  // If we're returning from a deliberate rewatch, keep the pick state so the
+  // child doesn't lose their choice. Otherwise this is a fresh entry — reset.
+  const returningFromRewatch = state.rewatching === true;
+  state.rewatching = false;
+
+  if (!returningFromRewatch) {
+    state.wrapupStrategy = null;
+    state.wrapupFeeling  = null;
+    state.wrapupRevealed = false;
+    // Pick a fresh question from the event's pool. Pinned to 'birthday' for now
+    // because the demo's playing video is birthday_party.mp4 regardless of
+    // Stage-1 event selection (until per-event videos are rendered).
+    state.wrapupQuestion = pickWrapupQuestion('birthday');
+
+    document.querySelectorAll('#wrapup-strategy-grid .wrapup-card').forEach(c => {
+      c.classList.remove('selected', 'dimmed', 'locked');
+    });
+    document.querySelectorAll('.readiness-card').forEach(c => {
+      c.classList.remove('selected', 'dimmed');
+    });
+    document.getElementById('readiness-panel').classList.add('hidden');
+    document.getElementById('wrapup-done').classList.add('hidden');
+  }
+
+  // Render the current question (title + 3 option cards). Order is preserved as
+  // listed in the pool so distractors stay in their authored positions; if we
+  // ever want to shuffle option order per session, do it here.
+  const q = state.wrapupQuestion || pickWrapupQuestion('birthday');
+  const titleEl = document.getElementById('wrapup-title');
+  if (titleEl) titleEl.textContent = `${q.anchor}, what happens next?`;
+
+  const cards = document.querySelectorAll('#wrapup-strategy-grid .wrapup-card');
+  cards.forEach((card, i) => {
+    const opt = q.options[i];
+    if (!opt) { card.style.display = 'none'; return; }
+    card.style.display = '';
+    card.querySelector('.wrapup-emoji').textContent = opt.emoji;
+    card.querySelector('.wrapup-name').textContent  = opt.label;
+    card.dataset.optionIndex = String(i);
+    card.dataset.canonical   = opt.canonical ? '1' : '0';
+    card.onclick = () => {
+      if (state.wrapupStrategy) return;
+      // No right/wrong — record the pick, dim the others, slide in readiness.
+      state.wrapupStrategy = opt.label;
+      logEvent('wrapup_strategy_pick', {
+        anchor: q.anchor, picked: opt.label, canonical: !!opt.canonical,
+      });
+      card.classList.add('selected');
+      cards.forEach(c => { if (c !== card) c.classList.add('dimmed'); });
+      setTimeout(() => {
+        document.getElementById('readiness-panel').classList.remove('hidden');
+      }, 500);
+    };
+  });
+
+  // Single shared "See what happens" button. Plays only the canonical-next clip
+  // (about one scene worth, ~6 s), then auto-returns to wrap-up with cards locked
+  // and the readiness panel + "Try another" exit shown.
+  const revealBtn = document.getElementById('wrapup-reveal');
+  if (revealBtn) {
+    revealBtn.onclick = () => {
+      const segPct = Math.min(0.98, Math.max(0, q.revealSegment ?? 0.5));
+      const revealClipSec = 6;
+      logEvent('wrapup_reveal', { anchor: q.anchor, segment: segPct });
+      state.rewatching = true;
+      goToPhase('video');
+      const v = document.getElementById('sense-video');
+      try { s2PauseTriggered = true; } catch (_) {}
+
+      if (state.revealAutoStopTimer) {
+        clearTimeout(state.revealAutoStopTimer);
+        state.revealAutoStopTimer = null;
+      }
+
+      const seekAndPlay = () => {
+        try {
+          if (v.duration) v.currentTime = v.duration * segPct;
+        } catch (_) {}
+        const p = v.play();
+        if (p && p.catch) p.catch(() => {});
+        const pp = document.getElementById('vc-play-pause');
+        if (pp) pp.innerHTML = '&#9646;&#9646;';
+        document.querySelector('.video-fullscreen')?.classList.remove('paused');
+
+        state.revealAutoStopTimer = setTimeout(() => {
+          state.revealAutoStopTimer = null;
+          try { v.pause(); } catch (_) {}
+          state.wrapupRevealed = true;
+          goToPhase('wrapup');
+        }, revealClipSec * 1000);
+      };
+      if (v.readyState >= 1 && v.duration) seekAndPlay();
+      else v.addEventListener('loadedmetadata', seekAndPlay, { once: true });
+    };
+  }
+
+  // After a reveal, lock the option cards (no more picking on THIS question),
+  // re-title the readiness prompt, slide readiness in. "Try another question"
+  // lives inside the done panel below, so it only appears after readiness is picked.
+  if (state.wrapupRevealed) {
+    cards.forEach(c => c.classList.add('locked'));
+    revealBtn?.classList.add('hidden');
+    const readinessTitle = document.getElementById('readiness-title');
+    if (readinessTitle) readinessTitle.textContent = 'You saw what happens. How do you feel?';
+    document.getElementById('readiness-panel').classList.remove('hidden');
+  } else {
+    revealBtn?.classList.remove('hidden');
+    const readinessTitle = document.getElementById('readiness-title');
+    if (readinessTitle) readinessTitle.textContent = 'How are you feeling?';
+  }
+
+  const tryAnotherBtn = document.getElementById('wrapup-try-another');
+  if (tryAnotherBtn) {
+    tryAnotherBtn.onclick = () => {
+      logEvent('wrapup_try_another');
+      state.rewatching = false;
+      state.wrapupRevealed = false;
+      state.wrapupStrategy = null;
+      state.wrapupFeeling  = null;
+      state.wrapupQuestion = null;
+      initWrapupScreen();
+    };
+  }
+
+  // Readiness pick
+  document.querySelectorAll('.readiness-card').forEach(card => {
+    card.onclick = () => {
+      if (state.wrapupFeeling) return;
+      const feeling = card.dataset.feeling;
+      state.wrapupFeeling = feeling;
+      logEvent('wrapup_readiness_pick', { feeling });
+      card.classList.add('selected');
+      document.querySelectorAll('.readiness-card').forEach(c => {
+        if (c !== card) c.classList.add('dimmed');
+      });
+      setTimeout(() => {
+        document.getElementById('wrapup-done').classList.remove('hidden');
+      }, 500);
+    };
+  });
+
+  // Restart
+  const restartBtn = document.getElementById('btn-wrapup-restart');
+  if (restartBtn) {
+    restartBtn.onclick = () => {
+      logEvent('wrapup_restart');
+      try { window.location.reload(); } catch (_) { goToPhase('welcome'); }
+    };
+  }
+}
 
 console.log('SENSE Canvas Demo loaded');

@@ -14,12 +14,12 @@
     ]
   },
   "elements": [
-    {"type": "friend",  "id": "dining_diner1", "asset": "assets/friend1.png", "label": "Diner",  "dimension": "spatial"},
-    {"type": "friend",  "id": "dining_diner2", "asset": "assets/friend2.png", "label": "Diner",  "dimension": "spatial"},
-    {"type": "friend",  "id": "dining_diner3", "asset": "assets/friend3.png", "label": "Diner",  "dimension": "spatial"},
-    {"type": "balloon", "id": "dining_plate",  "asset": "assets/dining_plate.png",  "label": "Plate",  "dimension": "decoration"},
-    {"type": "present", "id": "dining_cup",    "asset": "assets/dining_cup.png",    "label": "Cup",    "dimension": "decoration"},
-    {"type": "cake",    "id": "dining_pasta",  "asset": "assets/dining_pasta.png",  "label": "Pasta",  "dimension": "decoration"}
+    {"type": "friend",  "id": "dining_cashier", "asset": "assets/dining_cashier.png", "label": "Cashier", "dimension": "spatial"},
+    {"type": "friend",  "id": "dining_parent",  "asset": "assets/dining_parent.png",  "label": "Parent",  "dimension": "spatial"},
+    {"type": "balloon", "id": "dining_tray",    "asset": "assets/dining_tray.png",    "label": "Tray",    "dimension": "decoration"},
+    {"type": "cake",    "id": "dining_burger",  "asset": "assets/dining_burger.png",  "label": "Burger",  "dimension": "decoration"},
+    {"type": "present", "id": "dining_fries",   "asset": "assets/dining_fries.png",   "label": "Fries",   "dimension": "decoration"},
+    {"type": "lights",  "id": "dining_drink",   "asset": "assets/dining_drink.png",   "label": "Drink",   "dimension": "decoration"}
   ],
   "animations": {
     "friend":  ["wave"],

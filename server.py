@@ -17,7 +17,7 @@ from rembg import remove
 API_KEY = os.environ.get("GEMINI_API_KEY", "")
 if not API_KEY:
     env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', '..', '..',
-                            'Claudcode_AI_workspace', 'Research', 'SENSE', 'veo_test', '.env')
+                            'Claudcode_AI_workspace', 'Research', 'SENSE', 'prototype', 'veo_test', '.env')
     if os.path.exists(env_path):
         for line in open(env_path):
             if line.startswith('GEMINI_API__KEY=') or line.startswith('GEMINI_API_KEY='):
@@ -365,12 +365,13 @@ Return JSON only:
 
 
 def main():
-    port = 8443
+    port = int(os.environ.get('PORT', 8443))
+    use_https = os.environ.get('USE_HTTPS', '1') != '0'
     server = http.server.ThreadingHTTPServer(('0.0.0.0', port), Handler)
 
     cert = os.path.join(DIR, 'cert.pem')
     key = os.path.join(DIR, 'key.pem')
-    if os.path.exists(cert) and os.path.exists(key):
+    if use_https and os.path.exists(cert) and os.path.exists(key):
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(cert, key)
         server.socket = ctx.wrap_socket(server.socket, server_side=True)

@@ -559,9 +559,10 @@ body {
 .element-palette {
   background: var(--hd-paper-card) !important;
   border-top: 2.5px solid var(--hd-ink) !important;
-  padding: 8px 18px !important;
+  padding: 8px 90px 8px 90px !important;  /* extra right pad reserves room for absolute Trash */
   gap: 10px !important;
-  justify-content: center !important;  /* Center items, leave room for absolute trash on right */
+  justify-content: center !important;
+  position: relative !important;
 }
 .palette-item {
   border: 2.5px solid var(--hd-ink) !important;
@@ -588,26 +589,40 @@ body {
   letter-spacing: 0.01em;
 }
 .palette-trash {
+  position: absolute !important;
+  right: 14px !important;
+  top: 50% !important;
+  transform: translateY(-50%) rotate(-2deg);
+  margin-left: 0 !important;
   border: 2.5px dashed var(--hd-ink-faint) !important;
   border-radius: var(--hd-r-brush) !important;
-  background: var(--hd-paper-card) !important;
+  background-color: var(--hd-paper-card) !important;
+  background-image: url("assets/icons-hd/trash.png") !important;
+  background-repeat: no-repeat !important;
+  background-position: center 6px !important;
+  background-size: 36px 36px !important;
   box-shadow: var(--hd-shadow-sm);
   color: var(--hd-ink-faint) !important;
   font-family: "Patrick Hand", cursive !important;
   font-size: 0 !important;
   width: 60px !important; min-width: 60px !important; height: 70px !important;
+  transition: transform 200ms, border-color 180ms, background-color 180ms;
 }
 .palette-trash::before {
   content: "Trash";
-  font-size: 14px;
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
   font-family: "Patrick Hand", cursive;
   color: var(--hd-ink-faint);
+  letter-spacing: 0.02em;
 }
 .palette-trash.active {
-  color: var(--hd-tomato) !important;
   border-color: var(--hd-tomato) !important;
-  background: rgba(236,107,74,0.08) !important;
-  transform: scale(1.15) rotate(-3deg);
+  background-color: rgba(236,107,74,0.10) !important;
+  transform: translateY(-50%) scale(1.12) rotate(-3deg);
 }
 .palette-trash.active::before { color: var(--hd-tomato); content: "Drop!"; }
 
@@ -1415,7 +1430,7 @@ body {
   background-position: center;
   filter: drop-shadow(2px 3px 0 rgba(44, 36, 24, 0.15));
 }
-.event-card[data-event="school"]  .event-emoji { background-image: url("assets/icons-hd/school.png?v=2"); }
+.event-card[data-event="dental"]  .event-emoji { background-image: url("assets/icons-hd/dental.png?v=1"); }
 .event-card[data-event="grocery"] .event-emoji { background-image: url("assets/icons-hd/grocery.png?v=2"); }
 .event-card[data-event="dining"]  .event-emoji { background-image: url("assets/icons-hd/dining.png?v=2"); }
 
@@ -1426,3 +1441,418 @@ body {
   color: var(--hd-ink) !important;
   letter-spacing: 0.02em !important;
 }
+
+/* ============================================================
+   WRAP-UP SCREEN (Screen 7 — after video)
+   Pick a strategy + readiness self-report.
+   Caregiver-guided: grown-up reads prompts, child points/picks.
+   ============================================================ */
+#screen-wrapup .wrapup-content {
+  background: var(--hd-paper);
+  padding: 1.5rem;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+}
+.wrapup-title {
+  font-family: "Caveat", cursive;
+  font-weight: 700;
+  font-size: 2.8rem;
+  color: var(--hd-ink);
+  letter-spacing: 0.01em;
+  transform: rotate(-1deg);
+  text-shadow: 1px 1px 0 rgba(196, 168, 131, 0.35);
+  margin: 0 0 0.4rem;
+  text-align: center;
+}
+.wrapup-subtitle {
+  font-family: "Patrick Hand", cursive;
+  color: rgba(44, 36, 24, 0.55);
+  font-size: 1.05rem;
+  margin: 0 0 1.8rem;
+  text-align: center;
+}
+.wrapup-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.8rem;
+  max-width: 1100px;
+  width: 92%;
+}
+.wrapup-card-wrap {
+  position: relative;
+}
+.wrapup-card {
+  background: var(--hd-paper-card);
+  border: 3px solid var(--hd-ink);
+  border-radius: var(--hd-r-toolbar);
+  box-shadow: var(--hd-shadow-lg);
+  font-family: "Patrick Hand", cursive;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 240px;
+  padding: 1.5rem;
+  width: 100%;
+  transition: transform 220ms cubic-bezier(.34,1.56,.64,1),
+              box-shadow 180ms,
+              background 200ms,
+              opacity 250ms;
+}
+.wrapup-card-wrap:nth-child(1) .wrapup-card { transform: rotate(-1.6deg); }
+.wrapup-card-wrap:nth-child(2) .wrapup-card { transform: rotate(0.9deg); }
+.wrapup-card-wrap:nth-child(3) .wrapup-card { transform: rotate(-0.7deg); }
+.wrapup-card:hover {
+  background: var(--hd-mango);
+  transform: rotate(0deg) scale(1.03);
+  box-shadow: 6px 6px 0 var(--hd-ink);
+}
+.wrapup-card:active {
+  transform: rotate(0deg) translate(4px, 4px);
+  box-shadow: 1px 1px 0 var(--hd-ink);
+}
+.wrapup-card.selected {
+  background: var(--hd-sage);
+  box-shadow: var(--hd-shadow);
+  transform: rotate(0deg);
+}
+.wrapup-card-wrap.dimmed .wrapup-card,
+.wrapup-card-wrap.dimmed .wrapup-rewatch {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.wrapup-emoji {
+  font-size: 5rem;
+  filter: drop-shadow(2px 3px 0 rgba(44, 36, 24, 0.15));
+  line-height: 1;
+}
+.wrapup-name {
+  font-family: "Patrick Hand", cursive;
+  font-size: 1.6rem;
+  color: var(--hd-ink);
+  letter-spacing: 0.02em;
+}
+.wrapup-rewatch {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--hd-paper-card);
+  border: 2.5px solid var(--hd-ink);
+  font-size: 1.25rem;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--hd-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 150ms, box-shadow 150ms, background 180ms;
+  z-index: 2;
+  padding: 0;
+}
+.wrapup-rewatch:hover {
+  background: var(--hd-mango);
+  transform: scale(1.08);
+}
+.wrapup-rewatch:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--hd-ink);
+}
+
+/* Readiness panel slides in after pick */
+.readiness-panel {
+  margin-top: 2rem;
+  width: 92%;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: wrapupSlideUp 360ms cubic-bezier(.34,1.56,.64,1);
+}
+.readiness-panel.hidden { display: none; }
+@keyframes wrapupSlideUp {
+  0%   { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.readiness-title {
+  font-family: "Caveat", cursive;
+  font-weight: 700;
+  font-size: 2rem;
+  color: var(--hd-ink);
+  margin: 0 0 1rem;
+  transform: rotate(-0.6deg);
+}
+.readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.2rem;
+  width: 100%;
+}
+.readiness-card {
+  background: var(--hd-paper-card);
+  border: 3px solid var(--hd-ink);
+  border-radius: var(--hd-r-toolbar);
+  box-shadow: var(--hd-shadow);
+  font-family: "Patrick Hand", cursive;
+  cursor: pointer;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 130px;
+  transition: transform 200ms, box-shadow 180ms, background 200ms, opacity 250ms;
+}
+.readiness-card:nth-child(1) { transform: rotate(-0.8deg); }
+.readiness-card:nth-child(2) { transform: rotate(0.6deg); }
+.readiness-card:nth-child(3) { transform: rotate(-0.4deg); }
+.readiness-card:hover {
+  background: var(--hd-mango);
+  transform: rotate(0deg) scale(1.03);
+}
+.readiness-card.selected {
+  background: var(--hd-sage);
+  transform: rotate(0deg);
+}
+.readiness-card.dimmed {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.readiness-emoji {
+  font-size: 3rem;
+  line-height: 1;
+}
+.readiness-name {
+  font-size: 1.15rem;
+  color: var(--hd-ink);
+}
+
+/* Done message */
+.wrapup-done {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  animation: wrapupSlideUp 360ms cubic-bezier(.34,1.56,.64,1);
+}
+.wrapup-done.hidden { display: none; }
+.wrapup-done-message {
+  font-family: "Caveat", cursive;
+  font-weight: 700;
+  font-size: 2.2rem;
+  color: var(--hd-ink);
+  transform: rotate(-1deg);
+  margin: 0;
+}
+
+/* Single shared reveal button below the 3 option cards. Replaces the per-card
+   🎬 rewatch buttons — one canonical answer per question, one entry. */
+.wrapup-reveal {
+  margin-top: 1.6rem;
+  font-family: "Patrick Hand", cursive;
+  font-size: 1.2rem;
+  background: var(--hd-paper-card);
+  color: var(--hd-ink);
+  border: 3px solid var(--hd-ink);
+  border-radius: 14px;
+  padding: 12px 28px;
+  cursor: pointer;
+  box-shadow: 4px 4px 0 var(--hd-ink);
+  transform: rotate(-0.8deg);
+  transition: transform 150ms, box-shadow 150ms, background 200ms;
+}
+.wrapup-reveal:hover {
+  background: var(--hd-mango);
+  transform: rotate(0deg) scale(1.03);
+}
+.wrapup-reveal:active {
+  transform: rotate(0deg) translate(3px, 3px);
+  box-shadow: 1px 1px 0 var(--hd-ink);
+}
+
+/* Done panel exits: Start over + Try another question side by side */
+.wrapup-done-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.wrapup-try-another {
+  font-family: "Patrick Hand", cursive;
+  font-size: 1.1rem;
+  background: var(--hd-paper-card);
+  color: var(--hd-ink);
+  border: 2.5px solid var(--hd-ink);
+  border-radius: 12px;
+  padding: 8px 22px;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--hd-ink);
+  transform: rotate(1deg);
+  transition: transform 150ms, box-shadow 150ms, background 200ms;
+}
+.wrapup-try-another:hover  { background: var(--hd-mango); transform: rotate(0deg) scale(1.03); }
+.wrapup-try-another:active { transform: rotate(0deg) translate(2px, 2px); box-shadow: 1px 1px 0 var(--hd-ink); }
+.wrapup-try-another.hidden { display: none; }
+#screen-wrapup .btn-primary {
+  background: var(--hd-mango);
+  color: var(--hd-ink);
+  border: 3px solid var(--hd-ink);
+  border-radius: var(--hd-r-next);
+  font-family: "Patrick Hand", cursive;
+  font-size: 1.4rem;
+  padding: 10px 32px;
+  box-shadow: var(--hd-shadow);
+  transform: rotate(-1.5deg);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+#screen-wrapup .btn-primary:active {
+  transform: rotate(-1.5deg) translate(3px, 3px);
+  box-shadow: 1px 1px 0 var(--hd-ink);
+}
+
+/* Dev A/B panel — per sub-dimension G/B/C toggles (only inside #screen-video) */
+.dev-channel-panel {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 45;
+  padding: 12px 14px;
+  background: rgba(255, 247, 235, 0.94);
+  border: 2.5px solid var(--hd-ink);
+  border-radius: 14px;
+  box-shadow: 4px 4px 0 var(--hd-ink);
+  font-family: "Patrick Hand", cursive;
+  color: var(--hd-ink);
+  min-width: 260px;
+}
+.dev-cp-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+  color: var(--hd-ink);
+}
+.dev-cp-grid {
+  display: grid;
+  row-gap: 6px;
+}
+.dev-cp-row {
+  display: grid;
+  grid-template-columns: 86px 1fr 38px 26px;
+  align-items: center;
+  column-gap: 6px;
+}
+.dev-cp-row.dev-cp-all {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1.5px dashed rgba(44, 36, 24, 0.35);
+  grid-template-columns: 86px auto;
+}
+.dev-cp-name {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.dev-cp-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: rgba(44, 36, 24, 0.25);
+  border-radius: 2px;
+  outline: none;
+}
+.dev-cp-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--hd-sage);
+  border: 2px solid var(--hd-ink);
+  cursor: pointer;
+  box-shadow: 1px 1px 0 var(--hd-ink);
+}
+.dev-cp-slider::-moz-range-thumb {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--hd-sage);
+  border: 2px solid var(--hd-ink);
+  cursor: pointer;
+}
+.dev-cp-value {
+  font-family: "Patrick Hand", cursive;
+  font-size: 0.85rem;
+  color: var(--hd-ink);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.dev-cp-reset {
+  font-family: "Patrick Hand", cursive;
+  font-size: 0.9rem;
+  background: var(--hd-paper-card);
+  color: var(--hd-ink);
+  border: 1.5px solid var(--hd-ink);
+  border-radius: 6px;
+  padding: 2px 4px;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--hd-ink);
+  line-height: 1;
+}
+.dev-cp-reset:hover  { background: var(--hd-mango); }
+.dev-cp-reset:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--hd-ink); }
+.dev-cp-reset-all    { padding: 4px 12px; }
+
+/* Bucket-button row (e.g. prep interval) — replaces the slider in the same grid column */
+.dev-cp-row-bucket {
+  grid-template-columns: 86px 1fr 26px;
+}
+.dev-cp-buckets {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+}
+.dev-cp-bucket-btn {
+  flex: 1;
+  font-family: "Patrick Hand", cursive;
+  font-size: 0.8rem;
+  background: var(--hd-paper-card);
+  color: var(--hd-ink);
+  border: 1.5px solid var(--hd-ink);
+  border-radius: 6px;
+  padding: 4px 0;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--hd-ink);
+  transition: background 150ms, transform 100ms, box-shadow 100ms;
+}
+.dev-cp-bucket-btn:hover  { background: var(--hd-mango); }
+.dev-cp-bucket-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--hd-ink); }
+.dev-cp-bucket-btn.active {
+  background: var(--hd-sage);
+  border-color: var(--hd-ink);
+}
+.dev-cp-rewind {
+  margin-top: 10px;
+  width: 100%;
+  font-family: "Patrick Hand", cursive;
+  font-size: 0.9rem;
+  background: var(--hd-paper-card);
+  color: var(--hd-ink);
+  border: 1.5px solid var(--hd-ink);
+  border-radius: 10px;
+  padding: 6px;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--hd-ink);
+}
+.dev-cp-rewind:hover  { background: var(--hd-mango); }
+.dev-cp-rewind:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--hd-ink); }

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280, initial-scale=1">
+<title>SENSE — 5 Hand-drawn Style Comparison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --hd-paper: #faf5e8;
+    --hd-paper-card: #fffef9;
+    --hd-ink: #2c2418;
+    --hd-ink-muted: #5a4830;
+    --hd-ink-faint: #c4a883;
+    --hd-tomato: #ec6b4a;
+    --hd-mango: #ffd166;
+    --hd-sage: #a3c9a8;
+    --hd-shadow: 3px 3px 0 var(--hd-ink);
+    --hd-shadow-sm: 2px 2px 0 var(--hd-ink);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--hd-paper);
+    color: var(--hd-ink);
+    font-family: "Patrick Hand", cursive;
+    min-height: 100%;
+  }
+  body { padding: 28px 32px 80px; }
+
+  h1 {
+    font-family: "Caveat", cursive;
+    font-size: 38px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .lede { font-size: 16px; color: var(--hd-ink-muted); margin-bottom: 28px; max-width: 720px; line-height: 1.5; }
+
+  .row {
+    margin-bottom: 32px;
+    background: var(--hd-paper-card);
+    border: 2.5px solid var(--hd-ink);
+    border-radius: 18px 26px 16px 22px / 22px 18px 24px 16px;
+    padding: 18px 22px 22px;
+    box-shadow: var(--hd-shadow-sm);
+  }
+  .row-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .row-title {
+    font-family: "Caveat", cursive;
+    font-size: 28px; font-weight: 700;
+    color: var(--hd-ink);
+  }
+  .row-desc {
+    font-size: 14px; color: var(--hd-ink-muted);
+  }
+
+  /* Naked objects grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .cell {
+    aspect-ratio: 1 / 1;
+    background: var(--hd-paper);
+    border: 2px solid var(--hd-ink-faint);
+    border-radius: 14px 18px 16px 20px / 18px 14px 20px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px;
+  }
+  .cell img {
+    width: 70%; height: 70%;
+    object-fit: contain;
+  }
+  .cell-label {
+    font-size: 12px; color: var(--hd-ink-faint);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* In-tab preview row */
+  .tabs-preview {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 12px;
+    background: var(--hd-paper);
+    border-radius: 14px 22px 16px 24px / 18px 14px 22px 16px;
+    border: 2px dashed var(--hd-ink-faint);
+  }
+  .preview-tab {
+    background: var(--hd-paper-card);
+    border: 2.5px solid var(--hd-ink);
+    border-radius: 14px 22px 16px 24px / 18px 14px 22px 16px;
+    padding: 4px 14px 4px 4px;
+    box-shadow: var(--hd-shadow-sm);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    height: 64px;
+  }
+  .preview-tab.active { background: var(--hd-tomato); }
+  .preview-tab.done { background: var(--hd-sage); }
+  .preview-tab .icon-wrap {
+    width: 56px; height: 56px;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .preview-tab img {
+    width: 76px; height: 76px;
+    object-fit: contain;
+    transform: scale(1.05);
+  }
+  .preview-tab .lbl {
+    font-family: "Patrick Hand", cursive;
+    font-size: 18px;
+    color: var(--hd-ink-muted);
+  }
+  .preview-tab.active .lbl { color: var(--hd-paper-card); font-weight: bold; }
+
+  /* selection state */
+  .row.picked {
+    background: linear-gradient(180deg, #fff8d6, var(--hd-paper-card));
+    box-shadow: var(--hd-shadow);
+  }
+  .pick-btn {
+    background: var(--hd-mango);
+    border: 2.5px solid var(--hd-ink);
+    border-radius: 16px 22px 14px 20px / 16px 18px 22px 14px;
+    padding: 6px 18px 4px;
+    font-family: "Patrick Hand", cursive;
+    font-size: 17px;
+    color: var(--hd-ink);
+    cursor: pointer;
+    box-shadow: var(--hd-shadow-sm);
+  }
+  .pick-btn.active { background: var(--hd-tomato); color: var(--hd-paper-card); }
+</style>
+</head>
+<body>
+
+<h1>5 hand-drawn styles — pick one</h1>
+<p class="lede">Same 5 objects (star · crayon · sun · note · drum) drawn in 5 different hand-drawn aesthetics. Each row shows the bare objects + how they look inside actual phase tabs (with active/done states). All PNGs have transparent backgrounds.</p>
+
+<!-- Row A: Line ink -->
+<div class="row" data-style="A_lineink">
+  <div class="row-head">
+    <div>
+      <div class="row-title">A · Line ink</div>
+      <div class="row-desc">Single warm dark brown ink line · no fills · Hervé Tullet / Ed Emberley</div>
+    </div>
+    <button class="pick-btn">Pick A</button>
+  </div>
+  <div class="grid">
+    <div class="cell"><img src="phase_5styles/A_lineink/star.png"><span class="cell-label">Create</span></div>
+    <div class="cell"><img src="phase_5styles/A_lineink/crayon.png"><span class="cell-label">Color</span></div>
+    <div class="cell"><img src="phase_5styles/A_lineink/sun.png"><span class="cell-label">Light</span></div>
+    <div class="cell"><img src="phase_5styles/A_lineink/note.png"><span class="cell-label">Sound</span></div>
+    <div class="cell"><img src="phase_5styles/A_lineink/drum.png"><span class="cell-label">Rhythm</span></div>
+  </div>
+  <div class="tabs-preview">
+    <div class="preview-tab done"><div class="icon-wrap"><img src="phase_5styles/A_lineink/star.png"></div><span class="lbl">Create</span></div>
+    <div class="preview-tab active"><div class="icon-wrap"><img src="phase_5styles/A_lineink/crayon.png"></div><span class="lbl">Color</span></div>
+    <div class="preview-tab"><div class="icon-wrap"><img src="phase_5styles/A_lineink/sun.png"></div><span class="lbl">Light</span></div>
+    <div class="preview-tab"><div class="icon-wrap"><img src="phase_5styles/A_lineink/note.png"></div><span class="lbl">Sound</span></div>
+    <div class="preview-tab"><div class="icon-wrap"><img src="phase_5styles/A_lineink/drum.png"></div><span class="lbl">Rhythm</span></div>
+  </div>
+</div>
+
+<!-- Row B: Flat marker -->
+<div class="row" data-style="B_marker">
+  <div class="row-head">
+    <div>
+      <div class="row-title">B · Flat marker</div>
+      <div class="row-desc">Bold black outline + 2-3 vivid flat colors · Christoph Niemann modern editorial</div>
+    </div>
+    <button class="pick-btn">Pick B</button>
+  </div>
+  <div class="grid">
+    <div class="cell"><img src="phase_5styles/B_marker/star.png"><span class="cell-label">Create</span></div>
+    <div class="cell"><img src="phase_5styles/B_marker/crayon.png"><span class="cell-label">Color</span></div>
+    <div class="cell"><img src="phase_5styles/B_marker/sun.png"><span class="cell-label">Light</span></div>
+    <div class="cell"><img src="phase_5styles/B_marker/note.png"><span class="cell-label">Sound</span></div>
+    <div class="cell"><img src="phase_5styles/B_marker/drum.png"><span class="cell-label">Rhythm</span></div>
+  </div>
+  <div class="tabs-preview">
+    <div class="preview-tab done"><div class="icon-wrap"><img src="phase_5styles/B_marker/star.png"></div><span class="lbl">Create</span></div>
+    <div class="preview-tab active"><div class="icon-wrap"><img src="phase_5styles/B_marker/crayon.png"></div><span class="lbl">Color</span></div>
+    <div class="preview-tab"><div class="icon-wrap"><img src="phase_5styles/B_marker/sun.png"></div><span class="lbl">Light</span></div>
+    <div class="preview-tab"><div class="icon-wrap"><img src="phase_5styles/B_marker/note.png"></div><span class="lbl">Sound</span></div>
+    <div class="preview-tab"><div class="icon-wrap"><img src="phase_5styles/B_marker/drum.png"></div><span class="lbl">Rhythm</span></div>
+  </div>
+</div>
+
+<!-- Row C: Crayon textured -->
+<div class="row" data-style="C_crayon">
+  <div class="row-head">
+    <div>
+      <div class="row-title">C · Crayon textured</div>
+      <div class="row-desc">Multi-color wax crayon strokes + paper grain · Eric Carle picture book</div>
+    </div>
+    <button class="pick-btn">Pick C</button>
+  </div>
+  <div class="grid">
+    <div class="cell"><img src="phase_5styles/C_crayon/star.png"><span class="cell-label">Create</span></div>
+    <div class="cell"><img src="phase_5styles/C_crayon/crayon.png"><span class="cell-label">Color</span></div>
+    <div class="cell"><img src="phase_5styles/C_crayon/sun.png"><span class="cell-label">Light</span></div>
+    <div class="cell"><img src="phase_5styles/C_crayon/note.png"><span class="cell-label">Sound</span></div>
+    <div class="cell"><img src="phase_5styles/C_crayon/drum.png"><span class="cell-label">Rhythm</span></div>
+  </div>
+  <div class="tabs-preview">
+    <div class="preview-tab done"><div class="icon-wrap"><img src="phase_5styles/C_crayon/star.png"></div><span class="lbl">Create</span></div>
+    <div class="preview-tab active"><div class="icon-wrap"><img src="phase_5styles/C_crayon/crayon.png"></div><span class="lbl">Color</span></div>
+    <div class="preview-tab"><div class="icon-wrap"><img src="phase_5styles/C_crayon/sun.png"></div><span class="lbl">Light</span></div>
+    <div class="preview-tab"><div class="icon-wrap"><img src="phase_5styles/C_crayon/note.png"></div><span class="lbl">Sound</span></div>
+    <div class="preview-tab"><div class="icon-wrap"><img src="phase_5styles/C_crayon/drum.png"></div><span class="lbl">Rhythm</span></div>
+  </div>
+</div>
+
+<!-- Row D: Watercolor + ink -->
+<div class="row" data-style="D_watercolor">
+  <div class="row-head">
+    <div>
+      <div class="row-title">D · Watercolor + ink</div>
+      <div class="row-desc">Soft watercolor wash + black ink line · Quentin Blake / Beatrix Potter</div>
+    </div>
+    <button class="pick-btn">Pick D</button>
+  </div>
+  <div class="grid">
+    <div class="cell"><img src="phase_5styles/D_watercolor/star.png"><span class="cell-label">Create</span></div>
+    <div class="cell"><img src="phase_5styles/D_watercolor/crayon.png"><span class="cell-label">Color</span></div>
+    <div class="cell"><img src="phase_5styles/D_watercolor/sun.png"><span class="cell-label">Light</span></div>
+    <div class="cell"><img src="phase_5styles/D_watercolor/note.png"><span class="cell-label">Sound</span></div>
+    <div class="cell"><img src="phase_5styles/D_watercolor/drum.png"><span class="cell-label">Rhythm</span></div>
+  </div>
+  <div class="tabs-preview">
+    <div class="preview-tab done"><div class="icon-wrap"><img src="phase_5styles/D_watercolor/star.png"></div><span class="lbl">Create</span></div>
+    <div class="preview-tab active"><div class="icon-wrap"><img src="phase_5styles/D_watercolor/crayon.png"></div><span class="lbl">Color</span></div>
+    <div class="preview-tab"><div class="icon-wrap"><img src="phase_5styles/D_watercolor/sun.png"></div><span class="lbl">Light</span></div>
+    <div class="preview-tab"><div class="icon-wrap"><img src="phase_5styles/D_watercolor/note.png"></div><span class="lbl">Sound</span></div>
+    <div class="preview-tab"><div class="icon-wrap"><img src="phase_5styles/D_watercolor/drum.png"></div><span class="lbl">Rhythm</span></div>
+  </div>
+</div>
+
+<!-- Row E: Cutout collage -->
+<div class="row" data-style="E_cutout">
+  <div class="row-head">
+    <div>
+      <div class="row-title">E · Paper cutout</div>
+      <div class="row-desc">Layered torn-paper shapes · Henri Matisse / Eric Carle collage</div>
+    </div>
+    <button class="pick-btn">Pick E</button>
+  </div>
+  <div class="grid">
+    <div class="cell"><img src="phase_5styles/E_cutout/star.png"><span class="cell-label">Create</span></div>
+    <div class="cell"><img src="phase_5styles/E_cutout/crayon.png"><span class="cell-label">Color</span></div>
+    <div class="cell"><img src="phase_5styles/E_cutout/sun.png"><span class="cell-label">Light</span></div>
+    <div class="cell"><img src="phase_5styles/E_cutout/note.png"><span class="cell-label">Sound</span></div>
+    <div class="cell"><img src="phase_5styles/E_cutout/drum.png"><span class="cell-label">Rhythm</span></div>
+  </div>
+  <div class="tabs-preview">
+    <div class="preview-tab done"><div class="icon-wrap"><img src="phase_5styles/E_cutout/star.png"></div><span class="lbl">Create</span></div>
+    <div class="preview-tab active"><div class="icon-wrap"><img src="phase_5styles/E_cutout/crayon.png"></div><span class="lbl">Color</span></div>
+    <div class="preview-tab"><div class="icon-wrap"><img src="phase_5styles/E_cutout/sun.png"></div><span class="lbl">Light</span></div>
+    <div class="preview-tab"><div class="icon-wrap"><img src="phase_5styles/E_cutout/note.png"></div><span class="lbl">Sound</span></div>
+    <div class="preview-tab"><div class="icon-wrap"><img src="phase_5styles/E_cutout/drum.png"></div><span class="lbl">Rhythm</span></div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll(".pick-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".row").forEach(r => r.classList.remove("picked"));
+      document.querySelectorAll(".pick-btn").forEach(b => b.classList.remove("active"));
+      btn.closest(".row").classList.add("picked");
+      btn.classList.add("active");
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -14,12 +14,14 @@
     ]
   },
   "elements": [
-    {"type": "friend",  "id": "grocery_shopper1", "asset": "assets/friend1.png", "label": "Shopper", "dimension": "spatial"},
-    {"type": "friend",  "id": "grocery_shopper2", "asset": "assets/friend2.png", "label": "Shopper", "dimension": "spatial"},
-    {"type": "friend",  "id": "grocery_shopper3", "asset": "assets/friend3.png", "label": "Shopper", "dimension": "spatial"},
-    {"type": "balloon", "id": "grocery_cart",     "asset": "assets/grocery_cart.png",     "label": "Cart",    "dimension": "decoration"},
-    {"type": "present", "id": "grocery_apple",    "asset": "assets/grocery_apple.png",    "label": "Apple",   "dimension": "decoration"},
-    {"type": "cake",    "id": "grocery_broccoli", "asset": "assets/grocery_broccoli.png", "label": "Broccoli","dimension": "decoration"}
+    {"type": "friend",  "id": "grocery_cashier",  "asset": "assets/grocery_cashier.png",  "label": "Cashier", "dimension": "spatial"},
+    {"type": "friend",  "id": "grocery_shopper",  "asset": "assets/grocery_shopper.png",  "label": "Shopper", "dimension": "spatial"},
+    {"type": "balloon", "id": "grocery_cart",     "asset": "assets/grocery_cart.png",     "label": "Cart",     "dimension": "decoration"},
+    {"type": "present", "id": "grocery_milk",     "asset": "assets/grocery_milk.png",     "label": "Milk",     "dimension": "decoration"},
+    {"type": "cake",    "id": "grocery_bread",    "asset": "assets/grocery_bread.png",    "label": "Bread",    "dimension": "decoration"},
+    {"type": "lights",  "id": "grocery_receipt",  "asset": "assets/grocery_receipt.png",  "label": "Receipt",  "dimension": "decoration"},
+    {"type": "present", "id": "grocery_apple",    "asset": "assets/grocery_apple.png",    "label": "Apple",    "dimension": "decoration"},
+    {"type": "cake",    "id": "grocery_broccoli", "asset": "assets/grocery_broccoli.png", "label": "Broccoli", "dimension": "decoration"}
   ],
   "animations": {
     "friend":  ["wave"],

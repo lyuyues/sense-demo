@@ -1,0 +1,29 @@
+{
+  "id": "dental",
+  "name": "Dental Visit",
+  "icon": "🦷",
+  "backgroundImage": "assets/dental_bg.png",
+  "background": {
+    "shapes": [
+      {"type": "rect", "x": 0, "y": 0, "w": 800, "h": 600, "fill": "none", "stroke": "#ccc", "label": "room"},
+      {"type": "rect", "x": 0, "y": 400, "w": 800, "h": 200, "fill": "none", "stroke": "#aaa", "label": "floor"},
+      {"type": "rect", "x": 280, "y": 250, "w": 240, "h": 200, "fill": "none", "stroke": "#999", "label": "dental-chair"},
+      {"type": "rect", "x": 350, "y": 90, "w": 100, "h": 120, "fill": "none", "stroke": "#bbb", "label": "lamp"},
+      {"type": "rect", "x": 60, "y": 280, "w": 140, "h": 160, "fill": "none", "stroke": "#bbb", "label": "side-table"}
+    ]
+  },
+  "elements": [
+    {"type": "friend",  "id": "dental_assistant",   "asset": "assets/dental_assistant.png",   "label": "Assistant",  "dimension": "spatial"},
+    {"type": "friend",  "id": "dental_dentist",     "asset": "assets/dental_dentist.png",     "label": "Dentist",    "dimension": "spatial"},
+    {"type": "balloon", "id": "dental_teddy",       "asset": "assets/dental_teddy.png",       "label": "Teddy",      "dimension": "decoration"},
+    {"type": "present", "id": "dental_stickers",    "asset": "assets/dental_stickers.png",    "label": "Stickers",   "dimension": "decoration"},
+    {"type": "cake",    "id": "dental_tooth_plush", "asset": "assets/dental_tooth_plush.png", "label": "Tooth Buddy","dimension": "decoration"}
+  ],
+  "animations": {
+    "friend":  ["wave"],
+    "balloon": ["float"],
+    "cake":    ["glow"],
+    "present": ["shake"],
+    "lights":  ["twinkle"]
+  }
+}

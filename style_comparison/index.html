@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SENSE UI — Style Comparison</title>
+<style>
+  :root {
+    --bg: #faf6ef;
+    --ink: #2a2622;
+    --muted: #6b6357;
+    --card: #ffffff;
+    --border: #e8e0d2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "SF Pro Text", "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 {
+    font-size: 28px;
+    margin: 0 0 8px;
+    letter-spacing: -0.02em;
+  }
+  .lede {
+    color: var(--muted);
+    margin: 0 0 32px;
+    max-width: 720px;
+    line-height: 1.5;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    max-width: 1400px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(40, 30, 20, 0.04);
+  }
+  .card h2 {
+    font-size: 18px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .card .tag {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0 0 16px;
+  }
+  .pair {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+    gap: 12px;
+  }
+  .pair img {
+    width: 100%;
+    height: auto;
+    border-radius: 12px;
+    background: #f3ede1;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+  }
+  .pair img.scene {
+    aspect-ratio: 16 / 9;
+  }
+  .pair .slot {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .pair .slot small {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .vote {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--border);
+    color: var(--muted);
+    font-size: 13px;
+  }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <h1>SENSE UI — 4 风格对比</h1>
+  <p class="lede">同一个 prompt（左：toddler avatar；右：school entrance scene），用 Imagen 4 跑了 4 种风格。点开看大图，告诉我选哪个，或者哪个最不喜欢。</p>
+
+  <div class="grid">
+    <section class="card">
+      <h2>A — 3D 柔光（Pixar / AI Quests）</h2>
+      <p class="tag">stylized 3D render · subsurface scattering · cinematic palette</p>
+      <div class="pair">
+        <div class="slot">
+          <small>Avatar</small>
+          <a href="A_pixar__avatar.png" target="_blank"><img src="A_pixar__avatar.png" alt="A avatar"></a>
+        </div>
+        <div class="slot">
+          <small>Scene</small>
+          <a href="A_pixar__scene.png" target="_blank"><img class="scene" src="A_pixar__scene.png" alt="A scene"></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>B — 水彩（Ghibli / picture book）</h2>
+      <p class="tag">hand-painted watercolor · muted earth tones · paper texture</p>
+      <div class="pair">
+        <div class="slot">
+          <small>Avatar</small>
+          <a href="B_watercolor__avatar.png" target="_blank"><img src="B_watercolor__avatar.png" alt="B avatar"></a>
+        </div>
+        <div class="slot">
+          <small>Scene</small>
+          <a href="B_watercolor__scene.png" target="_blank"><img class="scene" src="B_watercolor__scene.png" alt="B scene"></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>C — 蜡笔（Eric Carle / 习作）</h2>
+      <p class="tag">crayon and oil pastel · textured paper · child-art aesthetic</p>
+      <div class="pair">
+        <div class="slot">
+          <small>Avatar</small>
+          <a href="C_crayon__avatar.png" target="_blank"><img src="C_crayon__avatar.png" alt="C avatar"></a>
+        </div>
+        <div class="slot">
+          <small>Scene</small>
+          <a href="C_crayon__scene.png" target="_blank"><img class="scene" src="C_crayon__scene.png" alt="C scene"></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>D — Bold 平面（Notion / Slack）</h2>
+      <p class="tag">flat vector with subtle gradient · clean geometric · saturated palette</p>
+      <div class="pair">
+        <div class="slot">
+          <small>Avatar</small>
+          <a href="D_flat__avatar.png" target="_blank"><img src="D_flat__avatar.png" alt="D avatar"></a>
+        </div>
+        <div class="slot">
+          <small>Scene</small>
+          <a href="D_flat__scene.png" target="_blank"><img class="scene" src="D_flat__scene.png" alt="D scene"></a>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <h1 style="margin-top:48px">A 涂色可行性测试</h1>
+  <p class="lede">原 A 风格 (Pixar 3D 软光影) 直接走 generateLineart() 算法转出来一团糊（左下）。换成 "A + 强黑边 cel-shaded" 后 (A1)，转出的线稿干净可涂 (右下)。结论：用 A1_outlined 做 avatar 主图，复用现有 app.js 涂色管线就能跑通。</p>
+
+  <div class="grid" style="grid-template-columns: repeat(3, 1fr);">
+    <section class="card">
+      <h2>原 A — 不能涂色</h2>
+      <p class="tag">原图 Pixar 3D · 软光影</p>
+      <div class="pair" style="grid-template-columns: 1fr 1fr;">
+        <div class="slot">
+          <small>原图</small>
+          <a href="A_pixar__avatar.png" target="_blank"><img src="A_pixar__avatar.png" alt="A original"></a>
+        </div>
+        <div class="slot">
+          <small>自动线稿（糊）</small>
+          <a href="A_pixar__avatar__LINEART.png" target="_blank"><img src="A_pixar__avatar__LINEART.png" alt="A lineart"></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="border-color:#7cb342;">
+      <h2>A1 outlined — 推荐 ✅</h2>
+      <p class="tag">Pixar + 强黑边 cel-shaded · 涂色完美</p>
+      <div class="pair" style="grid-template-columns: 1fr 1fr;">
+        <div class="slot">
+          <small>原图</small>
+          <a href="A1_outlined__avatar.png" target="_blank"><img src="A1_outlined__avatar.png" alt="A1 original"></a>
+        </div>
+        <div class="slot">
+          <small>自动线稿（干净）</small>
+          <a href="A1_outlined__avatar__LINEART.png" target="_blank"><img src="A1_outlined__avatar__LINEART.png" alt="A1 lineart"></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>A2 lineart — 太空</h2>
+      <p class="tag">纯线稿 prompt · 失体积感</p>
+      <div class="pair" style="grid-template-columns: 1fr 1fr;">
+        <div class="slot">
+          <small>原图</small>
+          <a href="A2_lineart__avatar.png" target="_blank"><img src="A2_lineart__avatar.png" alt="A2 original"></a>
+        </div>
+        <div class="slot">
+          <small>自动线稿</small>
+          <a href="A2_lineart__avatar__LINEART.png" target="_blank"><img src="A2_lineart__avatar__LINEART.png" alt="A2 lineart"></a>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <p class="vote">最终方案：avatar 用 <strong>A1_outlined</strong>，场景 + 视频用 <strong>A 纯 Pixar 3D</strong>。涂色阶段复用现有 generateLineart()。</p>
+</body>
+</html>

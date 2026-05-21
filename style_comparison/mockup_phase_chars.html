@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280, initial-scale=1">
+<title>SENSE — Phase Tabs with Hand-drawn Mascots</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --hd-paper: #faf5e8;
+    --hd-paper-card: #fffef9;
+    --hd-ink: #2c2418;
+    --hd-ink-muted: #5a4830;
+    --hd-ink-faint: #c4a883;
+    --hd-tomato: #ec6b4a;
+    --hd-mango: #ffd166;
+    --hd-sage: #a3c9a8;
+    --hd-shadow: 3px 3px 0 var(--hd-ink);
+    --hd-shadow-sm: 2px 2px 0 var(--hd-ink);
+    --hd-shadow-lg: 4px 4px 0 var(--hd-ink);
+    --hd-r-tab: 20px 28px 22px 30px / 24px 20px 28px 22px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--hd-paper);
+    color: var(--hd-ink);
+    font-family: "Patrick Hand", cursive;
+  }
+
+  .stage { height: 100vh; display: flex; flex-direction: column; }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 20px;
+    border-bottom: 2.5px dashed var(--hd-ink-faint);
+    background: var(--hd-paper);
+  }
+
+  .btn-back {
+    background: var(--hd-paper-card);
+    border: 2.5px solid var(--hd-ink);
+    border-radius: 18px 22px 16px 20px / 16px 22px 20px 18px;
+    width: 50px; height: 70px;
+    font-family: "Patrick Hand", cursive;
+    font-size: 22px;
+    color: var(--hd-ink);
+    cursor: pointer;
+    transform: rotate(-1.5deg);
+    box-shadow: var(--hd-shadow-sm);
+  }
+
+  .phase-tabs {
+    display: flex; gap: 8px;
+  }
+
+  .phase-tab {
+    background: var(--hd-paper-card);
+    border: 2.5px solid var(--hd-ink);
+    border-radius: 14px 22px 16px 24px / 18px 14px 22px 16px;
+    padding: 4px 16px 4px 4px;
+    cursor: pointer;
+    box-shadow: var(--hd-shadow-sm);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    height: 64px;
+    transition: all 200ms cubic-bezier(.34,1.56,.64,1);
+    overflow: visible;
+  }
+  /* character image: render at 72px and crop into a tighter region to remove
+     the surrounding whitespace from the AI-generated PNG */
+  .phase-tab .char-wrap {
+    width: 56px; height: 56px;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .phase-tab img {
+    width: 76px;       /* render bigger than wrap so character fills frame */
+    height: 76px;
+    object-fit: contain;
+    pointer-events: none;
+    transform: scale(1.05);
+    /* PNGs from Imagen have white backgrounds — multiply makes white blend into tab color */
+    mix-blend-mode: multiply;
+  }
+  .phase-tab .label {
+    font-family: "Patrick Hand", cursive;
+    font-size: 18px;
+    color: var(--hd-ink-muted);
+    line-height: 1;
+    letter-spacing: 0.01em;
+  }
+
+  .phase-tab:nth-child(1) { transform: rotate(-1.4deg); }
+  .phase-tab:nth-child(2) { transform: rotate(0.8deg); }
+  .phase-tab:nth-child(3) { transform: rotate(-0.6deg); }
+  .phase-tab:nth-child(4) { transform: rotate(1.1deg); }
+  .phase-tab:nth-child(5) { transform: rotate(-1.0deg); }
+
+  .phase-tab:hover { transform: rotate(0deg) translateY(-2px); }
+  .phase-tab.active {
+    background: var(--hd-tomato);
+    box-shadow: var(--hd-shadow);
+    transform: rotate(0deg) scale(1.05) !important;
+  }
+  .phase-tab.active .label { color: var(--hd-paper-card); font-weight: bold; }
+  .phase-tab.done {
+    background: var(--hd-sage);
+  }
+
+  .instruction {
+    margin-left: auto;
+    font-family: "Caveat", cursive;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--hd-ink);
+    transform: rotate(-1deg);
+  }
+  .instruction em {
+    font-style: normal;
+    color: var(--hd-tomato);
+    text-decoration: underline wavy var(--hd-tomato) 2px;
+  }
+
+  .btn-next {
+    background: var(--hd-mango);
+    color: var(--hd-ink);
+    border: 2.5px solid var(--hd-ink);
+    border-radius: 22px 16px 26px 14px / 16px 24px 14px 22px;
+    padding: 14px 24px;
+    font-family: "Patrick Hand", cursive;
+    font-size: 19px;
+    cursor: pointer;
+    box-shadow: var(--hd-shadow-lg);
+    transform: rotate(1.2deg);
+  }
+
+  .canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background-image: url("../assets/school_bg.png");
+    background-size: cover;
+    background-position: center 35%;
+  }
+
+  .timer {
+    height: 4px;
+    background: #e8d8b3;
+  }
+  .timer-fill {
+    height: 100%; width: 42%;
+    background: var(--hd-tomato);
+  }
+
+  .meta {
+    position: fixed;
+    left: 18px; bottom: 18px;
+    background: var(--hd-paper-card);
+    border: 2px solid var(--hd-ink);
+    padding: 10px 16px;
+    font-family: "Patrick Hand", cursive;
+    font-size: 14px;
+    color: var(--hd-ink-muted);
+    box-shadow: var(--hd-shadow-sm);
+    z-index: 99;
+    max-width: 380px;
+    line-height: 1.5;
+  }
+  .meta strong { color: var(--hd-ink); }
+
+  /* mode picker */
+  .mode-picker {
+    position: fixed;
+    top: 12px; right: 18px;
+    z-index: 1000;
+    display: flex; gap: 4px;
+    background: var(--hd-paper-card);
+    border: 2px solid var(--hd-ink);
+    padding: 4px;
+    border-radius: 14px 22px 16px 24px / 18px 14px 22px 16px;
+    box-shadow: var(--hd-shadow-sm);
+    font-family: "Patrick Hand", cursive;
+  }
+  .mode-picker button {
+    background: transparent;
+    border: 0;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--hd-ink-muted);
+    cursor: pointer;
+  }
+  .mode-picker button.on {
+    background: var(--hd-ink);
+    color: var(--hd-paper-card);
+  }
+  body.mode-objects .phase-tab[data-char] img.char-mascot { display: none; }
+  body.mode-mascot  .phase-tab[data-char] img.char-object { display: none; }
+</style>
+</head>
+<body class="mode-objects">
+
+<div class="mode-picker">
+  <button data-mode="objects" class="on">物件（简约）</button>
+  <button data-mode="mascot">小角色</button>
+</div>
+
+<div class="stage">
+
+  <div class="topbar">
+    <button class="btn-back">←</button>
+
+    <div class="phase-tabs">
+      <button class="phase-tab done" data-char="add">
+        <div class="char-wrap">
+          <img class="char-mascot" src="phase_chars/phase_add.png" alt="">
+          <img class="char-object" src="phase_chars/obj_star.png" alt="">
+        </div>
+        <span class="label">Create</span>
+      </button>
+      <button class="phase-tab active" data-char="color">
+        <div class="char-wrap">
+          <img class="char-mascot" src="phase_chars/phase_color.png" alt="">
+          <img class="char-object" src="phase_chars/obj_crayon.png" alt="">
+        </div>
+        <span class="label">Color</span>
+      </button>
+      <button class="phase-tab" data-char="light">
+        <div class="char-wrap">
+          <img class="char-mascot" src="phase_chars/phase_time.png" alt="">
+          <img class="char-object" src="phase_chars/obj_sun.png" alt="">
+        </div>
+        <span class="label">Light</span>
+      </button>
+      <button class="phase-tab" data-char="sound">
+        <div class="char-wrap">
+          <img class="char-mascot" src="phase_chars/phase_music.png" alt="">
+          <img class="char-object" src="phase_chars/obj_note.png" alt="">
+        </div>
+        <span class="label">Sound</span>
+      </button>
+      <button class="phase-tab" data-char="rhythm">
+        <div class="char-wrap">
+          <img class="char-mascot" src="phase_chars/phase_drums.png" alt="">
+          <img class="char-object" src="phase_chars/obj_drum.png" alt="">
+        </div>
+        <span class="label">Rhythm</span>
+      </button>
+    </div>
+
+    <div class="instruction">Color your <em>friend</em></div>
+    <button class="btn-next">Next →</button>
+  </div>
+
+  <div class="timer"><div class="timer-fill"></div></div>
+
+  <div class="canvas-wrap"></div>
+</div>
+
+<div class="meta" id="meta">
+  <strong>物件版（简约）</strong> — 单个蜡笔物件，识别度最强
+</div>
+
+<script>
+  const META = {
+    objects: "<strong>物件版（简约）</strong> — 单个蜡笔物件，识别度最强",
+    mascot:  "<strong>小角色版</strong> — 全身儿童画风，温暖但更占空间",
+  };
+  document.querySelectorAll(".mode-picker button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const mode = btn.dataset.mode;
+      document.body.className = "mode-" + mode;
+      document.querySelectorAll(".mode-picker button").forEach(b => b.classList.remove("on"));
+      btn.classList.add("on");
+      document.getElementById("meta").innerHTML = META[mode];
+    });
+  });
+</script>
+
+</body>
+</html>
