@@ -1442,6 +1442,114 @@ body {
   letter-spacing: 0.02em !important;
 }
 
+/* ============================================
+   DIFFICULTY MODAL — hand-drawn chrome
+   Mirrors the event-card pattern (tilt, irregular borders, hard offset shadow)
+   ============================================ */
+.difficulty-card-container {
+  background: var(--hd-paper) !important;
+  border: 3px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-toolbar) !important;
+  box-shadow: var(--hd-shadow-lg) !important;
+  padding: 2.2rem 2rem !important;
+  gap: 1.4rem !important;
+  max-width: 1000px !important;
+  width: 92% !important;
+}
+.difficulty-title {
+  font-family: "Caveat", cursive !important;
+  font-weight: 700 !important;
+  font-size: 2.6rem !important;
+  color: var(--hd-ink) !important;
+  letter-spacing: 0.01em !important;
+  transform: rotate(-0.8deg);
+  text-shadow: 1px 1px 0 rgba(196, 168, 131, 0.35);
+  margin-bottom: 0.2rem !important;
+}
+.difficulty-subtitle {
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 1.15rem !important;
+  color: var(--hd-ink-muted) !important;
+  margin-bottom: 0.8rem !important;
+}
+.difficulty-grid {
+  gap: 1.6rem !important;
+  width: 100% !important;
+}
+.difficulty-card {
+  background: var(--hd-paper-card) !important;
+  border: 3px solid var(--hd-ink) !important;
+  border-radius: var(--hd-r-toolbar) !important;
+  box-shadow: var(--hd-shadow) !important;
+  font-family: "Patrick Hand", cursive !important;
+  min-height: 220px !important;
+  gap: 1rem !important;
+  padding: 1.6rem 1rem !important;
+  transition: transform 220ms cubic-bezier(.34,1.56,.64,1),
+              box-shadow 180ms, background 200ms !important;
+}
+/* Asymmetric tilt per card — sketchbook feel */
+.difficulty-card:nth-child(1) { transform: rotate(-1.4deg); }
+.difficulty-card:nth-child(2) { transform: rotate(0.7deg); }
+.difficulty-card:nth-child(3) { transform: rotate(-0.5deg); }
+.difficulty-card:hover {
+  background: var(--hd-mango) !important;
+  transform: rotate(0deg) scale(1.03) !important;
+  box-shadow: 6px 6px 0 var(--hd-ink) !important;
+}
+.difficulty-card:active {
+  transform: rotate(0deg) translate(3px, 3px) !important;
+  box-shadow: 1px 1px 0 var(--hd-ink) !important;
+  background: var(--hd-mango) !important;
+}
+.difficulty-card.selected {
+  background: var(--hd-sage) !important;
+  border-color: var(--hd-ink) !important;
+  box-shadow: 5px 5px 0 var(--hd-ink) !important;
+  transform: rotate(0deg) scale(1.02) !important;
+}
+/* Crayon PNG icons replace emoji placeholders (generated 2026-05-21 via Nano Banana
+   gen_difficulty_icons.py — energy progression: bubble / sparkle / lightning) */
+.difficulty-emoji {
+  font-size: 0 !important;             /* hide platform emoji glyph */
+  width: 160px !important;
+  height: 160px !important;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: drop-shadow(2px 3px 0 rgba(44, 36, 24, 0.15));
+}
+.difficulty-card[data-level="protective"] .difficulty-emoji { background-image: url("assets/icons-hd/protective.png?v=1"); }
+.difficulty-card[data-level="normal"]     .difficulty-emoji { background-image: url("assets/icons-hd/normal.png?v=1"); }
+.difficulty-card[data-level="challenge"]  .difficulty-emoji { background-image: url("assets/icons-hd/challenge.png?v=1"); }
+.difficulty-name {
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 1.4rem !important;
+  font-weight: 400 !important;
+  color: var(--hd-ink) !important;
+  letter-spacing: 0.02em !important;
+}
+.btn-difficulty-continue {
+  background: var(--hd-mango) !important;
+  color: var(--hd-ink) !important;
+  border: 3px solid var(--hd-ink) !important;
+  border-radius: 22px 16px 26px 14px / 18px 24px 16px 22px !important;
+  font-family: "Patrick Hand", cursive !important;
+  font-size: 1.3rem !important;
+  padding: 10px 36px !important;
+  box-shadow: var(--hd-shadow) !important;
+  transform: rotate(-1.3deg);
+  letter-spacing: 0.04em;
+}
+.btn-difficulty-continue:active {
+  transform: rotate(-1.3deg) translate(3px, 3px) !important;
+  box-shadow: 1px 1px 0 var(--hd-ink) !important;
+}
+.btn-difficulty-continue:disabled {
+  opacity: 0.35 !important;
+  pointer-events: none;
+}
+
 /* ============================================================
    WRAP-UP SCREEN (Screen 7 — after video)
    Pick a strategy + readiness self-report.

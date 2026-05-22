@@ -38,6 +38,20 @@ const state = {
   aiObservation: null,
   // Light stage data
   lightData: null,
+  // --- Difficulty system (Phase 2 customization layer) ---
+  // null until child picks via difficulty modal. Engineering names match data column.
+  difficultyLevel: null,              // 'protective' | 'normal' | 'challenge' | null
+  difficultyMeta: {                    // logged in session export
+    level_selected: null,
+    selected_by: null,
+    selected_at: null,
+    baseline_per_channel: {},         // raw canvas-derived
+    applied_per_channel: {},          // post-difficulty (pre-override)
+    manual_adjustments: [],           // caregiver overrides during playback
+  },
+  condition_contaminated: false,       // flips true on first manual_adjustment
+  baselinePerChannel: {},              // raw canvas-derived, populated when video screen opens
+  appliedPerChannel: {},               // difficulty-shifted, recomputed on level change
 };
 
 // --- Animation map: element type → CSS animation name OR sprite frames ---
@@ -4760,6 +4774,10 @@ function exportData() {
     interactionLog: state.interactionLog,
     totalDuration: Date.now() - state.sessionStart,
     phaseDurations: state.phaseDurations,
+    // Phase 2 customization layer — populated once the difficulty modal closes.
+    // Until then level_selected is null and manual_adjustments is empty.
+    difficulty: state.difficultyMeta,
+    condition_contaminated: state.condition_contaminated,
   };
 
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -4887,13 +4905,394 @@ const TEMPORAL_MARKERS = [42, 61, 81];
 let temporalMarkersFired = new Set();
 let freezeCountdownTimer = null;
 
+// ============================================================
+// DIFFICULTY SYSTEM — anticipatory video customization layer
+// Spec: docs/plans/2026-05-21-difficulty-system-ui-spec.md
+// Design: docs/plans/2026-05-21-difficulty-system-ui-design.md
+// ============================================================
+// Three-level adjustment around the child's canvas-measured baseline:
+//   protective: shift FURTHER from typical (toward child's extreme) by 0.15
+//   normal:     baseline unchanged
+//   challenge:  shift TOWARD typical (toward real-world stimulus) by 0.05
+// Asymmetry (−15% / +5%) reflects accommodation-first philosophy.
+const DIFFICULTY_TOLERANCE = 0.05;   // baseline within ±this of 0.5 → no displacement
+// Step sizes are tunable at runtime via the panel's global shift sliders so
+// caregivers can dial in how aggressive each level should be.
+let PROTECTIVE_STEP = 0.15;
+let CHALLENGE_STEP = 0.05;
+
+const CONTINUOUS_CHANNELS = ['brightness', 'saturation', 'pitch', 'voice', 'bgm', 'sfx'];
+const BUCKET_CHANNELS = ['spatial', 'prep'];
+const ALL_CHANNELS = [...CONTINUOUS_CHANNELS, ...BUCKET_CHANNELS];
+
+// Bucket order: index 0 = "low-side extreme", 1 = middle, 2 = "high-side extreme".
+// Convention mirrors continuous channels' low=hyper/far/slow, high=hypo/close/fast.
+const BUCKET_ORDER = {
+  spatial: ['close', 'mid', 'far'],    // close (0) ↔ far (2); baseline derived from spatialScore
+  prep:    ['hyper', 'typical', 'hypo'], // 0.5s (hyper) ↔ 1.5s (hypo)
+};
+
+function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+
+// Continuous channel: shift baseline per level.
+function computeLevelValue(baseline, level) {
+  if (typeof baseline !== 'number') return baseline;
+  if (Math.abs(baseline - 0.5) <= DIFFICULTY_TOLERANCE) return baseline; // neutral middle
+  if (level === 'normal' || !level) return baseline;
+  const onLowSide = baseline < 0.5;
+  if (level === 'protective') {
+    return clamp01(baseline + (onLowSide ? -PROTECTIVE_STEP : +PROTECTIVE_STEP));
+  }
+  if (level === 'challenge') {
+    return clamp01(baseline + (onLowSide ? +CHALLENGE_STEP : -CHALLENGE_STEP));
+  }
+  return baseline;
+}
+
+// Bucket channel: step toward middle on Challenge; stay at extreme on Protective (no headroom).
+function computeBucketLevelValue(baselineBucket, level, channel) {
+  const order = BUCKET_ORDER[channel];
+  if (!order) return baselineBucket;
+  const idx = order.indexOf(baselineBucket);
+  if (idx < 0) return baselineBucket;
+  if (level === 'normal' || !level || level === 'protective') return baselineBucket;
+  if (level === 'challenge') {
+    if (idx === 0) return order[1];   // step toward middle from low extreme
+    if (idx === 2) return order[1];   // step toward middle from high extreme
+    return baselineBucket;
+  }
+  return baselineBucket;
+}
+
+// spatialScore (0..1) → bucket. Matches the file-selection thresholds in initVideoPlayer.
+function spatialBucketFromScore(score) {
+  if (typeof score !== 'number') return 'mid';
+  if (score > 0.65) return 'far';
+  if (score < 0.35) return 'close';
+  return 'mid';
+}
+
+// Populate state.baselinePerChannel from canvas-derived preferences.
+function computeBaselinesFromPreferences(prefs) {
+  if (!prefs) return;
+  const lightB = prefs.visual.lightBrightness;
+  const brightnessBase = (typeof lightB === 'number')
+    ? (normalizeLightBrightness(lightB) ?? 0.5)
+    : (prefs.visual.score ?? 0.5);
+  const saturationBase = (typeof prefs.visual.avgSaturation === 'number')
+    ? prefs.visual.avgSaturation
+    : (prefs.visual.score ?? 0.5);
+  const pitchBase = (typeof prefs.auditory.staffPitch === 'number')
+    ? prefs.auditory.staffPitch
+    : (prefs.auditory.score ?? 0.5);
+  const volBase = (typeof prefs.auditory.staffVolume === 'number')
+    ? prefs.auditory.staffVolume
+    : (prefs.auditory.score ?? 0.5);
+
+  state.baselinePerChannel = {
+    brightness: clamp01(brightnessBase),
+    saturation: clamp01(saturationBase),
+    pitch:      clamp01(pitchBase),
+    voice:      clamp01(volBase),
+    bgm:        clamp01(volBase),
+    sfx:        clamp01(volBase),
+    spatial:    spatialBucketFromScore(prefs.spatial.score),
+    prep:       prepBucketFromSMT(prefs.temporal.smt),
+  };
+  // Until difficulty is picked, applied == baseline.
+  state.appliedPerChannel = { ...state.baselinePerChannel };
+  state.difficultyMeta.baseline_per_channel = { ...state.baselinePerChannel };
+  state.difficultyMeta.applied_per_channel = { ...state.appliedPerChannel };
+}
+
+// Recompute applied values from baselines + chosen difficulty level.
+function recomputeAppliedFromDifficulty(level) {
+  const base = state.baselinePerChannel;
+  const applied = {};
+  CONTINUOUS_CHANNELS.forEach(ch => {
+    applied[ch] = computeLevelValue(base[ch], level);
+  });
+  BUCKET_CHANNELS.forEach(ch => {
+    applied[ch] = computeBucketLevelValue(base[ch], level, ch);
+  });
+  state.appliedPerChannel = applied;
+  state.difficultyMeta.applied_per_channel = { ...applied };
+}
+
+// Public API: set difficulty level (called from modal in Phase B).
+function setDifficultyLevel(level, selectedBy) {
+  if (!['protective', 'normal', 'challenge'].includes(level)) {
+    console.warn('[difficulty] invalid level:', level);
+    return;
+  }
+  state.difficultyLevel = level;
+  state.difficultyMeta.level_selected = level;
+  state.difficultyMeta.selected_by = selectedBy || 'child';
+  state.difficultyMeta.selected_at = new Date().toISOString();
+  recomputeAppliedFromDifficulty(level);
+  applyVideoPreferences();
+  // Refresh caregiver settings panel sliders to reflect the new applied values.
+  if (typeof refreshAllSettingsRows === 'function') refreshAllSettingsRows();
+  logEvent('difficulty_selected', { level, selected_by: selectedBy || 'child' });
+  console.log('[difficulty] level=' + level, 'applied=', state.appliedPerChannel);
+}
+
+// Effective value for a channel: caregiver override > difficulty-applied > raw baseline.
+// devOverrides[channel] is a number for continuous, bucket string for bucket channels;
+// null/undefined means "no override".
+function getEffectiveChannelValue(channel) {
+  const ov = devOverrides[channel];
+  if (ov !== null && ov !== undefined) return ov;
+  const applied = state.appliedPerChannel[channel];
+  if (applied !== null && applied !== undefined) return applied;
+  const base = state.baselinePerChannel[channel];
+  if (base !== null && base !== undefined) return base;
+  return CONTINUOUS_CHANNELS.includes(channel) ? 0.5 : 'typical';
+}
+
+// Log a caregiver manual adjustment + flip contamination flag.
+function logManualAdjustment(channel, from, to, trigger) {
+  state.difficultyMeta.manual_adjustments.push({
+    ts: new Date().toISOString(),
+    channel, from, to,
+    trigger: trigger || 'caregiver_settings',
+  });
+  state.condition_contaminated = true;
+}
+
+// Expose a tiny test surface so we can poke from the console while Phase B/C UI is being built.
+window.SENSE = window.SENSE || {};
+Object.assign(window.SENSE, {
+  setDifficulty: setDifficultyLevel,
+  getEffective: getEffectiveChannelValue,
+  recompute: recomputeAppliedFromDifficulty,
+  state,
+});
+
+// ============================================================
+// DIFFICULTY MODAL — pop-up before video plays
+// ============================================================
+let _diffModalBound = false;
+let _diffModalPicked = null;
+let _diffModalOnConfirm = null;
+function setupDifficultyModal(onConfirm) {
+  const modal       = document.getElementById('difficulty-modal');
+  const cards       = modal ? modal.querySelectorAll('.difficulty-card') : [];
+  const continueBtn = document.getElementById('btn-difficulty-continue');
+  if (!modal || !cards.length || !continueBtn) {
+    console.warn('[difficulty-modal] markup missing — skipping');
+    onConfirm && onConfirm();
+    return;
+  }
+
+  // Reset state on every open (re-prompts cleanly if user re-enters Stage 2).
+  cards.forEach(c => c.classList.remove('selected'));
+  continueBtn.disabled = true;
+  modal.classList.remove('hidden');
+  _diffModalPicked = null;
+  _diffModalOnConfirm = onConfirm || null;
+
+  if (_diffModalBound) return;
+  // First-time wiring (handlers persist across modal re-opens).
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      _diffModalPicked = card.dataset.level;
+      cards.forEach(c => c.classList.toggle('selected', c === card));
+      continueBtn.disabled = false;
+      logEvent('difficulty_card_tapped', { level: _diffModalPicked });
+    });
+  });
+  continueBtn.addEventListener('click', () => {
+    if (!_diffModalPicked) return;
+    setDifficultyLevel(_diffModalPicked, 'child');
+    modal.classList.add('hidden');
+    if (_diffModalOnConfirm) _diffModalOnConfirm();
+  });
+  _diffModalBound = true;
+}
+
+// ============================================================
+// SETTINGS PANEL — per-channel caregiver controls inside #fab-panel
+// ============================================================
+
+// Tick positions for one channel as { baseline, p, c } in slider-percent space (0-100).
+// Continuous channels map value 0..1 → 0..100. Buckets map BUCKET_ORDER index → 0/50/100.
+function getChannelTickPositions(channel) {
+  const base = state.baselinePerChannel[channel];
+  if (CONTINUOUS_CHANNELS.includes(channel)) {
+    const baseNum = (typeof base === 'number') ? base : 0.5;
+    return {
+      baseline: baseNum * 100,
+      p: computeLevelValue(baseNum, 'protective') * 100,
+      c: computeLevelValue(baseNum, 'challenge') * 100,
+    };
+  }
+  const order = BUCKET_ORDER[channel];
+  if (!order) return { baseline: 50, p: 50, c: 50 };
+  const baseIdx = Math.max(0, order.indexOf(base));
+  const pBucket = computeBucketLevelValue(base, 'protective', channel);
+  const cBucket = computeBucketLevelValue(base, 'challenge', channel);
+  return {
+    baseline: baseIdx * 50,
+    p: Math.max(0, order.indexOf(pBucket)) * 50,
+    c: Math.max(0, order.indexOf(cBucket)) * 50,
+  };
+}
+
+// Current effective value as slider percent (0-100).
+function getChannelSliderPercent(channel) {
+  if (CONTINUOUS_CHANNELS.includes(channel)) {
+    const v = getEffectiveChannelValue(channel);
+    return clamp01(typeof v === 'number' ? v : 0.5) * 100;
+  }
+  const order = BUCKET_ORDER[channel];
+  const bucket = getEffectiveChannelValue(channel);
+  const idx = order ? Math.max(0, order.indexOf(bucket)) : 1;
+  return idx * 50;
+}
+
+// Update a single row's slider position + tick positions from current state.
+function refreshSettingsRow(channel) {
+  const row = document.querySelector(`.settings-row[data-channel="${channel}"]`);
+  if (!row) return;
+  const slider = row.querySelector('.settings-slider');
+  const ticks = getChannelTickPositions(channel);
+  const pct = getChannelSliderPercent(channel);
+  if (slider) slider.value = String(Math.round(pct));
+  const pTick = row.querySelector('.settings-tick-p');
+  const baseTick = row.querySelector('.settings-tick-baseline');
+  const cTick = row.querySelector('.settings-tick-c');
+  if (pTick) pTick.style.left = `${ticks.p}%`;
+  if (baseTick) baseTick.style.left = `${ticks.baseline}%`;
+  if (cTick) cTick.style.left = `${ticks.c}%`;
+}
+
+function refreshAllSettingsRows() {
+  ALL_CHANNELS.forEach(refreshSettingsRow);
+}
+
+// Write a slider event to devOverrides + log + repaint.
+function applySliderChange(channel, sliderPct, trigger) {
+  const prev = getEffectiveChannelValue(channel);
+  let next;
+  if (CONTINUOUS_CHANNELS.includes(channel)) {
+    next = clamp01(sliderPct / 100);
+  } else {
+    const order = BUCKET_ORDER[channel];
+    const idx = Math.round(sliderPct / 50);
+    next = order[Math.max(0, Math.min(2, idx))];
+  }
+  if (next === prev) return;
+  devOverrides[channel] = next;
+  logManualAdjustment(channel, prev, next, trigger || 'caregiver_settings');
+  applyVideoPreferences();
+}
+
+function resetChannelToBaseline(channel) {
+  const baseline = state.baselinePerChannel[channel];
+  const prev = getEffectiveChannelValue(channel);
+  devOverrides[channel] = baseline;
+  if (prev !== baseline) {
+    logManualAdjustment(channel, prev, baseline, 'caregiver_reset_row');
+  }
+  refreshSettingsRow(channel);
+  applyVideoPreferences();
+}
+
+// Apply a new shift % (0-100 from slider, in percentage points). Recomputes all
+// applied per-channel values, refreshes UI, and re-applies to the playing video.
+function applyShiftChange(which, pctPoints) {
+  const frac = Math.max(0, Math.min(40, pctPoints)) / 100;
+  if (which === 'protective') PROTECTIVE_STEP = frac;
+  else if (which === 'challenge') CHALLENGE_STEP = frac;
+  if (state.difficultyLevel) recomputeAppliedFromDifficulty(state.difficultyLevel);
+  refreshAllSettingsRows();
+  applyVideoPreferences();
+  syncShiftUI(which);
+  logEvent('difficulty_shift_changed', { which, percent: pctPoints });
+}
+
+// Keep slider + number input in sync after a programmatic change.
+function syncShiftUI(which) {
+  const step = which === 'protective' ? PROTECTIVE_STEP : CHALLENGE_STEP;
+  const pct = Math.round(step * 100);
+  const slider = document.querySelector(`.settings-shift-slider[data-shift="${which}"]`);
+  const input  = document.querySelector(`.settings-shift-input[data-shift="${which}"]`);
+  if (slider && Number(slider.value) !== pct) slider.value = String(pct);
+  if (input  && Number(input.value)  !== pct) input.value  = String(pct);
+}
+
+let _settingsPanelBound = false;
+function setupSettingsPanel() {
+  refreshAllSettingsRows();
+  syncShiftUI('protective');
+  syncShiftUI('challenge');
+  if (_settingsPanelBound) return;
+
+  document.querySelectorAll('.settings-slider').forEach(slider => {
+    const channel = slider.dataset.channel;
+    slider.addEventListener('input', () => {
+      applySliderChange(channel, Number(slider.value), 'caregiver_settings');
+    });
+  });
+
+  // Global shift sliders — both slider and number input drive the same value.
+  document.querySelectorAll('.settings-shift-slider').forEach(slider => {
+    const which = slider.dataset.shift;
+    slider.addEventListener('input', () => applyShiftChange(which, Number(slider.value)));
+  });
+  document.querySelectorAll('.settings-shift-input').forEach(input => {
+    const which = input.dataset.shift;
+    const commit = () => {
+      const v = Number(input.value);
+      if (!isFinite(v)) return;
+      applyShiftChange(which, v);
+    };
+    input.addEventListener('change', commit);
+    input.addEventListener('blur', commit);
+  });
+  document.querySelectorAll('.settings-shift-reset').forEach(btn => {
+    const which = btn.dataset.shift;
+    const def = which === 'protective' ? 15 : 5;
+    btn.addEventListener('click', () => applyShiftChange(which, def));
+  });
+
+  document.querySelectorAll('.settings-reset').forEach(btn => {
+    const channel = btn.dataset.channel;
+    btn.addEventListener('click', () => {
+      resetChannelToBaseline(channel);
+    });
+  });
+
+  const resetAll = document.getElementById('settings-reset-all');
+  if (resetAll) {
+    resetAll.addEventListener('click', () => {
+      ALL_CHANNELS.forEach(ch => {
+        const baseline = state.baselinePerChannel[ch];
+        const prev = getEffectiveChannelValue(ch);
+        devOverrides[ch] = baseline;
+        if (prev !== baseline) {
+          logManualAdjustment(ch, prev, baseline, 'caregiver_reset_all');
+        }
+      });
+      refreshAllSettingsRows();
+      applyVideoPreferences();
+    });
+  }
+  _settingsPanelBound = true;
+}
+
 function initVideoPlayer() {
   videoPreferences = extractPreferences();
+  computeBaselinesFromPreferences(videoPreferences);
+  // applied = baseline until the difficulty modal sets a level (Phase B)
+  if (state.difficultyLevel) recomputeAppliedFromDifficulty(state.difficultyLevel);
   s2PauseTriggered = false;
   temporalMarkersFired = new Set();
   if (freezeCountdownTimer) { clearInterval(freezeCountdownTimer); freezeCountdownTimer = null; }
   document.getElementById('freeze-overlay')?.classList.add('hidden');
   console.log('[Phase 2] preferences:', videoPreferences);
+  console.log('[Phase 2] baselines:', state.baselinePerChannel);
 
   const video = document.getElementById('sense-video');
 
@@ -4930,7 +5329,10 @@ function initVideoPlayer() {
   // Apply initial preferences
   applyVideoPreferences();
 
-  // Populate profile bars
+  // Caregiver settings panel — populate rows + bind handlers
+  setupSettingsPanel();
+
+  // Populate profile bars (legacy element, may be absent after Phase C refactor)
   populateProfile();
 
   // Play/Pause
@@ -4951,6 +5353,18 @@ function initVideoPlayer() {
 
   playPause.onclick = togglePlay;
   overlay.onclick = togglePlay;
+
+  // Difficulty modal: blocks playback until the child picks a level. If a level was
+  // pre-set (e.g., dev console call), skip the modal entirely.
+  if (!state.difficultyLevel) {
+    setupDifficultyModal(() => {
+      // Auto-start playback once the child confirms — the Continue click satisfies
+      // the audio-context user-gesture requirement.
+      if (video.paused) togglePlay();
+    });
+  } else {
+    document.getElementById('difficulty-modal')?.classList.add('hidden');
+  }
 
   // Stem audio sync: <video> is muted; stem AudioBufferSources start/stop in lockstep
   // with the video. AudioBufferSourceNode is one-shot, so we restart on play/seek.
@@ -5010,26 +5424,17 @@ function initVideoPlayer() {
     video.currentTime = pct * video.duration;
   };
 
-  // Settings panel toggle
+  // Settings panel toggle — refresh slider positions on every open to reflect current state
   document.getElementById('fab-dot').onclick = () => {
-    document.getElementById('fab-panel').classList.toggle('hidden');
+    const panel = document.getElementById('fab-panel');
+    const opening = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden');
+    if (opening) refreshAllSettingsRows();
   };
 
-  // Profile toggle
-  document.getElementById('fab-profile-toggle').onclick = () => {
-    document.getElementById('fab-profile').classList.toggle('hidden');
-  };
-
-  // Level buttons (legacy fab-level menu — no longer modulates post-proc; left in place
-  // for UI continuity. Actual customization is continuous from canvas inputs.)
-  document.querySelectorAll('.fab-level').forEach(btn => {
-    btn.onclick = () => {
-      document.querySelectorAll('.fab-level').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentLevel = parseInt(btn.dataset.level);
-      applyVideoPreferences();
-    };
-  });
+  // Note: legacy `#fab-profile-toggle` and `.fab-level` buttons were removed in the
+  // Phase C refactor — the fab-panel is now per-channel sliders only. Difficulty
+  // is chosen once via the modal; no global level switcher inside the panel.
 
   // S2 level selection
   document.querySelectorAll('.s2-level-btn').forEach(btn => {
@@ -5062,6 +5467,10 @@ function initVideoPlayer() {
     // Reset playback chrome so a rewatch starts clean
     playPause.innerHTML = '&#9654;';
     videoWrap.classList.add('paused');
+    // Stage 2 export — captures difficulty choice + any caregiver manual_adjustments
+    // accumulated during playback. The earlier Stage 1 export (at processing entry)
+    // pre-dated the difficulty modal, so this second export is the full-session record.
+    try { exportData(); } catch (e) { console.warn('Stage 2 export failed:', e); }
     goToPhase('wrapup');
   };
 
@@ -5152,32 +5561,21 @@ function applyVideoPreferences() {
   if (!videoPreferences) return;
   const video = document.getElementById('sense-video');
 
-  // For each sub-dimension, normalized input = override (if dev slider set) else canvas value.
-  const norm = (sub, canvasVal) => {
-    const o = devOverrides[sub];
-    return (typeof o === 'number') ? o : (typeof canvasVal === 'number' ? canvasVal : 0.5);
-  };
+  // Effective per-channel value: override > difficulty-applied > raw baseline (see
+  // getEffectiveChannelValue). When state.difficultyLevel is null this falls through
+  // to the canvas-derived baseline, preserving the pre-difficulty behavior.
+  const brightNorm = getEffectiveChannelValue('brightness');
+  const satNorm    = getEffectiveChannelValue('saturation');
 
   // --- Visual: brightness — direct lerp 0.5 .. 1.5, midpoint 1.0 = CSS identity ---
-  const lightB = videoPreferences.visual.lightBrightness;
-  const brightCanvas = (typeof lightB === 'number')
-    ? (normalizeLightBrightness(lightB) ?? 0.5)
-    : (videoPreferences.visual.score ?? 0.5);
-  const brightNorm = norm('brightness', brightCanvas);
   const brightness = 0.5 + brightNorm * 1.0;
-
   // --- Visual: saturation — direct lerp 0.3 .. 1.7, midpoint 1.0 = CSS identity ---
-  const satNorm = norm('saturation', videoPreferences.visual.avgSaturation);
   const saturation = 0.3 + satNorm * 1.4;
-
   video.style.filter = `brightness(${brightness.toFixed(2)}) saturate(${saturation.toFixed(2)})`;
 
-  // --- Auditory: lowpass cutoff — direct lerp 300 .. 8000 Hz (spec range) from staffPitch ---
+  // --- Auditory: lowpass cutoff — direct lerp 300 .. 8000 Hz (spec range) from pitch ---
   if (videoLowpass) {
-    const pitchCanvas = (typeof videoPreferences.auditory.staffPitch === 'number')
-      ? videoPreferences.auditory.staffPitch
-      : (videoPreferences.auditory.score ?? 0.5);
-    const pitchNorm = norm('pitch', pitchCanvas);
+    const pitchNorm = getEffectiveChannelValue('pitch');
     const cutoff = 300 + pitchNorm * 7700;
     try { videoLowpass.frequency.setTargetAtTime(cutoff, videoLowpass.context.currentTime, 0.05); }
     catch (e) { videoLowpass.frequency.value = cutoff; }
@@ -5185,20 +5583,17 @@ function applyVideoPreferences() {
 
   // --- Auditory: per-stem gain (voice / bgm / sfx) ---
   // Spec's "source combo" realized after Demucs separation as 3 independent gains.
-  // Canvas-derived default: staffVolume (+ layer boost) is the master that every
-  // stem starts from; dev sliders override per-stem.
+  // Each stem channel has its own effective value (baseline shared, override per-stem).
+  // Layer boost from auditoryLayerCount adds a complexity nudge on top of the per-stem
+  // canvas baseline.
   if (stemMixer && state.audioCtx) {
     const ctx = state.audioCtx;
-    const volCanvas = (typeof videoPreferences.auditory.staffVolume === 'number')
-      ? videoPreferences.auditory.staffVolume
-      : (videoPreferences.auditory.score ?? 0.5);
     const layers = videoPreferences.auditory.layerCount || 0;
     const layerBoost = Math.min(0.2, (layers / 3) * 0.2);
-    const canvasMaster = Math.max(0.05, Math.min(1.5, 0.1 + volCanvas * 1.4 + layerBoost));
     STEM_KEYS.forEach(k => {
       if (!stemGains[k]) return;
-      const o = devOverrides[k];
-      const g = (typeof o === 'number') ? o : canvasMaster;
+      const v = getEffectiveChannelValue(k);
+      const g = Math.max(0.05, Math.min(1.5, 0.1 + v * 1.4 + layerBoost));
       try { stemGains[k].gain.setTargetAtTime(g, ctx.currentTime, 0.05); }
       catch (_) { stemGains[k].gain.value = g; }
     });
@@ -5209,11 +5604,11 @@ function applyVideoPreferences() {
   try { video.playbackRate = 1.0; } catch (e) {}
 
   console.log('[applyVideoPreferences]',
+    'level=' + (state.difficultyLevel || 'null'),
     'overrides=' + JSON.stringify(devOverrides),
     'brightness=' + brightness.toFixed(2),
     'saturation=' + saturation.toFixed(2),
-    'lowpass=' + (videoLowpass ? Math.round(videoLowpass.frequency.value) + 'Hz' : '—'),
-    'gain=' + (videoGain ? videoGain.gain.value.toFixed(2) : '—'));
+    'lowpass=' + (videoLowpass ? Math.round(videoLowpass.frequency.value) + 'Hz' : '—'));
 }
 
 // --- Web Audio chain (multi-stem):
@@ -5309,11 +5704,9 @@ function stopStems() {
 // obvious without any overlay text or countdown. Spec: pause length = drumSMT directly. ---
 function triggerTemporalFreeze(video, playPauseBtn, videoWrap) {
   if (!videoPreferences) return;
-  // Bucketed: dev override key ('hyper'/'typical'/'hypo') wins, else derive bucket
-  // from canvas drumSMT. See prep_cue_design_20260514.md.
-  const bucket = devOverrides.prep
-    ? devOverrides.prep
-    : prepBucketFromSMT(videoPreferences.temporal.smt);
+  // Bucketed prep interval — pipeline: override > difficulty-applied > canvas baseline.
+  // See prep_cue_design_20260514.md.
+  const bucket = getEffectiveChannelValue('prep') || 'typical';
   const freezeSec = PREP_BUCKETS[bucket] ?? 1.0;
   if (freezeSec < 0.15) return;
 

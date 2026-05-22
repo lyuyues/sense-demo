@@ -1538,15 +1538,16 @@ html, body {
 }
 .volume-triangle {
   position: absolute; bottom: 0; left: 30px; right: 30px;
-  height: 40px;
+  height: 52px;
   pointer-events: none;
 }
 .vol-label {
   position: absolute; bottom: 2px;
-  opacity: 0.4;
+  opacity: 0.75;
+  line-height: 1;
 }
-.vol-label-left { left: 4px; font-size: 10px; }
-.vol-label-right { right: 4px; font-size: 20px; }
+.vol-label-left { left: 4px; font-size: 22px; }
+.vol-label-right { right: 4px; font-size: 42px; }
 .staff-element {
   position: absolute;
   width: 60px; height: 60px;
@@ -1909,11 +1910,12 @@ html, body {
 }
 .fab-panel {
   position: relative;
-  background: rgba(20,20,20,0.92); backdrop-filter: blur(16px);
-  border-radius: 14px; border: 1px solid rgba(255,255,255,0.1);
-  padding: 0.7rem; min-width: 170px;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.4);
+  background: rgba(20,20,20,0.94); backdrop-filter: blur(16px);
+  border-radius: 16px; border: 1px solid rgba(255,255,255,0.12);
+  padding: 1.1rem 1.2rem; min-width: 440px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.45);
   animation: fabSlideUp 0.2s ease-out;
+  font-size: 1rem;
 }
 .fab-panel.hidden { display: none; }
 @keyframes fabSlideUp {
@@ -2086,3 +2088,261 @@ html, body {
   .btn-capture { width: 56px; height: 56px; }
   .photo-thumb { width: 56px; height: 56px; }
 }
+
+/* ============================================
+   SETTINGS PANEL — per-channel caregiver controls (inside #fab-panel)
+   ============================================ */
+.settings-panel-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.8rem;
+  padding-left: 0.1rem;
+}
+.settings-rows {
+  display: flex; flex-direction: column;
+  gap: 0.7rem;
+}
+.settings-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 30px;
+  align-items: center;
+  column-gap: 10px;
+}
+/* Global shift rows: extra column for the number input + % unit */
+.settings-row-global {
+  grid-template-columns: 90px 1fr 90px 30px;
+}
+.settings-globals { margin-top: 0.4rem; display: flex; flex-direction: column; gap: 0.7rem; }
+.settings-globals-title {
+  grid-column: 1 / -1;
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 0.1rem;
+}
+.settings-divider {
+  border-top: 1px solid rgba(255,255,255,0.14);
+  margin: 0.9rem 0 0.5rem;
+}
+.settings-shift-input-wrap {
+  display: flex; align-items: center; gap: 4px;
+}
+.settings-shift-input {
+  width: 56px;
+  padding: 6px 8px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: ui-monospace, "SF Mono", "Menlo", monospace;
+  text-align: right;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.settings-shift-input::-webkit-inner-spin-button,
+.settings-shift-input::-webkit-outer-spin-button {
+  -webkit-appearance: none; margin: 0;
+}
+.settings-shift-input:focus { border-color: rgba(255,255,255,0.5); }
+.settings-shift-unit {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.6);
+}
+.settings-row-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.settings-row-disabled .settings-slider,
+.settings-row-disabled .settings-reset {
+  cursor: not-allowed;
+}
+/* Hide draggable thumb on locked rows — leave just track + ticks visible */
+.settings-row-disabled .settings-slider::-webkit-slider-thumb {
+  width: 0; height: 0; border: none; background: transparent;
+  box-shadow: none;
+}
+.settings-row-disabled .settings-slider::-moz-range-thumb {
+  width: 0; height: 0; border: none; background: transparent;
+}
+.settings-row-bucket {
+  /* Extra height for the bucket labels row below the slider */
+  align-items: start;
+  padding-bottom: 14px;
+}
+.settings-name {
+  font-size: 0.95rem;
+  color: rgba(255,255,255,0.9);
+  white-space: nowrap;
+}
+.settings-track-wrap {
+  position: relative;
+  height: 22px;
+  display: flex; align-items: center;
+}
+.settings-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 100%;
+  height: 5px;
+  background: rgba(255,255,255,0.18);
+  border-radius: 3px;
+  outline: none;
+  position: relative; z-index: 2;
+}
+.settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  border: 2px solid #2c2c2c;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.settings-slider::-moz-range-thumb {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  border: 2px solid #2c2c2c;
+}
+/* For-next-session shift sliders: muted grey thumb to distinguish from
+   per-channel handles */
+.settings-shift-slider::-webkit-slider-thumb {
+  background: #bbb;
+  border-color: #444;
+}
+.settings-shift-slider::-moz-range-thumb {
+  background: #bbb;
+  border-color: #444;
+}
+.settings-tick {
+  position: absolute;
+  top: 50%; transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 3;  /* above the slider track (z-index:2) so ticks are visible */
+}
+/* Per-row P/C ticks hidden — global P-shift / C-shift sliders at top of the
+   panel now express that concept as a single % rather than a per-channel position. */
+.settings-tick-p, .settings-tick-c { display: none; }
+/* Baseline tick: child's measured value — CSS-drawn 5-point star (no font/emoji
+   dependency, so iPad Safari can't replace it with a chunky emoji glyph). */
+.settings-tick-baseline {
+  width: 18px; height: 18px;
+  background: #ffd166;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  filter: drop-shadow(0 0 3px rgba(0,0,0,0.7));
+}
+.settings-bucket-labels,
+.settings-axis-labels {
+  position: absolute; left: 0; right: 0; top: 100%;
+  display: flex; justify-content: space-between;
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.55);
+  pointer-events: none;
+}
+/* Continuous channel rows that show axis-extreme labels need extra bottom room */
+.settings-row-axis {
+  align-items: start;
+  padding-bottom: 20px;
+}
+.settings-reset {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.55);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.settings-reset:hover { color: rgba(255,255,255,0.95); }
+.settings-footer {
+  margin-top: 0.9rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  display: flex; justify-content: flex-end;
+}
+.settings-reset-all {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.16);
+  color: rgba(255,255,255,0.92);
+  border-radius: 10px;
+  padding: 7px 14px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.settings-reset-all:hover { background: rgba(255,255,255,0.18); }
+
+/* ============================================
+   DIFFICULTY MODAL — pop-up before video plays
+   ============================================ */
+.difficulty-modal {
+  position: absolute; inset: 0;
+  z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+}
+.difficulty-modal.hidden { display: none; }
+.difficulty-dim {
+  position: absolute; inset: 0;
+  background: rgba(0, 0, 0, 0.62);
+  pointer-events: auto;
+}
+.difficulty-card-container {
+  position: relative;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 2rem 1.8rem;
+  max-width: 92%;
+  gap: 1.2rem;
+}
+.difficulty-title {
+  margin: 0;
+}
+.difficulty-subtitle {
+  margin: 0;
+  opacity: 0.85;
+}
+.difficulty-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.4rem;
+  width: 100%;
+  max-width: 880px;
+}
+.difficulty-card {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0.8rem;
+  min-height: 220px;
+  border-radius: 16px;
+  border: 1.5px solid #e0e0de;
+  background: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 1.4rem 1rem;
+  transition: transform 0.15s, border-color 0.2s, background 0.2s;
+}
+.difficulty-card:active { transform: scale(0.97); }
+.difficulty-emoji { font-size: 3.2rem; }
+.difficulty-name {
+  font-size: 1.1rem; font-weight: 600; color: #444;
+}
+.btn-difficulty-continue {
+  margin-top: 0.8rem;
+  padding: 12px 36px;
+  font-size: 1.1rem;
+  background: #2c2c2c; color: #fafafa;
+  border: none; border-radius: 12px;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+}
+.btn-difficulty-continue:disabled {
+  opacity: 0.3; pointer-events: none;
+}
+.btn-difficulty-continue:active { transform: scale(0.96); }

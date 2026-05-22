@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:opsz,ital,wght@9..144,0,500;9..144,1,500&family=Patrick+Hand&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=232">
-  <link rel="stylesheet" href="style-handdrawn.css?v=19">
+  <link rel="stylesheet" href="style.css?v=245">
+  <link rel="stylesheet" href="style-handdrawn.css?v=21">
 </head>
 <body>
 
@@ -319,6 +319,32 @@
       <video id="sense-video" playsinline preload="auto">
         <source src="video/birthday_party.mp4?v=1" type="video/mp4">
       </video>
+      <!-- Difficulty selection modal — pops up after intro transition, before video plays.
+           Lets the child choose Protective / Normal / Challenge based on the sensory
+           preview they just felt during the transition. See
+           docs/plans/2026-05-21-difficulty-system-ui-design.md -->
+      <div id="difficulty-modal" class="difficulty-modal hidden">
+        <div class="difficulty-dim"></div>
+        <div class="difficulty-card-container">
+          <h1 class="difficulty-title">Pick your video mode</h1>
+          <p class="difficulty-subtitle">There&rsquo;s no wrong answer.</p>
+          <div class="difficulty-grid">
+            <button class="difficulty-card" data-level="protective">
+              <span class="difficulty-emoji">&#128737;</span>
+              <span class="difficulty-name">Protective</span>
+            </button>
+            <button class="difficulty-card" data-level="normal">
+              <span class="difficulty-emoji">&#9679;</span>
+              <span class="difficulty-name">Normal</span>
+            </button>
+            <button class="difficulty-card" data-level="challenge">
+              <span class="difficulty-emoji">&#127919;</span>
+              <span class="difficulty-name">Challenge</span>
+            </button>
+          </div>
+          <button id="btn-difficulty-continue" class="btn-difficulty-continue" disabled>Continue</button>
+        </div>
+      </div>
       <!-- YouTube-style bottom control bar -->
       <div class="video-controls" id="video-controls">
         <!-- Progress bar (full width, top of bar) -->
@@ -349,43 +375,137 @@
         <div class="play-overlay-icon" id="play-overlay-icon">&#9654;</div>
       </div>
 
-      <!-- Settings panel (anchored to gear in control bar) -->
+      <!-- Settings panel — caregiver per-channel adjustment.
+           Triggered by #fab-dot gear in video controls. Each row shows the child's
+           baseline (★), protective tick (P), and challenge tick (C) on the track;
+           handle is the current effective value. Adjusting any row flags
+           condition_contaminated. Reset (↻) returns the handle to baseline. -->
       <div class="fab-control" id="fab-control">
         <div class="fab-panel hidden" id="fab-panel">
-          <div class="fab-section">
-            <div class="fab-level-label">Level</div>
-            <div class="fab-levels">
-              <button class="fab-level" data-level="1" title="Gentle — more filtered">&#128737;</button>
-              <button class="fab-level active" data-level="2" title="Baseline — child's own">&#9679;</button>
-              <button class="fab-level" data-level="3" title="Challenge — closer to real">&#127919;</button>
+          <div class="settings-panel-title">Adjust</div>
+          <div class="settings-rows" id="settings-rows">
+            <!-- Continuous channels -->
+            <div class="settings-row settings-row-axis" data-channel="brightness">
+              <span class="settings-name">Brightness</span>
+              <div class="settings-track-wrap">
+                <input type="range" class="settings-slider" data-channel="brightness" min="0" max="100" value="50">
+                <span class="settings-tick settings-tick-p"></span>
+                <span class="settings-tick settings-tick-baseline"></span>
+                <span class="settings-tick settings-tick-c"></span>
+                <div class="settings-axis-labels"><span>dim</span><span>bright</span></div>
+              </div>
+              <button class="settings-reset" data-channel="brightness" title="Reset to baseline">&#8634;</button>
+            </div>
+            <div class="settings-row settings-row-axis" data-channel="saturation">
+              <span class="settings-name">Saturation</span>
+              <div class="settings-track-wrap">
+                <input type="range" class="settings-slider" data-channel="saturation" min="0" max="100" value="50">
+                <span class="settings-tick settings-tick-p"></span>
+                <span class="settings-tick settings-tick-baseline"></span>
+                <span class="settings-tick settings-tick-c"></span>
+                <div class="settings-axis-labels"><span>muted</span><span>vivid</span></div>
+              </div>
+              <button class="settings-reset" data-channel="saturation" title="Reset to baseline">&#8634;</button>
+            </div>
+            <div class="settings-row settings-row-axis" data-channel="pitch">
+              <span class="settings-name">Pitch</span>
+              <div class="settings-track-wrap">
+                <input type="range" class="settings-slider" data-channel="pitch" min="0" max="100" value="50">
+                <span class="settings-tick settings-tick-p"></span>
+                <span class="settings-tick settings-tick-baseline"></span>
+                <span class="settings-tick settings-tick-c"></span>
+                <div class="settings-axis-labels"><span>muffled</span><span>bright</span></div>
+              </div>
+              <button class="settings-reset" data-channel="pitch" title="Reset to baseline">&#8634;</button>
+            </div>
+            <div class="settings-row settings-row-axis" data-channel="voice">
+              <span class="settings-name">Voice</span>
+              <div class="settings-track-wrap">
+                <input type="range" class="settings-slider" data-channel="voice" min="0" max="100" value="50">
+                <span class="settings-tick settings-tick-p"></span>
+                <span class="settings-tick settings-tick-baseline"></span>
+                <span class="settings-tick settings-tick-c"></span>
+                <div class="settings-axis-labels"><span>quiet</span><span>loud</span></div>
+              </div>
+              <button class="settings-reset" data-channel="voice" title="Reset to baseline">&#8634;</button>
+            </div>
+            <div class="settings-row settings-row-axis" data-channel="bgm">
+              <span class="settings-name">BGM</span>
+              <div class="settings-track-wrap">
+                <input type="range" class="settings-slider" data-channel="bgm" min="0" max="100" value="50">
+                <span class="settings-tick settings-tick-p"></span>
+                <span class="settings-tick settings-tick-baseline"></span>
+                <span class="settings-tick settings-tick-c"></span>
+                <div class="settings-axis-labels"><span>quiet</span><span>loud</span></div>
+              </div>
+              <button class="settings-reset" data-channel="bgm" title="Reset to baseline">&#8634;</button>
+            </div>
+            <div class="settings-row settings-row-axis" data-channel="sfx">
+              <span class="settings-name">SFX</span>
+              <div class="settings-track-wrap">
+                <input type="range" class="settings-slider" data-channel="sfx" min="0" max="100" value="50">
+                <span class="settings-tick settings-tick-p"></span>
+                <span class="settings-tick settings-tick-baseline"></span>
+                <span class="settings-tick settings-tick-c"></span>
+                <div class="settings-axis-labels"><span>quiet</span><span>loud</span></div>
+              </div>
+              <button class="settings-reset" data-channel="sfx" title="Reset to baseline">&#8634;</button>
+            </div>
+            <!-- Bucket channels — slider snaps to 3 positions for visual consistency -->
+            <!-- spatial is read-only (single video file per scene for now); slider disabled
+                 until per-spatial video assets are generated. -->
+            <div class="settings-row settings-row-bucket settings-row-disabled" data-channel="spatial" title="Locked — single video file across distances for now">
+              <span class="settings-name">Distance</span>
+              <div class="settings-track-wrap">
+                <input type="range" class="settings-slider" data-channel="spatial" min="0" max="100" step="50" value="50" disabled>
+                <span class="settings-tick settings-tick-p"></span>
+                <span class="settings-tick settings-tick-baseline"></span>
+                <span class="settings-tick settings-tick-c"></span>
+                <div class="settings-bucket-labels"><span>close</span><span>mid</span><span>far</span></div>
+              </div>
+              <button class="settings-reset" data-channel="spatial" title="Locked" disabled>&#8634;</button>
+            </div>
+            <!-- pacing locked along with spatial for now (greyed) -->
+            <div class="settings-row settings-row-bucket settings-row-disabled" data-channel="prep" title="Locked">
+              <span class="settings-name">Pacing</span>
+              <div class="settings-track-wrap">
+                <input type="range" class="settings-slider" data-channel="prep" min="0" max="100" step="50" value="50" disabled>
+                <span class="settings-tick settings-tick-p"></span>
+                <span class="settings-tick settings-tick-baseline"></span>
+                <span class="settings-tick settings-tick-c"></span>
+                <div class="settings-bucket-labels"><span>fast</span><span>normal</span><span>slow</span></div>
+              </div>
+              <button class="settings-reset" data-channel="prep" title="Locked" disabled>&#8634;</button>
             </div>
           </div>
-          <div class="fab-divider"></div>
-          <div class="fab-section">
-            <button class="fab-btn fab-btn-sm" id="fab-profile-toggle">&#9432; Profile</button>
+          <div class="settings-divider"></div>
+          <div class="settings-globals">
+            <div class="settings-globals-title">For next session</div>
+            <div class="settings-row settings-row-global" data-shift="protective">
+              <span class="settings-name">P shift</span>
+              <div class="settings-track-wrap">
+                <input type="range" class="settings-slider settings-shift-slider" data-shift="protective" min="0" max="40" step="1" value="15">
+              </div>
+              <div class="settings-shift-input-wrap">
+                <input type="number" class="settings-shift-input" data-shift="protective" min="0" max="40" step="1" value="15">
+                <span class="settings-shift-unit">%</span>
+              </div>
+              <button class="settings-reset settings-shift-reset" data-shift="protective" title="Reset to 15%">&#8634;</button>
+            </div>
+            <div class="settings-row settings-row-global" data-shift="challenge">
+              <span class="settings-name">C shift</span>
+              <div class="settings-track-wrap">
+                <input type="range" class="settings-slider settings-shift-slider" data-shift="challenge" min="0" max="20" step="1" value="5">
+              </div>
+              <div class="settings-shift-input-wrap">
+                <input type="number" class="settings-shift-input" data-shift="challenge" min="0" max="20" step="1" value="5">
+                <span class="settings-shift-unit">%</span>
+              </div>
+              <button class="settings-reset settings-shift-reset" data-shift="challenge" title="Reset to 5%">&#8634;</button>
+            </div>
           </div>
-          <!-- Sensory profile (hidden by default) -->
-          <div class="fab-profile hidden" id="fab-profile">
-            <div class="profile-row">
-              <span class="profile-icon">&#128266;</span>
-              <div class="profile-bar"><div class="profile-bar-fill" id="bar-auditory"></div></div>
-              <span class="profile-label" id="label-auditory">&mdash;</span>
-            </div>
-            <div class="profile-row">
-              <span class="profile-icon">&#128262;</span>
-              <div class="profile-bar"><div class="profile-bar-fill" id="bar-visual"></div></div>
-              <span class="profile-label" id="label-visual">&mdash;</span>
-            </div>
-            <div class="profile-row">
-              <span class="profile-icon">&#128100;</span>
-              <div class="profile-bar"><div class="profile-bar-fill" id="bar-spatial"></div></div>
-              <span class="profile-label" id="label-spatial">&mdash;</span>
-            </div>
-            <div class="profile-row">
-              <span class="profile-icon">&#9201;</span>
-              <div class="profile-bar"><div class="profile-bar-fill" id="bar-temporal"></div></div>
-              <span class="profile-label" id="label-temporal">&mdash;</span>
-            </div>
+          <div class="settings-footer">
+            <button class="settings-reset-all" id="settings-reset-all">&#8634; Reset all</button>
           </div>
         </div>
       </div>
@@ -426,65 +546,9 @@
         </div>
       </div>
 
-      <!-- Dev: per-sub-dimension sliders (0..1) for continuous A/B sweep.
-           Each slider overrides the canvas-derived input. Reset button on each row →
-           use canvas value (slider readout shows "—"). All five sub-dims are continuous
-           direct-mapping per spec; bucketed sub-dims (none yet) would use buttons. -->
-      <div id="dev-channel-panel" class="dev-channel-panel">
-        <div class="dev-cp-title">A/B sliders (Dev)</div>
-        <div class="dev-cp-grid">
-          <div class="dev-cp-row" data-sub="brightness">
-            <span class="dev-cp-name">Brightness</span>
-            <input type="range" class="dev-cp-slider" data-sub="brightness" min="0" max="100" value="50">
-            <span class="dev-cp-value" data-sub="brightness">&mdash;</span>
-            <button class="dev-cp-reset" data-sub="brightness" title="Use canvas value">&#8634;</button>
-          </div>
-          <div class="dev-cp-row" data-sub="saturation">
-            <span class="dev-cp-name">Saturation</span>
-            <input type="range" class="dev-cp-slider" data-sub="saturation" min="0" max="100" value="50">
-            <span class="dev-cp-value" data-sub="saturation">&mdash;</span>
-            <button class="dev-cp-reset" data-sub="saturation" title="Use canvas value">&#8634;</button>
-          </div>
-          <div class="dev-cp-row" data-sub="pitch">
-            <span class="dev-cp-name">Pitch</span>
-            <input type="range" class="dev-cp-slider" data-sub="pitch" min="0" max="100" value="50">
-            <span class="dev-cp-value" data-sub="pitch">&mdash;</span>
-            <button class="dev-cp-reset" data-sub="pitch" title="Use canvas value">&#8634;</button>
-          </div>
-          <div class="dev-cp-row" data-sub="voice">
-            <span class="dev-cp-name">Voice</span>
-            <input type="range" class="dev-cp-slider" data-sub="voice" min="0" max="100" value="100">
-            <span class="dev-cp-value" data-sub="voice">&mdash;</span>
-            <button class="dev-cp-reset" data-sub="voice" title="Use canvas value">&#8634;</button>
-          </div>
-          <div class="dev-cp-row" data-sub="bgm">
-            <span class="dev-cp-name">BGM</span>
-            <input type="range" class="dev-cp-slider" data-sub="bgm" min="0" max="100" value="100">
-            <span class="dev-cp-value" data-sub="bgm">&mdash;</span>
-            <button class="dev-cp-reset" data-sub="bgm" title="Use canvas value">&#8634;</button>
-          </div>
-          <div class="dev-cp-row" data-sub="sfx">
-            <span class="dev-cp-name">SFX</span>
-            <input type="range" class="dev-cp-slider" data-sub="sfx" min="0" max="100" value="100">
-            <span class="dev-cp-value" data-sub="sfx">&mdash;</span>
-            <button class="dev-cp-reset" data-sub="sfx" title="Use canvas value">&#8634;</button>
-          </div>
-          <div class="dev-cp-row dev-cp-row-bucket" data-sub="prep">
-            <span class="dev-cp-name">Prep interval</span>
-            <div class="dev-cp-buckets">
-              <button class="dev-cp-bucket-btn" data-sub="prep" data-bucket="hyper"   title="Hyper-sensitive · 0.5 s">0.5s</button>
-              <button class="dev-cp-bucket-btn" data-sub="prep" data-bucket="typical" title="Typical · 1.0 s">1.0s</button>
-              <button class="dev-cp-bucket-btn" data-sub="prep" data-bucket="hypo"    title="Hypo-sensitive · 1.5 s">1.5s</button>
-            </div>
-            <button class="dev-cp-reset" data-sub="prep" title="Use canvas value">&#8634;</button>
-          </div>
-          <div class="dev-cp-row dev-cp-all">
-            <span class="dev-cp-name">Reset</span>
-            <button class="dev-cp-reset dev-cp-reset-all" data-sub="all" title="Clear all overrides">&#8634; all</button>
-          </div>
-        </div>
-        <button id="dev-cp-rewind" class="dev-cp-rewind" title="Rewind 3 seconds">&#8630; rewind 3s</button>
-      </div>
+      <!-- Dev A/B panel removed 2026-05-21: superseded by the caregiver-facing
+           settings panel in #fab-panel (anchored to the gear icon in video controls).
+           See docs/plans/2026-05-21-difficulty-system-ui-design.md -->
     </div>
   </div>
 
@@ -581,6 +645,6 @@
     </defs>
   </svg>
 
-  <script src="app.js?v=245"></script>
+  <script src="app.js?v=250"></script>
 </body>
 </html>
