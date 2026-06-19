@@ -5354,17 +5354,12 @@ function initVideoPlayer() {
   playPause.onclick = togglePlay;
   overlay.onclick = togglePlay;
 
-  // Difficulty modal: blocks playback until the child picks a level. If a level was
-  // pre-set (e.g., dev console call), skip the modal entirely.
-  if (!state.difficultyLevel) {
-    setupDifficultyModal(() => {
-      // Auto-start playback once the child confirms — the Continue click satisfies
-      // the audio-context user-gesture requirement.
-      if (video.paused) togglePlay();
-    });
-  } else {
-    document.getElementById('difficulty-modal')?.classList.add('hidden');
-  }
+  // Difficulty modal removed from the demo flow. Playback now starts at baseline
+  // (state.difficultyLevel stays null → getEffectiveChannelValue falls through to
+  // the raw baseline). The child/caregiver presses play manually, as in the
+  // pre-set-difficulty path. setupDifficultyModal + difficulty logic are retained
+  // but no longer invoked here.
+  document.getElementById('difficulty-modal')?.classList.add('hidden');
 
   // Stem audio sync: <video> is muted; stem AudioBufferSources start/stop in lockstep
   // with the video. AudioBufferSourceNode is one-shot, so we restart on play/seek.

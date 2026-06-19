@@ -319,32 +319,9 @@
       <video id="sense-video" playsinline preload="auto">
         <source src="video/birthday_party.mp4?v=1" type="video/mp4">
       </video>
-      <!-- Difficulty selection modal — pops up after intro transition, before video plays.
-           Lets the child choose Protective / Normal / Challenge based on the sensory
-           preview they just felt during the transition. See
-           docs/plans/2026-05-21-difficulty-system-ui-design.md -->
-      <div id="difficulty-modal" class="difficulty-modal hidden">
-        <div class="difficulty-dim"></div>
-        <div class="difficulty-card-container">
-          <h1 class="difficulty-title">Pick your video mode</h1>
-          <p class="difficulty-subtitle">There&rsquo;s no wrong answer.</p>
-          <div class="difficulty-grid">
-            <button class="difficulty-card" data-level="protective">
-              <span class="difficulty-emoji">&#128737;</span>
-              <span class="difficulty-name">Protective</span>
-            </button>
-            <button class="difficulty-card" data-level="normal">
-              <span class="difficulty-emoji">&#9679;</span>
-              <span class="difficulty-name">Normal</span>
-            </button>
-            <button class="difficulty-card" data-level="challenge">
-              <span class="difficulty-emoji">&#127919;</span>
-              <span class="difficulty-name">Challenge</span>
-            </button>
-          </div>
-          <button id="btn-difficulty-continue" class="btn-difficulty-continue" disabled>Continue</button>
-        </div>
-      </div>
+      <!-- Difficulty selection modal removed — demo skips the "Pick your video mode"
+           step and plays at baseline. Difficulty logic in app.js is retained but
+           never triggered (state.difficultyLevel stays null = baseline). -->
       <!-- YouTube-style bottom control bar -->
       <div class="video-controls" id="video-controls">
         <!-- Progress bar (full width, top of bar) -->
@@ -645,6 +622,6 @@
     </defs>
   </svg>
 
-  <script src="app.js?v=250"></script>
+  <script src="app.js?v=251"></script>
 </body>
 </html>
