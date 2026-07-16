@@ -794,14 +794,14 @@ function setCanvasSubPhase(subPhase) {
     case 'color':
       document.getElementById('light-stage')?.classList.add('hidden');
       palette.classList.add('hidden');
-      // Don't enable drawing yet — wait for Color me tap
       colorToolbar.classList.add('hidden');
       colorCanvas.style.pointerEvents = 'none';
       elementLayer.style.pointerEvents = 'none';
-      // Show Color me hint after avatar loads
+      // Enter coloring directly (white mask + drawing). Short delay lets the
+      // color-stage scale-up settle and the avatar element mount.
       setTimeout(() => {
         if (state.canvasSubPhase === 'color') showColorHint();
-      }, 1500);
+      }, 400);
       break;
 
     case 'light':
@@ -918,11 +918,11 @@ function autoPlaceAvatar() {
     el.innerHTML = `<img src="${avatarSrc}" onerror="this.src='assets/avatar.svg'" style="background:transparent" />`;
   }
 
-  // Avatar proportional to canvas height (~40%)
+  // Avatar proportional to canvas height (~60%, +50% from prior 0.4)
   const container = document.getElementById('canvas-container');
   const cW = container.offsetWidth;
   const cH = container.offsetHeight;
-  const avatarSize = Math.round(cH * 0.4);
+  const avatarSize = Math.round(cH * 0.6);
   el.style.width = avatarSize + 'px';
   el.style.height = avatarSize + 'px';
 
@@ -2856,9 +2856,9 @@ function showColorHint() {
   const colorCanvas = document.getElementById('color-canvas');
   const colorToolbar = document.getElementById('color-toolbar');
 
-  // Show toolbar but keep canvas NOT intercepting clicks yet
+  // Enter coloring DIRECTLY: show toolbar, swap the avatar to its white line-art
+  // ("white mask"), and enable drawing — no "Color me!" tap step (per Yue 2026-06-29).
   colorToolbar.classList.remove('hidden');
-  colorCanvas.style.pointerEvents = 'none';  // hints need to be clickable first
   colorCanvas.classList.add('drawing-mode');
   colorCanvas.style.zIndex = '10';
   colorCanvas.style.mixBlendMode = 'multiply';
@@ -2866,108 +2866,45 @@ function showColorHint() {
   document.getElementById('element-layer').style.zIndex = '3';
   state._coloringActive = true;
 
-  // Add "Color me!" hint to AVATAR ONLY (per Yue 2026-05-07).
-  // Other placed items keep their original look during the color phase.
-  document.querySelectorAll('.canvas-element').forEach(el => {
-    if (el.id !== 'avatar-main') return;
-    const img = el.querySelector('img');
-    if (!img) return;
-
-    const hint = document.createElement('div');
-    hint.className = 'color-hint-overlay color-hint-item';
-    hint.innerHTML = `
-      <div class="color-hint-icon">🖍️</div>
-      <div class="color-hint-text">Color me!</div>
-    `;
-    hint.style.pointerEvents = 'auto';
-    hint.style.cursor = 'pointer';
-    hint.style.animationDelay = (Math.random() * 0.3) + 's';
-    hint._targetElement = el; // link hint to its element
-
-    // Position hint over the element but in canvas-container (above color-canvas)
-    const container = document.getElementById('canvas-container');
-    const cRect = container.getBoundingClientRect();
-    const eRect = el.getBoundingClientRect();
-    hint.style.position = 'absolute';
-    hint.style.left = (eRect.left - cRect.left + eRect.width / 2) + 'px';
-    hint.style.top = (eRect.top - cRect.top + eRect.height / 2) + 'px';
-    hint.style.transform = 'translate(-50%, -50%)';
-    container.appendChild(hint);
-
-    // Tap → swap THIS element to lineart
-    hint.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      if (el.dataset.swappedToLineart) { hint.remove(); checkAllHintsDone(); return; }
-      el.dataset.swappedToLineart = '1';
-      el.dataset.originalSrc = img.src;
-
-      if (el.id === 'avatar-main') {
-        img.style.filter = '';
-        const usingCustomPhoto = state.childPhoto && !state.childPhoto.includes('test_avatar');
-        if (usingCustomPhoto) {
-          if (state.childAvatarLineart) {
-            // Pre-generated lineart is ready — swap immediately.
-            img.src = state.childAvatarLineart;
-          } else {
-            // Pre-generation still in flight (or the photo step skipped pre-gen).
-            // Show a loading shimmer over the avatar while we wait for the
-            // server response, then swap. Falls back to client pixel algo on error.
-            const loading = document.createElement('div');
-            loading.className = 'avatar-lineart-loading';
-            loading.innerHTML = '<span>✨</span>';
-            el.appendChild(loading);
-            const promise = state._lineartPromise || generateLineartViaApi(state.childPhoto);
-            promise
-              .then(url => url || generateLineart(state.childPhoto))
-              .catch(() => generateLineart(state.childPhoto))
-              .then(url => {
-                state.childAvatarLineart = url;
-                img.src = url;
-                loading.remove();
-              });
-          }
-        } else {
-          img.src = 'assets/test_avatar_lineart.png?v=' + Date.now();
-        }
+  // Swap AVATAR ONLY to line-art immediately. Other placed items keep their look.
+  const el = document.getElementById('avatar-main');
+  const img = el && el.querySelector('img');
+  if (el && img && !el.dataset.swappedToLineart) {
+    el.dataset.swappedToLineart = '1';
+    el.dataset.originalSrc = img.src;
+    img.style.filter = '';
+    const usingCustomPhoto = state.childPhoto && !state.childPhoto.includes('test_avatar');
+    if (usingCustomPhoto) {
+      if (state.childAvatarLineart) {
+        // Pre-generated lineart is ready — swap immediately.
+        img.src = state.childAvatarLineart;
       } else {
-        const src = img.src.split('?')[0];
-        const lineartSrc = src.replace('.png', '_lineart.png');
-        const testImg = new Image();
-        testImg.onload = () => { img.src = lineartSrc + '?v=' + Date.now(); };
-        testImg.onerror = () => {
-          generateLineart(el.dataset.originalSrc).then(url => { img.src = url; });
-        };
-        testImg.src = lineartSrc + '?v=' + Date.now();
+        // Pre-generation still in flight — show a loading shimmer, then swap.
+        const loading = document.createElement('div');
+        loading.className = 'avatar-lineart-loading';
+        loading.innerHTML = '<span>✨</span>';
+        el.appendChild(loading);
+        const promise = state._lineartPromise || generateLineartViaApi(state.childPhoto);
+        promise
+          .then(url => url || generateLineart(state.childPhoto))
+          .catch(() => generateLineart(state.childPhoto))
+          .then(url => {
+            state.childAvatarLineart = url;
+            img.src = url;
+            loading.remove();
+          });
       }
-      hint.remove();
-      checkAllHintsDone();
-    });
-  });
-
-  // When all hints are clicked, enable drawing on the canvas
-  function checkAllHintsDone() {
-    const remaining = document.querySelectorAll('.color-hint-item').length;
-    if (remaining === 0) {
-      enableDrawing();
+    } else {
+      img.src = 'assets/test_avatar_lineart.png?v=' + Date.now();
     }
   }
 
-  function enableDrawing() {
-    colorCanvas.style.pointerEvents = 'auto';
-    const elLayer = document.getElementById('element-layer');
-    elLayer.style.zIndex = '3';
-    elLayer.style.pointerEvents = 'none';
-    setTimeout(updateCrayonCursor, 50);
-  }
-
-  // Also allow user to start drawing by tapping empty canvas area
-  // (enable drawing but keep remaining hints — don't auto-swap)
-  const startDrawing = (e) => {
-    if (e.target.closest('.color-hint-item')) return; // don't trigger on hint clicks
-    enableDrawing();
-    document.getElementById('canvas-container').removeEventListener('pointerdown', startDrawing);
-  };
-  document.getElementById('canvas-container').addEventListener('pointerdown', startDrawing);
+  // Enable drawing on the canvas right away.
+  colorCanvas.style.pointerEvents = 'auto';
+  const elLayer = document.getElementById('element-layer');
+  elLayer.style.zIndex = '3';
+  elLayer.style.pointerEvents = 'none';
+  setTimeout(updateCrayonCursor, 50);
 }
 
 function hideColorHint() {
@@ -4893,13 +4830,41 @@ let videoGain = null;          // legacy — replaced by per-stem gains
 // AudioBufferSourceNodes that feed dedicated gain nodes → mixer → lowpass → master.
 // The <video> element is muted; audio comes only through the Web Audio graph.
 const STEM_KEYS = ['voice', 'bgm', 'sfx'];
-const STEM_FILES = { voice: 'video/vocals.wav', bgm: 'video/bgm.wav', sfx: 'video/drums.wav' };
+// Per-event 3-stem audio. Each event has its own voice/bgm/sfx .wav alongside the video.
+// birthday keeps its original Demucs filenames; other events follow the
+// {event}_{stem}.wav convention (e.g. video/dental_voice.wav). Stems should match the
+// video's duration; they start at the video offset and are cut when the video ends.
+const STEM_FILES_BY_EVENT = {
+  birthday: { voice: 'video/vocals.wav',        bgm: 'video/bgm.wav',         sfx: 'video/drums.wav' },
+  dental:   { voice: 'video/dental_voice.wav',  bgm: 'video/dental_bgm.wav',  sfx: 'video/dental_sfx.wav' },
+  grocery:  { voice: 'video/grocery_voice.wav', bgm: 'video/grocery_bgm.wav', sfx: 'video/grocery_sfx.wav' },
+  dining:   { voice: 'video/dining_voice.wav',  bgm: 'video/dining_bgm.wav',  sfx: 'video/dining_sfx.wav' },
+};
+function stemFilesFor(eventType) {
+  return STEM_FILES_BY_EVENT[eventType] || STEM_FILES_BY_EVENT.birthday;
+}
 let stemBuffers = { voice: null, bgm: null, sfx: null };
 let stemGains   = { voice: null, bgm: null, sfx: null };
 let stemSources = { voice: null, bgm: null, sfx: null };
 let stemMixer = null;   // GainNode summing the 3 stem chains
 let stemsLoading = null; // Promise — resolved when all 3 buffers decoded
 let stemsPlaying = false;
+
+// Per-event priming videos. Each scenario plays its own full Veo render. The video
+// files carry no audio track — auditory personalization comes from 3 separate stems
+// per event (see STEM_FILES_BY_EVENT), mixed through videoLowpass.
+const VIDEO_BY_EVENT = {
+  dental:  'video/dental.mp4',
+  grocery: 'video/grocery.mp4',
+  dining:  'video/dining.mp4',
+};
+const DEFAULT_VIDEO = 'video/birthday_party.mp4';
+// Events with 3-stem (voice/bgm/sfx) audio. Unknown events fall back to the
+// embedded-audio path in setupVideoAudioChain.
+const EVENT_HAS_STEMS = { birthday: true, dental: true, grocery: true, dining: true };
+let mediaElementSource = null; // MediaElementSourceNode for non-stem event videos
+let audioChainBuilt = false;   // guards setupVideoAudioChain re-entry
+
 // Temporal markers (% of duration) excluding 22% which is S2 pause
 const TEMPORAL_MARKERS = [42, 61, 81];
 let temporalMarkersFired = new Set();
@@ -5296,18 +5261,11 @@ function initVideoPlayer() {
 
   const video = document.getElementById('sense-video');
 
-  // Select video based on spatial preference (friend distance)
-  // PLACEHOLDER: all 3 slots point to birthday_party.mp4 (Veo full birthday party
-  // render, 53s) until per-spatial assets are generated. Spatial selection logic
-  // preserved. Demucs stems for this file live alongside as vocals/bgm/drums.wav
-  // — multi-stem audio player wiring TBD.
+  // Select priming video by scenario (dental / grocery / dining). Each event has its
+  // own full Veo render; spatial-perspective variants are not yet generated, so the
+  // spatial score is logged for analysis but does not switch files.
   const spatialScore = videoPreferences.spatial.score;
-  let videoFile = 'video/birthday_party.mp4'; // baseline (medium)
-  if (spatialScore > 0.65) {
-    videoFile = 'video/birthday_party.mp4';   // child placed friends far → show far perspective
-  } else if (spatialScore < 0.35) {
-    videoFile = 'video/birthday_party.mp4';   // child placed friends close → show near perspective
-  }
+  let videoFile = VIDEO_BY_EVENT[state.eventType] || DEFAULT_VIDEO;
   videoFile += '?v=1';  // cache-bust when video content is updated
   const source = video.querySelector('source');
   if (source && source.src !== videoFile) {
@@ -5361,11 +5319,12 @@ function initVideoPlayer() {
   // but no longer invoked here.
   document.getElementById('difficulty-modal')?.classList.add('hidden');
 
-  // Stem audio sync: <video> is muted; stem AudioBufferSources start/stop in lockstep
-  // with the video. AudioBufferSourceNode is one-shot, so we restart on play/seek.
-  video.muted = true;
+  // Audio sync. Birthday uses Demucs stems (video muted; AudioBufferSources start/stop
+  // in lockstep). Event videos play their own embedded audio (muted state set by
+  // setupVideoAudioChain), so the stem hooks become no-ops for them.
+  const usesStems = !!EVENT_HAS_STEMS[state.eventType];
   const stemKickoff = () => {
-    if (video.paused) return;
+    if (!usesStems || video.paused) return;
     if (stemBuffers.voice || stemBuffers.bgm || stemBuffers.sfx) {
       startStems(video.currentTime);
     } else if (stemsLoading) {
@@ -5373,8 +5332,8 @@ function initVideoPlayer() {
     }
   };
   video.onplay   = stemKickoff;
-  video.onpause  = () => stopStems();
-  video.onseeked = () => { if (!video.paused) stemKickoff(); else stopStems(); };
+  video.onpause  = () => { if (usesStems) stopStems(); };
+  video.onseeked = () => { if (!usesStems) return; if (!video.paused) stemKickoff(); else stopStems(); };
 
   // Time update
   video.ontimeupdate = () => {
@@ -5610,7 +5569,7 @@ function applyVideoPreferences() {
 //   3 × AudioBufferSourceNode (voice/bgm/sfx) → 3 × GainNode → stemMixer → lowpass → destination
 // The <video> element itself is muted; audio comes only through this graph.
 function setupVideoAudioChain(videoEl) {
-  if (stemMixer) return; // already built
+  if (audioChainBuilt) return; // already built (lowpass persists across event videos)
   try {
     if (!state.audioCtx) {
       state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -5618,30 +5577,36 @@ function setupVideoAudioChain(videoEl) {
     const ctx = state.audioCtx;
     if (ctx.state === 'suspended') ctx.resume();
 
-    // Per-stem gain nodes (sources are created fresh each playback in startStems)
-    STEM_KEYS.forEach(k => {
-      const g = ctx.createGain();
-      g.gain.value = 1.0;
-      stemGains[k] = g;
-    });
-    stemMixer = ctx.createGain();
-    stemMixer.gain.value = 1.0;
-    STEM_KEYS.forEach(k => stemGains[k].connect(stemMixer));
-
+    // Shared lowpass (auditory personalization) — both paths feed into it → destination.
     videoLowpass = ctx.createBiquadFilter();
     videoLowpass.type = 'lowpass';
     videoLowpass.frequency.value = 20000;
     videoLowpass.Q.value = 0.7;
-    stemMixer.connect(videoLowpass);
     videoLowpass.connect(ctx.destination);
 
-    // Mute the video element — all audio routes through stems now.
-    videoEl.muted = true;
-
-    // Kick off the async decode of all 3 stems (idempotent on re-entry).
-    loadStems(ctx);
+    if (EVENT_HAS_STEMS[state.eventType]) {
+      // Birthday path: 3 stem buffer sources → gains → mixer → lowpass. Video muted.
+      STEM_KEYS.forEach(k => {
+        const g = ctx.createGain();
+        g.gain.value = 1.0;
+        stemGains[k] = g;
+      });
+      stemMixer = ctx.createGain();
+      stemMixer.gain.value = 1.0;
+      STEM_KEYS.forEach(k => stemGains[k].connect(stemMixer));
+      stemMixer.connect(videoLowpass);
+      videoEl.muted = true;
+      loadStems(ctx); // async decode of the 3 stems
+    } else {
+      // Event videos: route the file's own embedded audio through the lowpass.
+      // createMediaElementSource is one-shot per element, guarded by audioChainBuilt.
+      mediaElementSource = ctx.createMediaElementSource(videoEl);
+      mediaElementSource.connect(videoLowpass);
+      videoEl.muted = false;
+    }
+    audioChainBuilt = true;
   } catch (e) {
-    console.warn('Multi-stem audio routing failed:', e);
+    console.warn('Video audio routing failed:', e);
     stemMixer = null;
     videoLowpass = null;
   }
@@ -5649,9 +5614,10 @@ function setupVideoAudioChain(videoEl) {
 
 function loadStems(ctx) {
   if (stemsLoading) return stemsLoading;
+  const files = stemFilesFor(state.eventType);
   stemsLoading = Promise.all(STEM_KEYS.map(async (k) => {
     try {
-      const res = await fetch(STEM_FILES[k] + '?v=1');
+      const res = await fetch(files[k] + '?v=1');
       const buf = await res.arrayBuffer();
       stemBuffers[k] = await ctx.decodeAudioData(buf);
       console.log('[stems] loaded', k, stemBuffers[k].duration.toFixed(2) + 's');
