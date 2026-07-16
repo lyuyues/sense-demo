@@ -51,3 +51,15 @@ when the video ends). Missing files 404 gracefully → that channel is silent.
   git push origin main
   ```
   Confirm the working tree has no un-committed `app.js`/`index.html` edits before pulling.
+
+## Audio credits
+
+Per-event background music (`{event}_bgm.m4a`), trimmed to each video's length and
+mixed to background level (~-25 dB), by **Kevin MacLeod** (incompetech.com),
+licensed under **Creative Commons Attribution 4.0**:
+- grocery — "Local Forecast - Elevator"
+- dining — "Bossa Antigua"
+- dental — "Healing"
+
+Voice/SFX stems are separated from the Veo renders; bgm above replaces the generic
+Veo music per scenario.

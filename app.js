@@ -5617,7 +5617,7 @@ function loadStems(ctx) {
   const files = stemFilesFor(state.eventType);
   stemsLoading = Promise.all(STEM_KEYS.map(async (k) => {
     try {
-      const res = await fetch(files[k] + '?v=1');
+      const res = await fetch(files[k] + '?v=2');
       const buf = await res.arrayBuffer();
       stemBuffers[k] = await ctx.decodeAudioData(buf);
       console.log('[stems] loaded', k, stemBuffers[k].duration.toFixed(2) + 's');
