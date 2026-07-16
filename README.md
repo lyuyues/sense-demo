@@ -25,17 +25,17 @@ auditory channels, mixed through a shared lowpass for auditory personalization.
 
 Naming convention (files live in `video/`, names must match **exactly**):
 - **birthday**: `vocals.wav` / `bgm.wav` / `drums.wav` (Demucs output)
-- **others**: `{event}_{stem}.flac` —
-  - `dental_voice.flac`, `dental_bgm.flac`, `dental_sfx.flac`
-  - `grocery_voice.flac`, `grocery_bgm.flac`, `grocery_sfx.flac`
-  - `dining_voice.flac`, `dining_bgm.flac`, `dining_sfx.flac`
+- **others**: `{event}_{stem}.m4a` —
+  - `dental_voice.m4a`, `dental_bgm.m4a`, `dental_sfx.m4a`
+  - `grocery_voice.m4a`, `grocery_bgm.m4a`, `grocery_sfx.m4a`
+  - `dining_voice.m4a`, `dining_bgm.m4a`, `dining_sfx.m4a`
 
 Source stems come as `dialogue` / `bgm` / `env` per event → renamed to the demo's
 channel keys: **dialogue→voice, bgm→bgm, env→sfx**.
 
 Each stem's duration should match its video (stems start at the video offset and are cut
 when the video ends). Missing files 404 gracefully → that channel is silent.
-`decodeAudioData` accepts `.flac`/`.wav`/`.mp3`/`.m4a` — change the extensions in
+`decodeAudioData` accepts `.m4a`/`.wav`/`.mp3`/`.m4a` — change the extensions in
 `STEM_FILES_BY_EVENT` if the format changes.
 
 ## Two-machine workflow

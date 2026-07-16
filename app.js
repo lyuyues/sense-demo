@@ -4832,13 +4832,13 @@ let videoGain = null;          // legacy — replaced by per-stem gains
 const STEM_KEYS = ['voice', 'bgm', 'sfx'];
 // Per-event 3-stem audio. Each event has its own voice/bgm/sfx .wav alongside the video.
 // birthday keeps its original Demucs filenames; other events follow the
-// {event}_{stem}.flac convention (e.g. video/dental_voice.flac). Stems should match the
+// {event}_{stem}.m4a convention (e.g. video/dental_voice.m4a). Stems should match the
 // video's duration; they start at the video offset and are cut when the video ends.
 const STEM_FILES_BY_EVENT = {
   birthday: { voice: 'video/vocals.wav',         bgm: 'video/bgm.wav',          sfx: 'video/drums.wav' },
-  dental:   { voice: 'video/dental_voice.flac',  bgm: 'video/dental_bgm.flac',  sfx: 'video/dental_sfx.flac' },
-  grocery:  { voice: 'video/grocery_voice.flac', bgm: 'video/grocery_bgm.flac', sfx: 'video/grocery_sfx.flac' },
-  dining:   { voice: 'video/dining_voice.flac',  bgm: 'video/dining_bgm.flac',  sfx: 'video/dining_sfx.flac' },
+  dental:   { voice: 'video/dental_voice.m4a',  bgm: 'video/dental_bgm.m4a',  sfx: 'video/dental_sfx.m4a' },
+  grocery:  { voice: 'video/grocery_voice.m4a', bgm: 'video/grocery_bgm.m4a', sfx: 'video/grocery_sfx.m4a' },
+  dining:   { voice: 'video/dining_voice.m4a',  bgm: 'video/dining_bgm.m4a',  sfx: 'video/dining_sfx.m4a' },
 };
 function stemFilesFor(eventType) {
   return STEM_FILES_BY_EVENT[eventType] || STEM_FILES_BY_EVENT.birthday;
