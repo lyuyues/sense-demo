@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SENSE · All Videos & Stems</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+         background:#0f1115; color:#e7e9ee; padding:20px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:#9aa0ad; margin:0 0 20px; font-size:13px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:18px; }
+  .card { background:#181b22; border:1px solid #262b36; border-radius:14px; padding:14px; }
+  .card h2 { font-size:16px; margin:0 0 2px; display:flex; align-items:center; gap:8px; }
+  .meta { color:#8b93a3; font-size:12px; margin:0 0 10px; }
+  video { width:100%; border-radius:10px; background:#000; display:block; }
+  .stems { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+  .stemrow { display:flex; align-items:center; gap:8px; }
+  button { font:inherit; font-size:13px; border:1px solid #3a4151; background:#232834; color:#e7e9ee;
+           border-radius:8px; padding:5px 10px; cursor:pointer; }
+  button:hover { background:#2c3240; }
+  button.mix { background:#2b3d59; border-color:#3d5a86; }
+  button.stop { background:#4a2530; border-color:#7a3b47; }
+  .stemname { width:52px; color:#c3c9d6; }
+  .status { font-size:12px; color:#8b93a3; min-width:96px; }
+  .status.ok { color:#5ad18a; }
+  .status.fail { color:#ff7a7a; }
+  .section-title { grid-column:1/-1; font-size:13px; text-transform:uppercase; letter-spacing:.06em;
+                   color:#7a8296; margin:14px 0 -4px; }
+  .bar { position:sticky; top:0; background:#0f1115; padding:8px 0 12px; z-index:5; }
+</style>
+</head>
+<body>
+<h1>SENSE · Videos &amp; Audio Stems</h1>
+<p class="sub">Every video in the demo. For dental / grocery / dining, tap a stem to decode &amp; play it through Web Audio (same path as the demo) — this tests whether that stem plays on <em>this</em> device.</p>
+<div class="bar"><button class="stop" onclick="stopAll()">■ Stop all audio</button></div>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const EVENTS = [
+  { key:'dental',  emoji:'🦷', label:'Dental Visit',  ext:'m4a' },
+  { key:'grocery', emoji:'🛒', label:'Grocery Store', ext:'m4a' },
+  { key:'dining',  emoji:'🍽️', label:'Dining Out',    ext:'m4a' },
+];
+const BIRTHDAY = { key:'birthday', emoji:'🎂', label:'Birthday (test)', video:'birthday_party.mp4',
+                   stems:{ voice:'vocals.wav', bgm:'bgm.wav', sfx:'drums.wav' } };
+const OTHER = [
+  { file:'intro_transition.mp4', label:'Intro transition' },
+  { file:'base_50s.mp4',    label:'Base 50s' },
+  { file:'base_near.mp4',   label:'Base · near' },
+  { file:'base_medium.mp4', label:'Base · medium' },
+  { file:'base_far.mp4',    label:'Base · far' },
+];
+
+let ctx = null;
+const active = [];
+function actx(){ if(!ctx) ctx = new (window.AudioContext||window.webkitAudioContext)(); if(ctx.state==='suspended') ctx.resume(); return ctx; }
+function stopAll(){ active.splice(0).forEach(s=>{ try{s.stop();}catch(e){} }); }
+const cache = {};
+async function decode(url){ if(cache[url]) return cache[url]; const b = await (await fetch(url)).arrayBuffer(); cache[url] = await actx().decodeAudioData(b); return cache[url]; }
+
+async function playStem(url, statusEl){
+  statusEl.className='status'; statusEl.textContent='loading…';
+  try{
+    const buf = await decode(url);
+    const src = actx().createBufferSource(); src.buffer = buf; src.connect(actx().destination); src.start();
+    active.push(src); src.onended = ()=>{ statusEl.textContent='done'; };
+    statusEl.className='status ok'; statusEl.textContent='▶ OK '+buf.duration.toFixed(1)+'s';
+  }catch(e){ statusEl.className='status fail'; statusEl.textContent='FAIL '+(e&&e.name||e); }
+}
+async function playMix(urls, statusEl){
+  statusEl.className='status'; statusEl.textContent='loading…';
+  try{
+    const bufs = await Promise.all(urls.map(decode));
+    const t = actx().currentTime + 0.05;
+    bufs.forEach(b=>{ const s=actx().createBufferSource(); s.buffer=b; s.connect(actx().destination); s.start(t); active.push(s); });
+    statusEl.className='status ok'; statusEl.textContent='▶ mix OK';
+  }catch(e){ statusEl.className='status fail'; statusEl.textContent='FAIL '+(e&&e.name||e); }
+}
+
+function stemRow(prefix, name, file){
+  const url = 'video/'+file;
+  const row = document.createElement('div'); row.className='stemrow';
+  const b = document.createElement('button'); b.textContent='▶ '+name;
+  const nm = document.createElement('span'); nm.className='stemname'; nm.style.width='auto';
+  const st = document.createElement('span'); st.className='status'; st.textContent='—';
+  b.onclick = ()=>playStem(url, st);
+  row.append(b, st);
+  return { row, url };
+}
+
+function eventCard(ev){
+  const card = document.createElement('div'); card.className='card';
+  card.innerHTML = `<h2>${ev.emoji} ${ev.label}</h2><p class="meta">video/${ev.key}.mp4 · stems .${ev.ext}</p>`;
+  const v = document.createElement('video'); v.src='video/'+ev.key+'.mp4'; v.controls=true; v.muted=true; v.playsInline=true; v.preload='metadata';
+  card.appendChild(v);
+  const stems = document.createElement('div'); stems.className='stems';
+  const urls = [];
+  ['voice','bgm','sfx'].forEach(n=>{ const {row,url} = stemRow(ev.key, n, ev.key+'_'+n+'.'+ev.ext); stems.appendChild(row); urls.push(url); });
+  const mixRow = document.createElement('div'); mixRow.className='stemrow';
+  const mixBtn = document.createElement('button'); mixBtn.className='mix'; mixBtn.textContent='▶ all 3 (mix)';
+  const mixSt = document.createElement('span'); mixSt.className='status'; mixSt.textContent='—';
+  mixBtn.onclick = ()=>playMix(urls, mixSt);
+  mixRow.append(mixBtn, mixSt); stems.appendChild(mixRow);
+  card.appendChild(stems);
+  return card;
+}
+function birthdayCard(b){
+  const card = document.createElement('div'); card.className='card';
+  card.innerHTML = `<h2>${b.emoji} ${b.label}</h2><p class="meta">video/${b.video} · stems .wav</p>`;
+  const v = document.createElement('video'); v.src='video/'+b.video; v.controls=true; v.muted=true; v.playsInline=true; v.preload='metadata';
+  card.appendChild(v);
+  const stems = document.createElement('div'); stems.className='stems'; const urls=[];
+  Object.entries(b.stems).forEach(([n,f])=>{ const {row,url}=stemRow('birthday',n,f); stems.appendChild(row); urls.push(url); });
+  const mixRow=document.createElement('div'); mixRow.className='stemrow';
+  const mixBtn=document.createElement('button'); mixBtn.className='mix'; mixBtn.textContent='▶ all 3 (mix)';
+  const mixSt=document.createElement('span'); mixSt.className='status'; mixSt.textContent='—';
+  mixBtn.onclick=()=>playMix(urls,mixSt); mixRow.append(mixBtn,mixSt); stems.appendChild(mixRow);
+  card.appendChild(stems); return card;
+}
+function plainCard(o){
+  const card=document.createElement('div'); card.className='card';
+  card.innerHTML=`<h2>${o.label}</h2><p class="meta">video/${o.file}</p>`;
+  const v=document.createElement('video'); v.src='video/'+o.file; v.controls=true; v.playsInline=true; v.preload='metadata';
+  card.appendChild(v); return card;
+}
+
+const grid=document.getElementById('grid');
+function title(t){ const d=document.createElement('div'); d.className='section-title'; d.textContent=t; grid.appendChild(d); }
+title('Priming videos (video + 3 stems)');
+EVENTS.forEach(ev=>grid.appendChild(eventCard(ev)));
+grid.appendChild(birthdayCard(BIRTHDAY));
+title('Other videos');
+OTHER.forEach(o=>grid.appendChild(plainCard(o)));
+</script>
+</body>
+</html>
