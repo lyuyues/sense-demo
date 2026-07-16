@@ -5893,7 +5893,138 @@ const WRAPUP_QUESTIONS = {
       revealSegment: 0.78,
     },
   ],
-  // Other events fall back to birthday until per-event videos + scripts exist.
+  grocery: [
+    {
+      anchor: 'After the doors slide open',
+      options: [
+        { label: 'Pick up a basket', emoji: '🧺', canonical: true },
+        { label: 'Look at the shelves', emoji: '👀' },
+        { label: 'Wave to the door', emoji: '👋' },
+      ],
+      revealSegment: 0.15,
+    },
+    {
+      anchor: 'While walking through the aisles',
+      options: [
+        { label: 'Put an item in the basket', emoji: '🥫', canonical: true },
+        { label: 'Skip to the next aisle', emoji: '🦶' },
+        { label: 'Count the lights', emoji: '💡' },
+      ],
+      revealSegment: 0.35,
+    },
+    {
+      anchor: 'When you reach the checkout',
+      options: [
+        { label: 'Wait in the line', emoji: '🧍', canonical: true },
+        { label: 'Look out the window', emoji: '🪟' },
+        { label: 'Hum a little song', emoji: '🎵' },
+      ],
+      revealSegment: 0.55,
+    },
+    {
+      anchor: 'At the counter',
+      options: [
+        { label: 'The cashier beeps each item', emoji: '🔊', canonical: true },
+        { label: 'The cashier gives a balloon', emoji: '🎈' },
+        { label: 'The lights turn blue', emoji: '🔵' },
+      ],
+      revealSegment: 0.72,
+    },
+  ],
+  dental: [
+    {
+      anchor: 'When the dentist waves hello',
+      options: [
+        { label: 'Walk in and follow', emoji: '🚶', canonical: true },
+        { label: 'Wave back first', emoji: '👋' },
+        { label: 'Look at the pictures', emoji: '🖼️' },
+      ],
+      revealSegment: 0.15,
+    },
+    {
+      anchor: 'After you sit in the chair',
+      options: [
+        { label: 'A soft bib goes on', emoji: '🧣', canonical: true },
+        { label: 'You get a pillow', emoji: '🛏️' },
+        { label: 'You put on a hat', emoji: '🧢' },
+      ],
+      revealSegment: 0.35,
+    },
+    {
+      anchor: 'When the bright light tilts down',
+      options: [
+        { label: 'A little mirror checks your teeth', emoji: '🪞', canonical: true },
+        { label: 'You get sunglasses', emoji: '🕶️' },
+        { label: 'The chair spins around', emoji: '🌀' },
+      ],
+      revealSegment: 0.55,
+    },
+    {
+      anchor: 'After the mirror check',
+      options: [
+        { label: 'A soft brush buzzes gently', emoji: '🪥', canonical: true },
+        { label: 'A soft song plays', emoji: '🎵' },
+        { label: 'You get a drink', emoji: '🥤' },
+      ],
+      revealSegment: 0.72,
+    },
+    {
+      anchor: 'When the polishing ends',
+      options: [
+        { label: 'You get a sticker reward', emoji: '⭐', canonical: true },
+        { label: 'You wave goodbye', emoji: '👋' },
+        { label: 'You pick a new toothbrush', emoji: '🪥' },
+      ],
+      revealSegment: 0.9,
+    },
+  ],
+  dining: [
+    {
+      anchor: 'After you push the door open',
+      options: [
+        { label: 'Walk up to the counter', emoji: '🚶', canonical: true },
+        { label: 'Look at the menu board', emoji: '📋' },
+        { label: 'Wave to the cashier', emoji: '👋' },
+      ],
+      revealSegment: 0.15,
+    },
+    {
+      anchor: 'When you reach the menu board',
+      options: [
+        { label: 'Look up and choose', emoji: '🍽️', canonical: true },
+        { label: 'Sit down first', emoji: '🪑' },
+        { label: 'Count the pictures', emoji: '🔢' },
+      ],
+      revealSegment: 0.35,
+    },
+    {
+      anchor: 'At the register',
+      options: [
+        { label: 'It makes a soft ka-ching', emoji: '🔊', canonical: true },
+        { label: 'A soft song plays', emoji: '🎵' },
+        { label: 'A light blinks once', emoji: '💡' },
+      ],
+      revealSegment: 0.55,
+    },
+    {
+      anchor: 'After you take your tray',
+      options: [
+        { label: 'Carry it to a table and sit', emoji: '🍱', canonical: true },
+        { label: 'Wave to the cashier', emoji: '👋' },
+        { label: 'Look for a window seat', emoji: '🪟' },
+      ],
+      revealSegment: 0.72,
+    },
+    {
+      anchor: 'Once you are seated',
+      options: [
+        { label: 'Take a sip and a small bite', emoji: '🥪', canonical: true },
+        { label: 'Look around the room', emoji: '👀' },
+        { label: 'Wait a little longer', emoji: '⏳' },
+      ],
+      revealSegment: 0.9,
+    },
+  ],
 };
 
 function pickWrapupQuestion(eventType) {
@@ -5911,10 +6042,9 @@ function initWrapupScreen() {
     state.wrapupStrategy = null;
     state.wrapupFeeling  = null;
     state.wrapupRevealed = false;
-    // Pick a fresh question from the event's pool. Pinned to 'birthday' for now
-    // because the demo's playing video is birthday_party.mp4 regardless of
-    // Stage-1 event selection (until per-event videos are rendered).
-    state.wrapupQuestion = pickWrapupQuestion('birthday');
+    // Pick a fresh question from the current event's pool (grocery/dental/dining
+    // now have their own; other events fall back to birthday inside pickWrapupQuestion).
+    state.wrapupQuestion = pickWrapupQuestion(state.eventType);
 
     document.querySelectorAll('#wrapup-strategy-grid .wrapup-card').forEach(c => {
       c.classList.remove('selected', 'dimmed', 'locked');
@@ -5929,7 +6059,7 @@ function initWrapupScreen() {
   // Render the current question (title + 3 option cards). Order is preserved as
   // listed in the pool so distractors stay in their authored positions; if we
   // ever want to shuffle option order per session, do it here.
-  const q = state.wrapupQuestion || pickWrapupQuestion('birthday');
+  const q = state.wrapupQuestion || pickWrapupQuestion(state.eventType);
   const titleEl = document.getElementById('wrapup-title');
   if (titleEl) titleEl.textContent = `${q.anchor}, what happens next?`;
 
