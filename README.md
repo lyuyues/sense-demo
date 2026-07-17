@@ -3,6 +3,29 @@
 Tablet-based research probe for personalizing anticipatory sensory preparation.
 Live: https://lyuyues.github.io/sense-demo/ (auto-deployed from `main` via GitHub Pages, ~1 min after push).
 
+## Per-stage reward
+
+Each of the 5 canvas stages awards one collectible into the bar above the tabs.
+The caregiver picks it on the welcome screen: one of 8 presets, or free text →
+Imagen via `/api/generate-sticker`. Design + rationale:
+`docs/plans/2026-07-16-stage-reward-design.md`.
+
+Two things to know before touching it:
+
+- **The award is unconditional.** Leaving a stage is the whole condition — it is
+  never scored on what the child made. SENSE elicits preferences and no stage has
+  a right answer; a contingent-looking reward makes children optimise for the
+  reward instead of revealing a preference. Doing nothing still earns the item.
+- **Text generation is local-only.** `API_BASE` is `''` on GitHub Pages, so
+  custom items need `server.py`. Presets are static PNGs and always work; any
+  failure falls back to the star.
+
+Regenerate the presets (only needed if the style changes):
+
+```bash
+GEMINI_API_KEY=... python3 generate_reward_presets.py --force
+```
+
 ## Per-event media architecture
 
 Each scenario (`state.eventType`) drives its own **priming video** and **3 audio stems**.

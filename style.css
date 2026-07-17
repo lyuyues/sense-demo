@@ -2346,3 +2346,135 @@ html, body {
   opacity: 0.3; pointer-events: none;
 }
 .btn-difficulty-continue:active { transform: scale(0.96); }
+
+/* ============================================
+   PER-STAGE REWARD
+   docs/plans/2026-07-16-stage-reward-design.md
+   ============================================ */
+
+/* --- Caregiver picker (welcome screen) --- */
+.reward-picker {
+  width: 100%; max-width: 820px;
+  margin: 0 auto 1.5rem;
+  text-align: center;
+}
+.reward-picker-title {
+  font-size: 0.95rem; color: #999; font-weight: 500;
+  margin-bottom: 0.8rem;
+}
+.reward-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 10px; margin-bottom: 0.8rem;
+}
+.reward-option {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: #fff; border: 1.5px solid #e0e0de; border-radius: 12px;
+  padding: 12px 6px; cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.reward-option:active { transform: scale(0.95); }
+.reward-option.selected {
+  border-color: #2c2c2c; background: #fdfdfb;
+}
+.reward-option-img {
+  width: 104px; height: 104px; object-fit: contain;
+}
+.reward-option-label {
+  font-size: 0.9rem; color: #999; font-weight: 600;
+}
+.reward-option.selected .reward-option-label { color: #2c2c2c; }
+
+.reward-custom {
+  display: flex; gap: 6px;
+}
+.reward-custom-input {
+  flex: 1; min-width: 0;
+  border: 1.5px solid #e0e0de; border-radius: 8px;
+  padding: 10px 12px; font-size: 0.9rem; font-family: inherit;
+  background: #fff; color: #2c2c2c;
+}
+.reward-custom-input:focus { outline: none; border-color: #2c2c2c; }
+.reward-custom-go {
+  border: 1.5px solid #e0e0de; border-radius: 8px;
+  background: #fff; color: #666;
+  padding: 7px 12px; font-size: 0.75rem; font-weight: 600;
+  font-family: inherit; cursor: pointer;
+  white-space: nowrap;
+}
+.reward-custom-go:active { transform: scale(0.95); }
+.reward-status {
+  font-size: 0.7rem; color: #999; margin-top: 0.4rem;
+  min-height: 1em;  /* reserve the line so the picker doesn't jump */
+}
+
+/* --- Collection bar (canvas screen) --- */
+/* Lives inside .canvas-topbar, pinned right. margin-left:auto keeps it hard
+   against the edge even when .canvas-instruction (flex:1) is empty. */
+.reward-bar {
+  display: flex; align-items: center; gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+  background: transparent;
+  z-index: 21;
+}
+.reward-slot {
+  width: 48px; height: 48px; border-radius: 50%;
+  border: 1.5px dashed #e0e0de;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.2s;
+}
+.reward-slot.filled {
+  border-style: solid; border-color: transparent;
+}
+.reward-slot-img {
+  width: 100%; height: 100%; object-fit: contain;
+}
+.reward-slot.pop { animation: reward-pop 0.4s ease-out; }
+@keyframes reward-pop {
+  0%   { transform: scale(0.4); }
+  55%  { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+/* Bursts in at the canvas centre, then flies to the slot. Both it and the
+   sparkle host live on <body> so nothing clips them; the keyframes are driven
+   from app.js via the Web Animations API. */
+.reward-flyer {
+  position: fixed;
+  width: 200px; height: 200px; object-fit: contain;
+  transform: translate(-50%, -50%) scale(0);
+  pointer-events: none;
+  z-index: 9999;
+  filter: drop-shadow(0 6px 16px rgba(44, 36, 24, 0.28));
+}
+/* Anchor for the sparkle burst: .sparkle-particle positions itself at 50/50 of
+   its offset parent, so this is a zero-size marker at the canvas centre. */
+.reward-burst {
+  position: fixed;
+  width: 0; height: 0;
+  pointer-events: none;
+  z-index: 9998;
+}
+
+@media (max-width: 480px) {
+  .reward-bar { gap: 5px; }
+  .reward-slot { width: 34px; height: 34px; }
+  .reward-option-img { width: 34px; height: 34px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reward-slot.pop { animation: none; }
+  .sparkle-particle { display: none; }
+}
+
+/* The picker has its own screen now, so it no longer competes for height with
+   the welcome video. Only genuinely short screens need trimming — at 820px tall
+   it still has ~160px to spare, so don't shrink the art there. */
+@media (max-height: 700px) {
+  .reward-picker { margin-bottom: 0.6rem; }
+  .reward-picker-title { margin-bottom: 0.4rem; }
+  .reward-option { padding: 6px 4px; }
+  .reward-option-img { width: 78px; height: 78px; }
+}

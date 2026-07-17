@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:opsz,ital,wght@9..144,0,500;9..144,1,500&family=Patrick+Hand&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=245">
+  <link rel="stylesheet" href="style.css?v=255">
   <link rel="stylesheet" href="style-handdrawn.css?v=21">
 </head>
 <body>
@@ -97,6 +97,27 @@
     </div>
   </div>
 
+  <!-- Screen 3.5: Reward pick (caregiver-facing).
+       Sits after the event pick so the grown-up chooses knowing where they're
+       going. Selecting fires generation immediately and does NOT block the
+       continue button — it resolves while the child works through stage 1. -->
+  <div id="screen-reward" class="screen">
+    <div class="event-content">
+      <h1 class="event-title">Collect something!</h1>
+      <div class="reward-picker" id="reward-picker">
+        <p class="reward-picker-title">Grown-up: pick what your child likes &mdash; they&rsquo;ll earn one after every step.</p>
+        <div class="reward-grid" id="reward-grid"></div>
+        <div class="reward-custom">
+          <input type="text" id="reward-custom-input" class="reward-custom-input"
+                 placeholder="or type anything&hellip;" maxlength="30" autocomplete="off">
+          <button id="reward-custom-go" class="reward-custom-go">Make it</button>
+        </div>
+        <p class="reward-status" id="reward-status"></p>
+      </div>
+      <button id="btn-reward-next" class="btn-primary bounce-hover">Let&rsquo;s go!</button>
+    </div>
+  </div>
+
   <!-- Screen 4: Canvas (includes Animate sub-phase) -->
   <div id="screen-canvas" class="screen">
     <!-- Top bar -->
@@ -113,6 +134,9 @@
       </div>
       <span id="canvas-instruction" class="canvas-instruction">Place things on your picture</span>
       <button id="btn-canvas-next" class="btn-canvas-next">Next</button>
+      <!-- Reward collection bar — one slot per canvas stage, filled on stage
+           exit. Sits at the far right of the tab row; rendered by renderRewardBar(). -->
+      <div class="reward-bar" id="reward-bar"></div>
     </div>
     <!-- Stage timer bar -->
     <div class="stage-timer-bar" id="stage-timer-bar">
@@ -622,6 +646,6 @@
     </defs>
   </svg>
 
-  <script src="app.js?v=258"></script>
+  <script src="app.js?v=262"></script>
 </body>
 </html>
