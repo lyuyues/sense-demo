@@ -5907,7 +5907,10 @@ function applyVideoPreferences() {
     STEM_KEYS.forEach(k => {
       if (!stemGains[k]) return;
       const v = getEffectiveChannelValue(k);
-      const g = Math.max(0.05, Math.min(1.5, 0.1 + v * 1.4 + layerBoost));
+      // v at/near the minimum → full mute (gain 0). Above 0, keep the curve with its
+      // 0.1 base + layer boost. This lets a caregiver fully suppress any one auditory
+      // channel (voice / bgm / sfx), not just attenuate it to ~0.1.
+      const g = v <= 0.001 ? 0 : Math.max(0.05, Math.min(1.5, 0.1 + v * 1.4 + layerBoost));
       try { stemGains[k].gain.setTargetAtTime(g, ctx.currentTime, 0.05); }
       catch (_) { stemGains[k].gain.value = g; }
     });
