@@ -778,6 +778,12 @@ document.querySelectorAll('.event-card').forEach(card => {
 // Reward pick -> canvas. Never blocks on generation: an unpicked or still-running
 // item resolves to the default star at award time.
 document.getElementById('btn-reward-next')?.addEventListener('click', () => {
+  // Unlock audio here, synchronously inside a real gesture. The reward chime
+  // fires from a promise chain long after any tap, and iPad Safari only lets an
+  // AudioContext start from within the gesture's own call stack — resuming it
+  // later is silently ignored, so the celebration would be mute on the study's
+  // actual device.
+  rewardAudioCtx();
   goToPhase('canvas');
 });
 
