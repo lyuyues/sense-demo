@@ -282,6 +282,62 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 // keep it tight enough that five of them don't drag the session out.
 const REWARD_ANIM = { popIn: 640, hold: 560, fly: 820, land: 360 };
 
+// Reward audio — synthesized rather than an asset, so it stays small and tunable.
+//
+// Note for the study: this is an uncontrolled sound at every stage boundary, and
+// the Sound stage is where auditory preferences are elicited. It is kept
+// *identical at all five boundaries* and only fires after that stage's data has
+// been captured, so it acts as a constant rather than something that varies by
+// channel. If a pilot shows children reacting to it, mute it here before reading
+// anything into the auditory data.
+function rewardAudioCtx() {
+  try {
+    if (!state.audioCtx) {
+      state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
+    return state.audioCtx;
+  } catch (e) {
+    return null;                     // no audio → the visual celebration still runs
+  }
+}
+
+// Ascending major arpeggio — "you got one".
+function playRewardChime() {
+  const ctx = rewardAudioCtx();
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {   // C5 E5 G5 C6
+    const start = t + i * 0.085;
+    const osc = ctx.createOscillator();
+    osc.type = i === 3 ? 'triangle' : 'sine';
+    osc.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, start);
+    g.gain.linearRampToValueAtTime(0.09, start + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.001, start + 0.42);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(start); osc.stop(start + 0.45);
+  });
+}
+
+// Soft rising tick as the collectible drops into its slot.
+function playRewardLand() {
+  const ctx = rewardAudioCtx();
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(880, t);
+  osc.frequency.exponentialRampToValueAtTime(1320, t + 0.09);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.07, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+  osc.connect(g); g.connect(ctx.destination);
+  osc.start(t); osc.stop(t + 0.25);
+}
+
 function spawnRewardSparkles(host, count) {
   const glyphs = ['✨', '⭐', '💫', '🌟'];
   for (let i = 0; i < count; i++) {
@@ -326,6 +382,7 @@ async function animateRewardToSlot(slot, item) {
 
   try {
     spawnRewardSparkles(burst, 20);
+    playRewardChime();
     await flyer.animate([
       { transform: 'translate(-50%, -50%) scale(0) rotate(-14deg)', opacity: 0 },
       { transform: 'translate(-50%, -50%) scale(1.18) rotate(5deg)', opacity: 1, offset: 0.6 },
@@ -353,6 +410,7 @@ async function animateRewardToSlot(slot, item) {
   slot.classList.add('filled');
   slot.innerHTML = `<img class="reward-slot-img" src="${item.src}" alt="">`;
   slot.classList.add('pop');
+  playRewardLand();
   await wait(REWARD_ANIM.land);
   slot.classList.remove('pop');
 }

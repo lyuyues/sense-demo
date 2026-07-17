@@ -69,6 +69,19 @@ Fire-and-forget is what makes the 3–5s generation invisible: the child passes
 through the photo and event screens first, so the image is ready well before the
 first award. One generation per session; all 5 stages reuse the same item.
 
+## Sound
+
+The celebration plays a synthesized ascending arpeggio (C5–E5–G5–C6) on pop-in
+and a soft rising tick on landing. Yue decided to include it after the
+contamination risk was raised.
+
+The risk is real but bounded: it is an uncontrolled auditory stimulus at a stage
+boundary, immediately adjacent to the Sound stage that elicits auditory
+preferences. Two properties keep it a constant rather than a confound — it is
+identical at all five boundaries, and it fires only after the leaving stage's
+data has been captured. Mute `playRewardChime` / `playRewardLand` if a pilot
+shows children reacting to it.
+
 ## Collection bar
 
 5 slots above `phase-tabs` in `.canvas-topbar`. Item flies from canvas centre to

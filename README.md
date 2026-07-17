@@ -19,6 +19,13 @@ Two things to know before touching it:
 - **Text generation is local-only.** `API_BASE` is `''` on GitHub Pages, so
   custom items need `server.py`. Presets are static PNGs and always work; any
   failure falls back to the star.
+- **The celebration makes a sound** (`playRewardChime` / `playRewardLand`, both
+  synthesized). It is an uncontrolled sound at a stage boundary, and the Sound
+  stage is where auditory preferences are elicited — so it is deliberately kept
+  identical at all five boundaries and fires only after the stage's data is
+  captured, making it a constant rather than a per-channel variable. If a pilot
+  shows children reacting to it, mute it there before reading anything into the
+  auditory data.
 
 Regenerate the presets (only needed if the style changes):
 
