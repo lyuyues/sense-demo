@@ -584,14 +584,16 @@ document.getElementById('btn-skip').addEventListener('click', () => {
   goToPhase('event');
 });
 
-// Dev: skip straight to phase 2 (video player). Uses default 0.5 preference scores
-// because no elicitation data is collected.
-document.getElementById('btn-skip-to-video')?.addEventListener('click', () => {
-  state.childPhoto = 'assets/test_avatar.png?v=' + Date.now();
-  state.eventType = 'grocery';
-  state.dataExported = true; // suppress export-on-processing
-  goToPhase('video');
-});
+// Dev: skip straight to phase 2 (video player), one button per event type so each
+// scenario's video + bgm/voice/sfx stems can be tested without a full elicitation run.
+// Uses default 0.5 preference scores because no elicitation data is collected.
+document.querySelectorAll('#btn-skip-to-video-dental, #btn-skip-to-video-grocery, #btn-skip-to-video-dining')
+  .forEach(btn => btn.addEventListener('click', () => {
+    state.childPhoto = 'assets/test_avatar.png?v=' + Date.now();
+    state.eventType = btn.dataset.event;
+    state.dataExported = true; // suppress export-on-processing
+    goToPhase('video');
+  }));
 
 // Dev: skip straight to wrap-up screen (Screen 7).
 // Use 'birthday' to match the currently-deployed test video so the wrap-up title fits.
