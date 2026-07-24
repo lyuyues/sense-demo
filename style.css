@@ -248,33 +248,15 @@ html, body {
   50% { opacity: 0.5; }
 }
 
-.btn-canvas-next.nudge {
-  background: #FF8C42;
-  animation: nudgePulse 1.5s ease-in-out infinite;
-}
-@keyframes nudgePulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
-}
-
-.btn-canvas-next {
+/* Collect-reward — appears once dwell threshold is reached (see startStageTimer
+   in app.js). Base fallback styling; style-handdrawn.css re-skins this to match
+   the app's hand-drawn look (formerly the Next/"Ready?" button's style, retired
+   now that navigation runs entirely through the tabs). */
+.btn-collect-reward {
   background: #2c2c2c; color: #fafaf8; border: none; border-radius: 10px;
   padding: 0.35rem 1rem; font-size: 0.8rem; font-weight: 600;
-  font-family: inherit; cursor: pointer;
-  min-width: 44px; min-height: 36px;
-  transition: opacity 0.15s;
-}
-.btn-canvas-next:active { opacity: 0.7; }
-
-/* Collect-reward — appears once dwell threshold is reached (see startStageTimer
-   in app.js). Reuses the nudge pulse so it reads as "something to tap now",
-   distinct from Next since it doesn't navigate. */
-.btn-collect-reward {
-  background: #FFD166; color: #2c2c2c; border: none; border-radius: 10px;
-  padding: 0.35rem 0.9rem; font-size: 0.8rem; font-weight: 700;
   font-family: inherit; cursor: pointer; margin-left: 6px;
   min-width: 44px; min-height: 36px;
-  animation: nudgePulse 1.5s ease-in-out infinite;
   transition: opacity 0.15s;
 }
 .btn-collect-reward:active { opacity: 0.7; }

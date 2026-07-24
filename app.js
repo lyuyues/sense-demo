@@ -959,7 +959,7 @@ function drawLineart(ctx, template) {
 // --- Stage timer / reward-collect dwell gate ---
 // Dwell is cumulative per stage (state.stageDwellMs): pauses when the child
 // navigates away, resumes from where it left off on return. Reaching the
-// limit reveals both the existing Next-nudge and the 🎁 Collect button — see
+// limit reveals the 🎁 Collect button — see
 // docs/plans/2026-07-23-decoupled-stage-reward-design.md.
 const STAGE_TIME_LIMITS = {
   'add-elements': 90,  // seconds
@@ -970,15 +970,6 @@ const STAGE_TIME_LIMITS = {
 };
 let stageTimerInterval = null;
 let stageTimerLastTick = null;
-
-function showNextNudge() {
-  const nextBtn = document.getElementById('btn-canvas-next');
-  if (nextBtn) {
-    nextBtn.classList.remove('hidden');
-    nextBtn.classList.add('nudge');
-    nextBtn.textContent = 'Ready? →';
-  }
-}
 
 function showRewardCollectButton(subPhase) {
   if (!REWARD_STAGES.includes(subPhase) || state.rewardsAwarded.has(subPhase)) return;
@@ -1006,7 +997,6 @@ function startStageTimer(subPhase) {
 
   if (pct >= 100) {
     // Threshold already met from an earlier visit — nothing left to tick.
-    showNextNudge();
     showRewardCollectButton(subPhase);
     return;
   }
@@ -1023,7 +1013,6 @@ function startStageTimer(subPhase) {
 
     if (tickPct >= 100) {
       fill.className = 'stage-timer-fill overtime';
-      showNextNudge();
       showRewardCollectButton(subPhase);
       clearInterval(stageTimerInterval);
       stageTimerInterval = null;
@@ -1043,11 +1032,6 @@ function clearStageTimer() {
   if (fill) {
     fill.style.width = '0%';
     fill.className = 'stage-timer-fill';
-  }
-  const nextBtn = document.getElementById('btn-canvas-next');
-  if (nextBtn) {
-    nextBtn.classList.remove('nudge');
-    nextBtn.textContent = 'Next';
   }
   hideRewardCollectButton();
 }
@@ -1081,7 +1065,6 @@ function setCanvasSubPhase(subPhase) {
   const palette = document.getElementById('element-palette');
   const colorToolbar = document.getElementById('color-toolbar');
   const animateBar = document.getElementById('animate-bar');
-  const btnNext = document.getElementById('btn-canvas-next');
   const btnBack = document.getElementById('btn-canvas-back');
   const colorCanvas = document.getElementById('color-canvas');
   const elementLayer = document.getElementById('element-layer');
@@ -1093,7 +1076,6 @@ function setCanvasSubPhase(subPhase) {
   palette.classList.remove('hidden');
   colorToolbar.classList.add('hidden');
   animateBar.classList.add('hidden');
-  btnNext.classList.add('hidden');
   document.getElementById('sound-studio').classList.add('hidden');
   document.getElementById('sound-palette').classList.add('hidden');
   document.getElementById('drum-overlay')?.classList.add('hidden');
@@ -1225,7 +1207,6 @@ function setCanvasSubPhase(subPhase) {
       stopAllStudioLayers();
       palette.classList.add('hidden');
       document.getElementById('element-palette').style.display = 'none';
-      btnNext.classList.add('hidden');
       // Drum phase: no bottom toolbar — hide leftovers + let canvas fill the gap
       document.getElementById('sound-palette')?.classList.add('hidden');
       document.getElementById('color-toolbar')?.classList.add('hidden');
@@ -1252,7 +1233,7 @@ function updatePhaseDots(activeIdx) {
   });
 }
 
-// --- Next / Back buttons ---
+// --- Tab / Back navigation ---
 const SUB_PHASE_ORDER = ['place-self', 'add-elements', 'color', 'light', 'sound-studio', 'animate'];
 
 // Phase tab clicks — switch between stages freely
@@ -1261,20 +1242,6 @@ document.querySelectorAll('.phase-tab').forEach(tab => {
     const phase = tab.dataset.phase;
     setCanvasSubPhase(phase);
   });
-});
-
-// Next button — goes to drum (final step, no return)
-document.getElementById('btn-canvas-next').addEventListener('click', () => {
-  if (state.canvasSubPhase === 'sound-studio') {
-    // Final step — go to drum, no coming back
-    setCanvasSubPhase('animate');
-  } else {
-    // Move to next tab
-    const idx = SUB_PHASE_ORDER.indexOf(state.canvasSubPhase);
-    if (idx < SUB_PHASE_ORDER.length - 1) {
-      setCanvasSubPhase(SUB_PHASE_ORDER[idx + 1]);
-    }
-  }
 });
 
 document.getElementById('btn-canvas-back').addEventListener('click', () => {

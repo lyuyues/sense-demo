@@ -343,8 +343,10 @@ body {
   100% { /* falls back to nth-child rotate */ }
 }
 
-/* ===== Next button ===== */
-.btn-canvas-next {
+/* ===== Collect-reward button ===== */
+/* Was the Next/"Ready?" button's look — Next is retired (tabs handle all
+   navigation now), so the collect-reward button inherits its styling. */
+.btn-collect-reward {
   background: var(--hd-mango) !important;
   color: var(--hd-ink) !important;
   border: 2.5px solid var(--hd-ink) !important;
@@ -359,7 +361,7 @@ body {
   min-height: auto !important;
   letter-spacing: 0.02em;
 }
-.btn-canvas-next:active {
+.btn-collect-reward:active {
   transform: rotate(1.2deg) translate(3px, 3px);
   box-shadow: 1px 1px 0 var(--hd-ink);
   opacity: 1 !important;
