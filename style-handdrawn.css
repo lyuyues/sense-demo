@@ -1165,8 +1165,14 @@ body {
 
 /* Viewfinder = tilted polaroid card with bottom label area */
 .photo-viewfinder-wrap {
-  width: 70% !important;
-  max-width: 500px !important;
+  /* Was width:70% (of .photo-main-col, an auto-sized flex column) —
+     .photo-prompt's text length ("Camera not available: Requested
+     device not found" vs "Take a photo of yourself!") changes that
+     column's fit-content width, so the SAME 70% resolved to visibly
+     different pixel sizes depending on camera permission state (Yue:
+     "真的不一样"). min()-against-viewport is independent of any
+     ancestor's content-driven width, so this can't happen again. */
+  width: min(500px, 70vw) !important;
   aspect-ratio: 4/3 !important;
   background: var(--hd-paper-card) !important;
   border: 3px solid var(--hd-ink) !important;
