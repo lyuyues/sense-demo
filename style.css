@@ -154,6 +154,11 @@ html, body {
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; height: 100%;
   background: #fafaf8; padding: 2rem;
+  /* Used by both the event picker and reward picker screens; on short/narrow
+     phones their content (title + grid + custom input) can be taller than
+     the viewport. body{overflow:hidden; touch-action:none} would otherwise
+     make the excess permanently unreachable, so open scroll here. */
+  overflow-y: auto; touch-action: pan-y;
 }
 .event-title {
   font-size: 1.6rem; font-weight: 700; color: #2c2c2c;
