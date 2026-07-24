@@ -2529,8 +2529,8 @@ html, body {
 .phase-tab { position: relative; }
 .phase-tab .reward-slot {
   position: absolute; top: 2px; right: 4px;
-  width: 24px; height: 24px; border-width: 1px;
-  background: #fff;
+  width: 32px; height: 32px; border-width: 1px;
+  background: transparent;
 }
 .reward-slot.filled {
   border-style: solid; border-color: transparent;
