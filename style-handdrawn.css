@@ -1165,8 +1165,8 @@ body {
 
 /* Viewfinder = tilted polaroid card with bottom label area */
 .photo-viewfinder-wrap {
-  width: 90% !important;
-  max-width: 650px !important;
+  width: 70% !important;
+  max-width: 500px !important;
   aspect-ratio: 4/3 !important;
   background: var(--hd-paper-card) !important;
   border: 3px solid var(--hd-ink) !important;
