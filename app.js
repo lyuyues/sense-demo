@@ -728,7 +728,7 @@ document.getElementById('btn-capture-scene').addEventListener('click', () => {
 // meeting — the tunnel URL dies when the presenter's laptop/tunnel stops,
 // and leaving this in permanently would route all site visitors' generation
 // requests through a personal machine.
-const TEMP_TUNNEL_BASE = 'https://fashion-counting-decades-easter.trycloudflare.com';
+const TEMP_TUNNEL_BASE = 'https://notification-quantum-comics-tubes.trycloudflare.com';
 const API_BASE = location.hostname === 'localhost' || location.hostname.startsWith('192.168')
   ? location.origin
   : TEMP_TUNNEL_BASE;
