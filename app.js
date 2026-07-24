@@ -973,7 +973,7 @@ function drawLineart(ctx, template) {
 // limit reveals the 🎁 Collect button — see
 // docs/plans/2026-07-23-decoupled-stage-reward-design.md.
 const STAGE_TIME_LIMITS = {
-  'add-elements': 90,  // seconds
+  'add-elements': 30,  // seconds
   'color': 60,
   'light': 60,
   'sound-studio': 45,
