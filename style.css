@@ -98,8 +98,22 @@ html, body {
   background: #fafaf8; padding: 1.5rem; gap: 1.2rem;
   overflow-y: auto; touch-action: pan-y;
 }
+/* Camera (+ capture step) and the two preview thumbnails side by side
+   instead of stacked, so the screen fits on iPad without scrolling. */
+.photo-main-row {
+  display: flex; flex-direction: row; align-items: center;
+  justify-content: center; gap: 2rem;
+  width: 100%; min-height: 0;
+}
+.photo-main-col {
+  display: flex; flex-direction: column; align-items: center; gap: 1.2rem;
+  min-width: 0;
+}
 .photo-viewfinder-wrap {
-  width: 72%; max-width: 400px; aspect-ratio: 4/3;
+  /* Was a %-of-parent width, fine when the parent was the full screen;
+     now nested in a row next to the previews column, so size against the
+     viewport instead of an ambiguous flex-auto parent. */
+  width: min(45vw, 360px); aspect-ratio: 4/3;
   border-radius: 16px; overflow: hidden;
   background: #e8e8e4; position: relative;
   border: 1.5px solid #ddd;
@@ -131,15 +145,17 @@ html, body {
   background: #2c2c2c;
 }
 
-/* Thumbnails */
+/* Thumbnails — a vertical side column next to the camera (see
+   .photo-main-row) rather than a horizontal row below it. */
 .photo-previews {
-  display: flex; gap: 1.5rem; justify-content: center;
+  display: flex; flex-direction: column; gap: 1.2rem; justify-content: center;
+  flex-shrink: 0;
 }
 .photo-thumb-wrap {
   display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
 }
 .photo-thumb {
-  width: 120px; height: 120px; border-radius: 50%;
+  width: 96px; height: 96px; border-radius: 50%;
   object-fit: cover; border: 1.5px solid #ddd;
   background: #f0f0ee;
 }
@@ -2125,7 +2141,12 @@ html, body {
   .brush-s { width: 5px; height: 5px; }
   .brush-m { width: 10px; height: 10px; }
   .brush-l { width: 18px; height: 18px; }
-  .photo-viewfinder-wrap { width: 88%; }
+  /* Side-by-side (see .photo-main-row) needs room .photo-content doesn't
+     have on a narrow phone — fall back to the original stacked layout
+     there; only iPad needs to avoid scrolling per Yue's request. */
+  .photo-main-row { flex-direction: column; gap: 0.8rem; }
+  .photo-viewfinder-wrap { width: 88vw; max-width: 320px; }
+  .photo-previews { flex-direction: row; }
   .photo-prompt { font-size: 1rem; }
   .btn-capture { width: 56px; height: 56px; }
   .photo-thumb { width: 56px; height: 56px; }

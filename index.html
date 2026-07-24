@@ -35,36 +35,44 @@
   <!-- Screen 2: Photo Capture -->
   <div id="screen-photo" class="screen">
     <div class="photo-content">
-      <div class="photo-viewfinder-wrap">
-        <video id="camera-preview" autoplay playsinline muted></video>
-        <canvas id="camera-snapshot" class="hidden"></canvas>
-      </div>
+      <!-- Camera + previews sit side by side (not stacked) so the whole
+           screen fits without scrolling — previews used to be a third
+           block below the capture step, pushing content past viewport
+           height on shorter screens. -->
+      <div class="photo-main-row">
+        <div class="photo-main-col">
+          <div class="photo-viewfinder-wrap">
+            <video id="camera-preview" autoplay playsinline muted></video>
+            <canvas id="camera-snapshot" class="hidden"></canvas>
+          </div>
 
-      <!-- Step A: Child photo -->
-      <div class="photo-step" id="photo-step-child">
-        <p class="photo-prompt">Take a photo of yourself!</p>
-        <button id="btn-capture-child" class="btn-capture">
-          <span class="capture-ring"></span>
-        </button>
-      </div>
+          <!-- Step A: Child photo -->
+          <div class="photo-step" id="photo-step-child">
+            <p class="photo-prompt">Take a photo of yourself!</p>
+            <button id="btn-capture-child" class="btn-capture">
+              <span class="capture-ring"></span>
+            </button>
+          </div>
 
-      <!-- Step B: Scene photo -->
-      <div class="photo-step hidden" id="photo-step-scene">
-        <p class="photo-prompt">Take a photo of the place!</p>
-        <button id="btn-capture-scene" class="btn-capture">
-          <span class="capture-ring"></span>
-        </button>
-      </div>
-
-      <!-- Thumbnail previews -->
-      <div class="photo-previews">
-        <div class="photo-thumb-wrap">
-          <img id="preview-child" class="photo-thumb" src="assets/test_child_photo.png" alt="Child photo">
-          <span class="photo-thumb-label">You</span>
+          <!-- Step B: Scene photo -->
+          <div class="photo-step hidden" id="photo-step-scene">
+            <p class="photo-prompt">Take a photo of the place!</p>
+            <button id="btn-capture-scene" class="btn-capture">
+              <span class="capture-ring"></span>
+            </button>
+          </div>
         </div>
-        <div class="photo-thumb-wrap">
-          <img id="preview-scene" class="photo-thumb" src="assets/sample_livingroom_crayon.png" alt="Scene photo">
-          <span class="photo-thumb-label">Place</span>
+
+        <!-- Thumbnail previews -->
+        <div class="photo-previews">
+          <div class="photo-thumb-wrap">
+            <img id="preview-child" class="photo-thumb" src="assets/test_child_photo.png" alt="Child photo">
+            <span class="photo-thumb-label">You</span>
+          </div>
+          <div class="photo-thumb-wrap">
+            <img id="preview-scene" class="photo-thumb" src="assets/sample_livingroom_crayon.png" alt="Scene photo">
+            <span class="photo-thumb-label">Place</span>
+          </div>
         </div>
       </div>
 
