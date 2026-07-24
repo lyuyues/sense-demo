@@ -2528,8 +2528,8 @@ html, body {
    negative offsets. */
 .phase-tab { position: relative; }
 .phase-tab .reward-slot {
-  position: absolute; top: 2px; right: 2px;
-  width: 26px; height: 26px; border-width: 1px;
+  position: absolute; top: 2px; right: 4px;
+  width: 24px; height: 24px; border-width: 1px;
   background: #fff;
 }
 .reward-slot.filled {
