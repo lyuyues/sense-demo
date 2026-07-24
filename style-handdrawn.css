@@ -1153,6 +1153,13 @@ body {
 .photo-content {
   background: var(--hd-paper) !important;
   padding: 1.5rem !important;
+  /* Reserves room for the two corner-floating photo thumbnails below
+     (.photo-thumb-wrap) so they don't overlap the polaroid viewfinder.
+     Must come after the padding shorthand above and stay in this file:
+     style.css's own padding-top can't win this — same selector, same
+     !important weight, and this file loads second, so source order
+     would let this shorthand silently re-clobber it either way. */
+  padding-top: 210px !important;
   gap: 1.4rem !important;
 }
 

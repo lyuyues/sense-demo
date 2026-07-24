@@ -66,7 +66,10 @@ html, body {
   height: 100%;
   background: #fafaf8;
   padding: 2rem;
-  overflow-y: auto; touch-action: pan-y;
+  /* !important: style-handdrawn.css loads after this file and sets a
+     plain (non-important) overflow:hidden on the same selector, which
+     would otherwise silently win by source order and undo this. */
+  overflow-y: auto !important; touch-action: pan-y !important;
 }
 .welcome-content h1 {
   font-size: 2.4rem; font-weight: 700; color: #2c2c2c;
@@ -102,8 +105,15 @@ html, body {
      overlap regardless of content height, instead of relying on
      centering math that happens to leave enough room. */
   justify-content: flex-start; height: 100%;
-  background: #fafaf8; padding: 1.5rem; padding-top: 140px; gap: 1.2rem;
-  overflow-y: auto; touch-action: pan-y;
+  /* Fallback values — style-handdrawn.css (loaded after this file) sets its
+     own `padding: 1.5rem !important` shorthand on .photo-content, which
+     wipes out padding-top here regardless of this file's cascade position;
+     the authoritative padding-top:210px !important lives there, right
+     after that shorthand. Bumped from 140 to 210 to actually clear the
+     handdrawn corner-thumbnail card (110px photo + polaroid padding +
+     tape + label — bigger than this file's own, now-unused thumb size). */
+  background: #fafaf8; padding: 1.5rem; padding-top: 210px; gap: 1.2rem;
+  overflow-y: auto !important; touch-action: pan-y !important;
   position: relative;
 }
 .photo-main-row {
@@ -116,7 +126,10 @@ html, body {
   min-width: 0;
 }
 .photo-viewfinder-wrap {
-  width: 72%; max-width: 400px; aspect-ratio: 4/3;
+  /* No width/max-width here — style-handdrawn.css sets a bigger
+     75%/520px !important version of its own, which is fine (Yue wants
+     the viewfinder kept full size, not shrunk). */
+  aspect-ratio: 4/3;
   border-radius: 16px; overflow: hidden;
   background: #e8e8e4; position: relative;
   border: 1.5px solid #ddd;
@@ -153,10 +166,15 @@ html, body {
    below the viewfinder, so the viewfinder can stay full size. */
 .photo-thumb-wrap {
   display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
-  position: absolute; top: 1.2rem;
+  /* !important: style-handdrawn.css sets its own (non-important, but
+     later-loaded so it wins by source order) position:relative on this
+     same selector for its polaroid-tilt effect — that reverted these
+     corner-floating thumbnails back into normal document flow, stacking
+     them vertically on top of the Next/Skip buttons (Yue's screenshot). */
+  position: absolute !important; top: 1.2rem !important;
 }
-.photo-thumb-wrap:first-child { left: 1.2rem; }
-.photo-thumb-wrap:last-child { right: 1.2rem; }
+.photo-thumb-wrap:first-child { left: 1.2rem !important; }
+.photo-thumb-wrap:last-child { right: 1.2rem !important; }
 .photo-thumb {
   width: 84px; height: 84px; border-radius: 50%;
   object-fit: cover; border: 1.5px solid #ddd;
@@ -1795,7 +1813,9 @@ html, body {
   height: 100%;
   background: #fafaf8;
   padding: 2rem;
-  overflow-y: auto; touch-action: pan-y;
+  /* !important: same style-handdrawn.css override-by-source-order issue
+     as .welcome-content above. */
+  overflow-y: auto !important; touch-action: pan-y !important;
 }
 .processing-icon {
   font-size: 48px; margin-bottom: 1.2rem;
@@ -2147,10 +2167,13 @@ html, body {
   /* Side-by-side (see .photo-main-row) needs room .photo-content doesn't
      have on a narrow phone — fall back to the original stacked layout
      there; only iPad needs to avoid scrolling per Yue's request. */
-  .photo-viewfinder-wrap { width: 88vw; max-width: 320px; }
-  .photo-thumb { width: 60px; height: 60px; }
-  .photo-thumb-wrap:first-child { left: 0.5rem; }
-  .photo-thumb-wrap:last-child { right: 0.5rem; }
+  /* !important throughout this block: style-handdrawn.css's own
+     (non-media-query-scoped) !important rules for these same selectors
+     would otherwise win at every width, phone included. */
+  .photo-viewfinder-wrap { width: 88vw !important; max-width: 320px !important; }
+  .photo-thumb { width: 60px !important; height: 60px !important; }
+  .photo-thumb-wrap:first-child { left: 0.5rem !important; }
+  .photo-thumb-wrap:last-child { right: 0.5rem !important; }
   .photo-prompt { font-size: 1rem; }
   .btn-capture { width: 56px; height: 56px; }
   .photo-thumb { width: 56px; height: 56px; }
