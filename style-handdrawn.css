@@ -1165,8 +1165,11 @@ body {
 
 /* Viewfinder = tilted polaroid card with bottom label area */
 .photo-viewfinder-wrap {
-  width: 70% !important;
-  max-width: 500px !important;
+  /* Matched to .event-card's rendered size on the next screen (~345px
+     wide in the 3-col grid, max-width:1100px, 2rem gaps) so the two
+     screens feel visually consistent, per Yue's request. */
+  width: 55% !important;
+  max-width: 350px !important;
   aspect-ratio: 4/3 !important;
   background: var(--hd-paper-card) !important;
   border: 3px solid var(--hd-ink) !important;
