@@ -196,23 +196,28 @@ html, body {
 
 /* --- Top bar --- */
 .canvas-topbar {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center;
   height: 48px; padding: 0 16px;
   background: #fafaf8;
   border-bottom: none;
   z-index: 20; flex-shrink: 0;
 }
-.phase-tabs {
-  display: flex; gap: 4px; align-items: center;
-  /* On phones the 5 tabs + instruction + reward bar don't all fit; the
+.btn-canvas-back { flex-shrink: 0; }
+.canvas-topbar-scroll {
+  display: flex; align-items: center; justify-content: space-between;
+  flex: 1; min-width: 0;
+  /* On phones the tabs + instruction + reward bar don't all fit; the
      global body{overflow:hidden; touch-action:none} would otherwise make
-     anything past the edge permanently unreachable, so open a scroll
-     escape hatch here specifically. */
+     anything past the edge permanently unreachable, so this whole group
+     scrolls together as one unit (Yue: reward bar shouldn't stay pinned
+     while only the tabs scroll). */
   overflow-x: auto; touch-action: pan-x;
   -ms-overflow-style: none; scrollbar-width: none;
-  flex-shrink: 1; min-width: 0;
 }
-.phase-tabs::-webkit-scrollbar { display: none; }
+.canvas-topbar-scroll::-webkit-scrollbar { display: none; }
+.phase-tabs {
+  display: flex; gap: 4px; align-items: center; flex-shrink: 0;
+}
 .phase-tab { flex-shrink: 0; }
 .phase-tab {
   background: transparent; border: 1.5px solid #e0e0de;

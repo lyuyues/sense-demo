@@ -128,26 +128,30 @@
       <button id="btn-canvas-back" class="btn-canvas-back" title="Back">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
-      <div id="phase-tabs" class="phase-tabs">
-        <button class="phase-tab active" data-phase="add-elements">🎨 Create</button>
-        <button class="phase-tab" data-phase="color">🖍️ Color</button>
-        <button class="phase-tab" data-phase="light">☀️ Light</button>
-        <button class="phase-tab" data-phase="sound-studio">🎵 Sound</button>
-        <button class="phase-tab" data-phase="animate">🥁 Rhythm</button>
+      <!-- Everything except the Back button scrolls together as one unit on
+           narrow phones, where tabs + instruction + reward bar don't all fit. -->
+      <div class="canvas-topbar-scroll" id="canvas-topbar-scroll">
+        <div id="phase-tabs" class="phase-tabs">
+          <button class="phase-tab active" data-phase="add-elements">🎨 Create</button>
+          <button class="phase-tab" data-phase="color">🖍️ Color</button>
+          <button class="phase-tab" data-phase="light">☀️ Light</button>
+          <button class="phase-tab" data-phase="sound-studio">🎵 Sound</button>
+          <button class="phase-tab" data-phase="animate">🥁 Rhythm</button>
+        </div>
+        <span id="canvas-instruction" class="canvas-instruction">Place things on your picture</span>
+        <!-- Collect-reward — hidden until dwell threshold is reached (startStageTimer
+             in app.js). Clicking it awards the current stage in place; navigation
+             (tabs/Back) no longer triggers or waits on the reward. -->
+        <button id="btn-collect-reward" class="btn-collect-reward hidden">🎁 Collect</button>
+        <!-- Reward collection bar — one slot per canvas stage, filled on collect.
+             Sits at the far right of the tab row; rendered by renderRewardBar(). -->
+        <div class="reward-bar" id="reward-bar"></div>
+        <!-- Caregiver escape hatch: skip the remaining sensory stages and jump
+             straight to the video. Deliberately small/greyed so children don't
+             tap through the elicitation; only surfaced to a guiding caregiver. -->
+        <button id="btn-skip-to-video-canvas" class="btn-skip-video-caregiver"
+                title="Skip to video" aria-label="Skip to video">⏭</button>
       </div>
-      <span id="canvas-instruction" class="canvas-instruction">Place things on your picture</span>
-      <!-- Collect-reward — hidden until dwell threshold is reached (startStageTimer
-           in app.js). Clicking it awards the current stage in place; navigation
-           (tabs/Back) no longer triggers or waits on the reward. -->
-      <button id="btn-collect-reward" class="btn-collect-reward hidden">🎁 Collect</button>
-      <!-- Reward collection bar — one slot per canvas stage, filled on collect.
-           Sits at the far right of the tab row; rendered by renderRewardBar(). -->
-      <div class="reward-bar" id="reward-bar"></div>
-      <!-- Caregiver escape hatch: skip the remaining sensory stages and jump
-           straight to the video. Deliberately small/greyed so children don't
-           tap through the elicitation; only surfaced to a guiding caregiver. -->
-      <button id="btn-skip-to-video-canvas" class="btn-skip-video-caregiver"
-              title="Skip to video" aria-label="Skip to video">⏭</button>
     </div>
     <!-- Stage timer bar -->
     <div class="stage-timer-bar" id="stage-timer-bar">
