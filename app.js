@@ -44,6 +44,7 @@ const state = {
   rewardItem: null,
   rewardReady: null,
   rewardsAwarded: new Set(),          // stage ids already paid out — award is idempotent
+  stageDwellMs: {},                  // cumulative ms spent per stage, across revisits (see startStageTimer)
   // --- Difficulty system (Phase 2 customization layer) ---
   // null until child picks via difficulty modal. Engineering names match data column.
   difficultyLevel: null,              // 'protective' | 'normal' | 'challenge' | null
@@ -432,18 +433,21 @@ function resolveSessionItem() {
   });
 }
 
-// Pays out the collectible for a finished stage.
+// Pays out the collectible for a stage. Called either from the 🎁 Collect
+// button (once dwell threshold is reached, see startStageTimer) or from the
+// drum-complete path for 'animate'. NOT tied to navigation — see
+// docs/plans/2026-07-23-decoupled-stage-reward-design.md.
 //
-// Unconditional by design: SENSE elicits preferences, and no stage has a correct
-// answer. If the reward looked contingent on performance the child would optimise
-// for it instead of revealing a preference — contaminating the only thing this
-// probe collects. So leaving the stage is the whole condition; a child who did
-// nothing still earns it ("did nothing" is itself a valid preference signal).
+// Non-contingent by design: SENSE elicits preferences, and no stage has a
+// correct answer. If the reward looked contingent on performance the child
+// would optimise for it instead of revealing a preference — contaminating the
+// only thing this probe collects. Nothing about *what* the child did in the
+// stage is scored; the dwell threshold only gates *when* collection becomes
+// available, not whether it's deserved.
 //
 // Idempotent: phase-tabs are clickable navigation, so a child can re-enter a
 // stage. Without the Set, revisits would farm extra items and desync the bar.
-// Returns a promise that resolves when the celebration has finished, so callers
-// can hold the next stage until the child has seen it.
+// Returns a promise that resolves when the celebration has finished.
 function awardRewardFor(stageId) {
   if (!REWARD_STAGES.includes(stageId)) return Promise.resolve();
   if (state.rewardsAwarded.has(stageId)) return Promise.resolve();
@@ -459,10 +463,6 @@ function awardRewardFor(stageId) {
     });
     return slot ? animateRewardToSlot(slot, item) : undefined;
   });
-}
-
-function rewardPending(stageId) {
-  return REWARD_STAGES.includes(stageId) && !state.rewardsAwarded.has(stageId);
 }
 
 // ============================================================
@@ -578,30 +578,46 @@ document.getElementById('btn-drum-back')?.addEventListener('click', () => {
 
 // AI agent uses server-side Gemini key — no client-side key needed
 
-document.getElementById('btn-skip').addEventListener('click', () => {
+// Dev/testing shortcuts moved off the welcome screen and into dev.html, which
+// links here with a `?dev=<action>` query param (see the dispatcher at the
+// bottom of this file). Functions kept here, unchanged, just no longer wired
+// to buttons in index.html.
+function devSkipPhoto() {
   // Skip photo, use test avatar, go to event selection
   state.childPhoto = 'assets/test_avatar.png?v=' + Date.now();
   goToPhase('event');
-});
+}
 
-// Dev: skip straight to phase 2 (video player), one button per event type so each
+// Dev: skip straight to phase 2 (video player), one function per event type so each
 // scenario's video + bgm/voice/sfx stems can be tested without a full elicitation run.
 // Uses default 0.5 preference scores because no elicitation data is collected.
-document.querySelectorAll('#btn-skip-to-video-dental, #btn-skip-to-video-grocery, #btn-skip-to-video-dining')
-  .forEach(btn => btn.addEventListener('click', () => {
-    state.childPhoto = 'assets/test_avatar.png?v=' + Date.now();
-    state.eventType = btn.dataset.event;
-    state.dataExported = true; // suppress export-on-processing
-    goToPhase('video');
-  }));
+function devSkipToVideo(eventType) {
+  state.childPhoto = 'assets/test_avatar.png?v=' + Date.now();
+  state.eventType = eventType;
+  state.dataExported = true; // suppress export-on-processing
+  goToPhase('video');
+}
 
 // Dev: skip straight to wrap-up screen (Screen 7).
 // Use 'birthday' to match the currently-deployed test video so the wrap-up title fits.
-document.getElementById('btn-skip-to-wrapup')?.addEventListener('click', () => {
+function devSkipToWrapup() {
   state.childPhoto = 'assets/test_avatar.png?v=' + Date.now();
   state.eventType = 'birthday';
   state.dataExported = true;
   goToPhase('wrapup');
+}
+
+// Caregiver escape hatch (canvas top bar): skip the remaining sensory stages and jump
+// straight to the video. Unlike the dev button above, this runs mid-elicitation, so it
+// keeps the real eventType/photo and whatever channels the child already set (unfilled
+// ones stay at baseline in extractPreferences). Exports the partial data before leaving.
+document.getElementById('btn-skip-to-video-canvas')?.addEventListener('click', () => {
+  logEvent('caregiver_skip_to_video', { fromSubPhase: state.canvasSubPhase });
+  if (!state.dataExported) {
+    state.dataExported = true;
+    try { exportData(); } catch (e) { console.warn('Skip export failed:', e); }
+  }
+  goToPhase('video');
 });
 
 // ============================================================
@@ -940,15 +956,38 @@ function drawLineart(ctx, template) {
   ctx.setLineDash([]);
 }
 
-// --- Stage timer ---
+// --- Stage timer / reward-collect dwell gate ---
+// Dwell is cumulative per stage (state.stageDwellMs): pauses when the child
+// navigates away, resumes from where it left off on return. Reaching the
+// limit reveals both the existing Next-nudge and the 🎁 Collect button — see
+// docs/plans/2026-07-23-decoupled-stage-reward-design.md.
 const STAGE_TIME_LIMITS = {
   'add-elements': 90,  // seconds
   'color': 60,
+  'light': 60,
   'sound-studio': 45,
-  'animate': 0, // drum has its own flow
+  'animate': 0, // drum has its own flow — reward fires from finishDrum()
 };
 let stageTimerInterval = null;
-let stageStartTime = null;
+let stageTimerLastTick = null;
+
+function showNextNudge() {
+  const nextBtn = document.getElementById('btn-canvas-next');
+  if (nextBtn) {
+    nextBtn.classList.remove('hidden');
+    nextBtn.classList.add('nudge');
+    nextBtn.textContent = 'Ready? →';
+  }
+}
+
+function showRewardCollectButton(subPhase) {
+  if (!REWARD_STAGES.includes(subPhase) || state.rewardsAwarded.has(subPhase)) return;
+  document.getElementById('btn-collect-reward')?.classList.remove('hidden');
+}
+
+function hideRewardCollectButton() {
+  document.getElementById('btn-collect-reward')?.classList.add('hidden');
+}
 
 function startStageTimer(subPhase) {
   clearStageTimer();
@@ -960,26 +999,35 @@ function startStageTimer(subPhase) {
 
   document.getElementById('stage-timer-bar').style.display = '';
   const fill = document.getElementById('stage-timer-fill');
-  fill.style.width = '0%';
-  fill.className = 'stage-timer-fill';
-  stageStartTime = Date.now();
+  const elapsedSec = (state.stageDwellMs[subPhase] || 0) / 1000;
+  const pct = Math.min(100, (elapsedSec / limit) * 100);
+  fill.style.width = pct + '%';
+  fill.className = 'stage-timer-fill' + (pct >= 100 ? ' overtime' : pct >= 75 ? ' warning' : '');
 
+  if (pct >= 100) {
+    // Threshold already met from an earlier visit — nothing left to tick.
+    showNextNudge();
+    showRewardCollectButton(subPhase);
+    return;
+  }
+
+  stageTimerLastTick = Date.now();
   stageTimerInterval = setInterval(() => {
-    const elapsed = (Date.now() - stageStartTime) / 1000;
-    const pct = Math.min(100, (elapsed / limit) * 100);
-    fill.style.width = pct + '%';
+    const now = Date.now();
+    state.stageDwellMs[subPhase] = (state.stageDwellMs[subPhase] || 0) + (now - stageTimerLastTick);
+    stageTimerLastTick = now;
 
-    if (pct >= 100) {
-      // Time's up — show gentle nudge
+    const elapsed = state.stageDwellMs[subPhase] / 1000;
+    const tickPct = Math.min(100, (elapsed / limit) * 100);
+    fill.style.width = tickPct + '%';
+
+    if (tickPct >= 100) {
       fill.className = 'stage-timer-fill overtime';
-      const nextBtn = document.getElementById('btn-canvas-next');
-      if (nextBtn) {
-        nextBtn.classList.remove('hidden');
-        nextBtn.classList.add('nudge');
-        nextBtn.textContent = 'Ready? →';
-      }
+      showNextNudge();
+      showRewardCollectButton(subPhase);
       clearInterval(stageTimerInterval);
-    } else if (pct >= 75) {
+      stageTimerInterval = null;
+    } else if (tickPct >= 75) {
       fill.className = 'stage-timer-fill warning';
     }
   }, 1000);
@@ -990,6 +1038,7 @@ function clearStageTimer() {
     clearInterval(stageTimerInterval);
     stageTimerInterval = null;
   }
+  stageTimerLastTick = null;
   const fill = document.getElementById('stage-timer-fill');
   if (fill) {
     fill.style.width = '0%';
@@ -1000,28 +1049,14 @@ function clearStageTimer() {
     nextBtn.classList.remove('nudge');
     nextBtn.textContent = 'Next';
   }
+  hideRewardCollectButton();
 }
 
 // --- Sub-phase management ---
-function setCanvasSubPhase(subPhase, opts = {}) {
-  // Award for the stage we are actually leaving. Deliberately not the
-  // order[newIdx-1] inference used further down: tabs allow backward jumps, so
-  // that inference names the wrong stage whenever navigation isn't forward.
-  //
-  // The celebration has to finish before the next stage appears, or the new
-  // stage paints over it. So gate here rather than at each call site — every
-  // navigation path (Next, tabs, back) funnels through this function.
-  const leavingStage = state.canvasSubPhase;
-  if (!opts.afterReward && leavingStage !== subPhase && rewardPending(leavingStage)) {
-    if (state._rewardAnimating) return;   // swallow taps during the celebration
-    state._rewardAnimating = true;
-    awardRewardFor(leavingStage).then(() => {
-      state._rewardAnimating = false;
-      setCanvasSubPhase(subPhase, { afterReward: true });
-    });
-    return;
-  }
-
+// Navigation (Next / tabs / Back) is pure — it no longer waits on or triggers
+// the reward. Reward collection is a separate, explicit action; see
+// showRewardCollectButton() and docs/plans/2026-07-23-decoupled-stage-reward-design.md.
+function setCanvasSubPhase(subPhase) {
   state.canvasSubPhase = subPhase;
   logEvent('sub_phase_change', { subPhase });
 
@@ -1247,6 +1282,13 @@ document.getElementById('btn-canvas-back').addEventListener('click', () => {
   if (idx > 0) {
     setCanvasSubPhase(SUB_PHASE_ORDER[idx - 1]);
   }
+});
+
+// Collect-reward button — appears once dwell threshold is reached (startStageTimer).
+// Stays on the current stage; the fly-to-bar animation plays in place.
+document.getElementById('btn-collect-reward')?.addEventListener('click', () => {
+  hideRewardCollectButton();
+  awardRewardFor(state.canvasSubPhase);
 });
 
 // --- Animate done button ---
@@ -6549,5 +6591,16 @@ function initWrapupScreen() {
 }
 
 initRewardPicker();
+
+// Dev shortcuts, triggered by dev.html linking here with ?dev=<action> so the
+// welcome screen stays free of testing buttons.
+const DEV_ACTIONS = {
+  'skip-photo': devSkipPhoto,
+  'video-dental': () => devSkipToVideo('dental'),
+  'video-grocery': () => devSkipToVideo('grocery'),
+  'video-dining': () => devSkipToVideo('dining'),
+  'wrapup': devSkipToWrapup,
+};
+DEV_ACTIONS[new URLSearchParams(location.search).get('dev')]?.();
 
 console.log('SENSE Canvas Demo loaded');

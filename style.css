@@ -74,6 +74,12 @@ html, body {
 #screen-welcome .btn-secondary {
   border-color: #e0e0de; color: #bbb;
 }
+.welcome-dev-link {
+  margin-top: 1.2rem;
+  font-size: 0.75rem; color: #ccc;
+  text-decoration: none;
+}
+.welcome-dev-link:active { color: #999; }
 
 
 /* ============================================
@@ -259,6 +265,32 @@ html, body {
   transition: opacity 0.15s;
 }
 .btn-canvas-next:active { opacity: 0.7; }
+
+/* Collect-reward — appears once dwell threshold is reached (see startStageTimer
+   in app.js). Reuses the nudge pulse so it reads as "something to tap now",
+   distinct from Next since it doesn't navigate. */
+.btn-collect-reward {
+  background: #FFD166; color: #2c2c2c; border: none; border-radius: 10px;
+  padding: 0.35rem 0.9rem; font-size: 0.8rem; font-weight: 700;
+  font-family: inherit; cursor: pointer; margin-left: 6px;
+  min-width: 44px; min-height: 36px;
+  animation: nudgePulse 1.5s ease-in-out infinite;
+  transition: opacity 0.15s;
+}
+.btn-collect-reward:active { opacity: 0.7; }
+
+/* Caregiver-only "skip to video" — small, greyed, tucked in the top-right corner
+   so it reads as an adult escape hatch rather than a primary child affordance. */
+.btn-skip-video-caregiver {
+  margin-left: 10px;
+  background: none; border: none; padding: 4px 6px;
+  font-size: 16px; line-height: 1;
+  opacity: 0.4; filter: grayscale(1);
+  cursor: pointer; align-self: center;
+  transition: opacity 0.15s, filter 0.15s;
+}
+.btn-skip-video-caregiver:hover,
+.btn-skip-video-caregiver:active { opacity: 0.85; filter: grayscale(0); }
 
 /* --- Canvas container --- */
 .canvas-container {

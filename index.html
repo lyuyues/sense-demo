@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:opsz,ital,wght@9..144,0,500;9..144,1,500&family=Patrick+Hand&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=255">
-  <link rel="stylesheet" href="style-handdrawn.css?v=21">
+  <link rel="stylesheet" href="style.css?v=257">
+  <link rel="stylesheet" href="style-handdrawn.css?v=22">
 </head>
 <body>
 
@@ -24,14 +24,11 @@
         <video id="welcome-video" autoplay loop muted playsinline preload="auto">
           <source src="video/intro_transition.mp4" type="video/mp4">
         </video>
-        <span class="welcome-video-tbd">intro video TBD</span>
       </div>
       <button id="btn-start" class="btn-primary bounce-hover">Start</button>
-      <button id="btn-skip" class="btn-secondary">Skip Photoshot (Testing)</button>
-      <button id="btn-skip-to-video-dental" class="btn-secondary" data-event="dental">Skip to Video: Dental (Dev)</button>
-      <button id="btn-skip-to-video-grocery" class="btn-secondary" data-event="grocery">Skip to Video: Grocery (Dev)</button>
-      <button id="btn-skip-to-video-dining" class="btn-secondary" data-event="dining">Skip to Video: Dining (Dev)</button>
-      <button id="btn-skip-to-wrapup" class="btn-secondary">Skip to Wrap-up (Dev)</button>
+      <!-- Dev/testing shortcuts live on dev.html now — this welcome screen only
+           needs to offer Start. -->
+      <a href="dev.html" class="welcome-dev-link">Dev Tools</a>
     </div>
   </div>
 
@@ -136,9 +133,18 @@
       </div>
       <span id="canvas-instruction" class="canvas-instruction">Place things on your picture</span>
       <button id="btn-canvas-next" class="btn-canvas-next">Next</button>
-      <!-- Reward collection bar — one slot per canvas stage, filled on stage
-           exit. Sits at the far right of the tab row; rendered by renderRewardBar(). -->
+      <!-- Collect-reward — hidden until dwell threshold is reached (startStageTimer
+           in app.js). Clicking it awards the current stage in place; navigation
+           (Next/tabs/Back) no longer triggers or waits on the reward. -->
+      <button id="btn-collect-reward" class="btn-collect-reward hidden">🎁 Collect</button>
+      <!-- Reward collection bar — one slot per canvas stage, filled on collect.
+           Sits at the far right of the tab row; rendered by renderRewardBar(). -->
       <div class="reward-bar" id="reward-bar"></div>
+      <!-- Caregiver escape hatch: skip the remaining sensory stages and jump
+           straight to the video. Deliberately small/greyed so children don't
+           tap through the elicitation; only surfaced to a guiding caregiver. -->
+      <button id="btn-skip-to-video-canvas" class="btn-skip-video-caregiver"
+              title="Skip to video" aria-label="Skip to video">⏭</button>
     </div>
     <!-- Stage timer bar -->
     <div class="stage-timer-bar" id="stage-timer-bar">
