@@ -94,11 +94,16 @@ html, body {
    ============================================ */
 .photo-content {
   display: flex; flex-direction: column; align-items: center;
-  justify-content: center; height: 100%;
-  background: #fafaf8; padding: 1.5rem; gap: 1.2rem;
+  /* Was justify-content:center — with the viewfinder at full size,
+     centering could put its top edge close enough to the container's
+     top that the absolutely-positioned corner thumbnails overlapped it
+     (Yue: "重叠了，还看不到完整的取景框"). flex-start + a fixed
+     padding-top reserving the corner-thumbnail zone guarantees no
+     overlap regardless of content height, instead of relying on
+     centering math that happens to leave enough room. */
+  justify-content: flex-start; height: 100%;
+  background: #fafaf8; padding: 1.5rem; padding-top: 140px; gap: 1.2rem;
   overflow-y: auto; touch-action: pan-y;
-  /* Anchors .photo-previews, which floats in a corner instead of taking
-     space from the (full-size, per Yue) viewfinder — see below. */
   position: relative;
 }
 .photo-main-row {
