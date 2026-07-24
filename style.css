@@ -97,12 +97,13 @@ html, body {
   justify-content: center; height: 100%;
   background: #fafaf8; padding: 1.5rem; gap: 1.2rem;
   overflow-y: auto; touch-action: pan-y;
+  /* Anchors .photo-previews, which floats in a corner instead of taking
+     space from the (full-size, per Yue) viewfinder — see below. */
+  position: relative;
 }
-/* Camera (+ capture step) and the two preview thumbnails side by side
-   instead of stacked, so the screen fits on iPad without scrolling. */
 .photo-main-row {
-  display: flex; flex-direction: row; align-items: center;
-  justify-content: center; gap: 2rem;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 1.2rem;
   width: 100%; min-height: 0;
 }
 .photo-main-col {
@@ -110,10 +111,7 @@ html, body {
   min-width: 0;
 }
 .photo-viewfinder-wrap {
-  /* Was a %-of-parent width, fine when the parent was the full screen;
-     now nested in a row next to the previews column, so size against the
-     viewport instead of an ambiguous flex-auto parent. */
-  width: min(45vw, 360px); aspect-ratio: 4/3;
+  width: 72%; max-width: 400px; aspect-ratio: 4/3;
   border-radius: 16px; overflow: hidden;
   background: #e8e8e4; position: relative;
   border: 1.5px solid #ddd;
@@ -145,17 +143,17 @@ html, body {
   background: #2c2c2c;
 }
 
-/* Thumbnails — a vertical side column next to the camera (see
-   .photo-main-row) rather than a horizontal row below it. */
-.photo-previews {
-  display: flex; flex-direction: column; gap: 1.2rem; justify-content: center;
-  flex-shrink: 0;
-}
+/* Thumbnails float in the two top corners of the screen (positioned
+   against .photo-content) instead of taking layout space next to or
+   below the viewfinder, so the viewfinder can stay full size. */
 .photo-thumb-wrap {
   display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+  position: absolute; top: 1.2rem;
 }
+.photo-thumb-wrap:first-child { left: 1.2rem; }
+.photo-thumb-wrap:last-child { right: 1.2rem; }
 .photo-thumb {
-  width: 96px; height: 96px; border-radius: 50%;
+  width: 84px; height: 84px; border-radius: 50%;
   object-fit: cover; border: 1.5px solid #ddd;
   background: #f0f0ee;
 }
@@ -2144,9 +2142,10 @@ html, body {
   /* Side-by-side (see .photo-main-row) needs room .photo-content doesn't
      have on a narrow phone — fall back to the original stacked layout
      there; only iPad needs to avoid scrolling per Yue's request. */
-  .photo-main-row { flex-direction: column; gap: 0.8rem; }
   .photo-viewfinder-wrap { width: 88vw; max-width: 320px; }
-  .photo-previews { flex-direction: row; }
+  .photo-thumb { width: 60px; height: 60px; }
+  .photo-thumb-wrap:first-child { left: 0.5rem; }
+  .photo-thumb-wrap:last-child { right: 0.5rem; }
   .photo-prompt { font-size: 1rem; }
   .btn-capture { width: 56px; height: 56px; }
   .photo-thumb { width: 56px; height: 56px; }
