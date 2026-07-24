@@ -7,3 +7,4 @@ key.pem
 generate_assets.py
 .DS_Store
 *.py
+__pycache__/

@@ -148,7 +148,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps({'image': f'data:image/png;base64,{b64}'}).encode())
 
@@ -156,7 +155,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             print(f"  Error: {e}")
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps({'error': str(e)}).encode())
 
@@ -200,7 +198,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps({
                 'image': f'data:image/png;base64,{b64}',
@@ -211,7 +208,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             print(f"  Sticker error: {e}")
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps({'error': str(e)}).encode())
 
@@ -247,7 +243,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps({
                 'audio': f'data:audio/mpeg;base64,{b64}',
@@ -258,7 +253,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             print(f"  Sound error: {e}")
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps({'error': str(e)}).encode())
 
@@ -340,7 +334,6 @@ Return JSON only:
 
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps({'result': text}).encode())
 
@@ -348,13 +341,11 @@ Return JSON only:
             print(f"  AI observation error: {e}")
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps({'error': str(e)}).encode())
 
     def do_OPTIONS(self):
         self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()

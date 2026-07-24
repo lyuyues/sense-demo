@@ -1926,7 +1926,7 @@ html, body {
   position: relative;
   background: rgba(20,20,20,0.94); backdrop-filter: blur(16px);
   border-radius: 16px; border: 1px solid rgba(255,255,255,0.12);
-  padding: 1.1rem 1.2rem; min-width: 440px;
+  padding: 1.1rem 1.2rem; min-width: min(440px, 88vw);
   box-shadow: 0 8px 28px rgba(0,0,0,0.45);
   animation: fabSlideUp 0.2s ease-out;
   font-size: 1rem;
