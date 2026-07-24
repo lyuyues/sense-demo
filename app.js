@@ -231,6 +231,9 @@ function initRewardPicker() {
   const grid = document.getElementById('reward-grid');
   if (!grid) return;
 
+  const hint = document.getElementById('reward-custom-hint');
+  if (hint) hint.classList.toggle('hidden', !!API_BASE);
+
   grid.innerHTML = '';
   REWARD_PRESETS.forEach(preset => {
     const btn = document.createElement('button');
@@ -693,10 +696,18 @@ document.getElementById('btn-capture-scene').addEventListener('click', () => {
   document.getElementById('btn-photo-next').disabled = false;
 });
 
-// API server for photo conversion (local dev or same origin)
+// API server for photo conversion (local dev or same origin).
+// TEMP for 2026-07 group meeting (Yue confirmed): routes the deployed Pages
+// site to a cloudflared quick tunnel in front of a locally-run server.py, so
+// live avatar/sticker generation works during the demo without a real
+// backend deployment. Remove TEMP_TUNNEL_BASE and revert to '' after the
+// meeting — the tunnel URL dies when the presenter's laptop/tunnel stops,
+// and leaving this in permanently would route all site visitors' generation
+// requests through a personal machine.
+const TEMP_TUNNEL_BASE = 'https://fashion-counting-decades-easter.trycloudflare.com';
 const API_BASE = location.hostname === 'localhost' || location.hostname.startsWith('192.168')
   ? location.origin
-  : ''; // On GitHub Pages, no conversion available
+  : TEMP_TUNNEL_BASE;
 
 document.getElementById('btn-photo-next').addEventListener('click', async () => {
   stopCamera();

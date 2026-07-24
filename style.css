@@ -2421,6 +2421,10 @@ html, body {
   font-size: 0.7rem; color: #999; margin-top: 0.4rem;
   min-height: 1em;  /* reserve the line so the picker doesn't jump */
 }
+.reward-custom-hint {
+  font-size: 0.65rem; color: #b3b3b3; margin-top: 0.3rem;
+  font-style: italic;
+}
 
 /* --- Collection bar (canvas screen) --- */
 /* Lives inside .canvas-topbar, pinned right. margin-left:auto keeps it hard
