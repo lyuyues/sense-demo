@@ -990,9 +990,9 @@ function drawLineart(ctx, template) {
 // docs/plans/2026-07-23-decoupled-stage-reward-design.md.
 const STAGE_TIME_LIMITS = {
   'add-elements': 30,  // seconds
-  'color': 60,
-  'light': 60,
-  'sound-studio': 45,
+  'color': 30,
+  'light': 15,
+  'sound-studio': 30,
   'animate': 0, // drum has its own flow — reward fires from finishDrum()
 };
 let stageTimerInterval = null;
@@ -6116,6 +6116,13 @@ function formatTime(s) {
 (function initPinchGestures() {
   const container = document.getElementById('canvas-container');
   if (!container) return;
+  // Disabled per Yue: an accidental two-finger touch during normal play
+  // (e.g. a child's resting hand) triggered this unintentionally — either
+  // resizing a placed element up toward its 300px cap (the oversized milk
+  // carton/broccoli report) or panning+zooming the whole canvas ("点着点着
+  // 就zoom in/out了"). Canvas size/position should be fixed, not
+  // touch-gesture-adjustable.
+  return;
 
   let pinchStartDist = 0;
   let pinchStartScale = 1;
