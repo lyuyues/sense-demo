@@ -2509,11 +2509,10 @@ html, body {
 /* Lives inside .canvas-topbar, pinned right. margin-left:auto keeps it hard
    against the edge even when .canvas-instruction (flex:1) is empty. */
 .reward-bar {
-  display: flex; align-items: center; gap: 8px;
-  margin-left: auto;
-  flex-shrink: 0;
-  background: transparent;
-  z-index: 21;
+  /* Slots now render on the tabs themselves (see renderRewardBar() in
+     app.js) — this container stays in the DOM but empty and takes no
+     space, reclaiming the width it used to need in the topbar. */
+  display: none;
 }
 .reward-slot {
   width: 48px; height: 48px; border-radius: 50%;
@@ -2521,6 +2520,17 @@ html, body {
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   transition: border-color 0.2s;
+}
+/* Now lives as a small badge in each stage tab's corner (see
+   renderRewardBar() in app.js) instead of a separate row, so the topbar
+   doesn't need extra width for it. .phase-tab has overflow:hidden (for its
+   icon/label), so this must stay fully inside the tab's own box — no
+   negative offsets. */
+.phase-tab { position: relative; }
+.phase-tab .reward-slot {
+  position: absolute; top: 3px; right: 3px;
+  width: 16px; height: 16px; border-width: 1px;
+  background: #fff;
 }
 .reward-slot.filled {
   border-style: solid; border-color: transparent;

@@ -278,21 +278,29 @@ function initRewardPicker() {
   input?.addEventListener('keydown', e => { if (e.key === 'Enter') submitCustom(); });
 }
 
+// Reward slots live as a small badge in each stage tab's top-right corner
+// (see .phase-tab position:relative / .reward-slot position:absolute in
+// CSS) rather than in a separate row — the row didn't fit on iPad once the
+// Collect button was also visible, pushing the topbar taller and squeezing
+// the canvas + bottom palette (Yue: "上面的空间不够了...压缩下面的canvas
+// 以及最下面的bar"). Badging the tabs directly needs no extra width at all.
 function renderRewardBar() {
-  const bar = document.getElementById('reward-bar');
-  if (!bar) return;
-  bar.innerHTML = '';
   REWARD_STAGES.forEach(stageId => {
-    const slot = document.createElement('div');
-    slot.className = 'reward-slot';
-    slot.dataset.stage = stageId;
+    const tab = document.querySelector(`.phase-tab[data-phase="${stageId}"]`);
+    if (!tab) return;
+    let slot = tab.querySelector('.reward-slot');
+    if (!slot) {
+      slot = document.createElement('div');
+      slot.className = 'reward-slot';
+      slot.dataset.stage = stageId;
+      tab.appendChild(slot);
+    }
     if (state.rewardsAwarded.has(stageId)) {
       slot.classList.add('filled');
       if (state.rewardItem) {
         slot.innerHTML = `<img class="reward-slot-img" src="${state.rewardItem.src}" alt="">`;
       }
     }
-    bar.appendChild(slot);
   });
 }
 
