@@ -1172,7 +1172,7 @@ body {
      different pixel sizes depending on camera permission state (Yue:
      "真的不一样"). min()-against-viewport is independent of any
      ancestor's content-driven width, so this can't happen again. */
-  width: min(500px, 70vw) !important;
+  width: min(450px, 70vw) !important;
   aspect-ratio: 4/3 !important;
   background: var(--hd-paper-card) !important;
   border: 3px solid var(--hd-ink) !important;
