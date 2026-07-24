@@ -53,6 +53,12 @@ BACKGROUND_PROMPT = (
 LINEART_PROMPT = (
     'Look at this image. Create a "coloring book" version of the EXACT same character/object:\n'
     '- Keep the EXACT same pose, proportions, and silhouette.\n'
+    '- Keep the EXACT same FRAMING and CROP as the input — if the input shows '
+    'a full-body standing figure head-to-shoes, the output must ALSO show the '
+    'full body head-to-shoes at the same zoom level. Do NOT zoom in, crop '
+    'tighter, or reframe to a close-up/bust/head-only shot — that is a common '
+    'mistake to avoid. The character must occupy the same portion of the frame '
+    'as in the input image.\n'
     '- Keep small details colored: face/skin, hair, eyes, lips, shoes, socks, small accessories.\n'
     '- Make large clothing areas and big color blocks WHITE (empty, ready to be colored in).\n'
     '- CRITICAL: ALL outlines and line work must be CRISP, DARK BLACK ink lines, '
