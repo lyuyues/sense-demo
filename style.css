@@ -2424,7 +2424,10 @@ html, body {
 .reward-custom-input {
   flex: 1; min-width: 0;
   border: 1.5px solid #e0e0de; border-radius: 8px;
-  padding: 10px 12px; font-size: 0.9rem; font-family: inherit;
+  /* iOS Safari auto-zooms the page on focus for inputs under 16px — this
+     was 0.9rem (14.4px), a second contributor to Yue's "UI keeps
+     zooming/moving" report on iPad alongside the pinch-gesture guard. */
+  padding: 10px 12px; font-size: 16px; font-family: inherit;
   background: #fff; color: #2c2c2c;
 }
 .reward-custom-input:focus { outline: none; border-color: #2c2c2c; }

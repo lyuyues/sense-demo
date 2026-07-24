@@ -3,6 +3,22 @@
 // Complete rewrite: canvas + drag-drop + coloring + animate
 // ============================================================
 
+// iOS Safari ignores viewport `user-scalable=no` in many versions and still
+// allows pinch-zoom via the 'gesturestart' events (a Safari-only API not
+// covered by touch event preventDefault elsewhere in this file). On iPad
+// this let a stray two-finger touch zoom/shift the whole page instead of
+// interacting with the canvas (Yue: "整个画面总是乱动"). Block it globally.
+['gesturestart', 'gesturechange', 'gestureend'].forEach(evt => {
+  document.addEventListener(evt, e => e.preventDefault());
+});
+// Belt-and-suspenders for browsers without the gesture* events: block any
+// multi-touch move so a second finger landing anywhere can't trigger a
+// native pinch even where a specific element's own touchmove handler
+// doesn't already preventDefault (passive:false so this can actually block).
+document.addEventListener('touchmove', e => {
+  if (e.touches.length > 1) e.preventDefault();
+}, { passive: false });
+
 // --- State ---
 const state = {
   phase: 'welcome',
