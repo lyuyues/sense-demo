@@ -199,7 +199,16 @@ html, body {
 }
 .phase-tabs {
   display: flex; gap: 4px; align-items: center;
+  /* On phones the 5 tabs + instruction + reward bar don't all fit; the
+     global body{overflow:hidden; touch-action:none} would otherwise make
+     anything past the edge permanently unreachable, so open a scroll
+     escape hatch here specifically. */
+  overflow-x: auto; touch-action: pan-x;
+  -ms-overflow-style: none; scrollbar-width: none;
+  flex-shrink: 1; min-width: 0;
 }
+.phase-tabs::-webkit-scrollbar { display: none; }
+.phase-tab { flex-shrink: 0; }
 .phase-tab {
   background: transparent; border: 1.5px solid #e0e0de;
   border-radius: 8px; padding: 4px 10px;
@@ -2480,6 +2489,9 @@ html, body {
   .reward-bar { gap: 5px; }
   .reward-slot { width: 34px; height: 34px; }
   .reward-option-img { width: 34px; height: 34px; }
+  .canvas-topbar { padding: 0 8px; }
+  .phase-tab { padding: 4px 7px; font-size: 0.62rem; }
+  .canvas-instruction { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
