@@ -733,6 +733,12 @@ const API_BASE = location.hostname === 'localhost' || location.hostname.startsWi
   ? location.origin
   : TEMP_TUNNEL_BASE;
 
+// True only when the page was reached via a ?dev=<action> link (see dev.html
+// and the dispatcher at the bottom of this file). Used to gate the
+// auto-download in exportData() — a normal Start-button session shouldn't
+// pop a file-save dialog (Yue: "我正常从start进去的不应该有这个").
+const IS_DEV_MODE = !!new URLSearchParams(location.search).get('dev');
+
 document.getElementById('btn-photo-next').addEventListener('click', async () => {
   stopCamera();
 
@@ -5103,6 +5109,12 @@ async function callFinalSummary() {
 // DATA EXPORT
 // ============================================================
 function exportData() {
+  // Downloading a JSON file mid-session is a dev/testing affordance, not
+  // something a normal Start-button run should surface (Yue saw the save
+  // dialog pop up twice during ordinary play). Gate the whole thing on
+  // ?dev=... rather than just hiding the UI, since nothing else reads `data`.
+  if (!IS_DEV_MODE) return;
+
   const data = {
     timestamp: new Date().toISOString(),
     eventType: state.eventType,
