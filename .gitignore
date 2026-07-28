@@ -8,3 +8,4 @@ generate_assets.py
 .DS_Store
 *.py
 __pycache__/
+session_data/

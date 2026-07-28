@@ -7,6 +7,7 @@ import json
 import base64
 import io
 import os
+import time
 
 from google import genai
 from google.genai import types
@@ -107,6 +108,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_generate_sound()
         elif self.path == '/api/ai-observation':
             self._handle_ai_observation()
+        elif self.path == '/api/save-session':
+            self._handle_save_session()
         else:
             self.send_error(404)
 
@@ -345,6 +348,38 @@ Return JSON only:
 
         except Exception as e:
             print(f"  AI observation error: {e}")
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(e)}).encode())
+
+    def _handle_save_session(self):
+        # Study data-collection sink: the client POSTs its full session record
+        # (elicitation preferences + interactionLog + video playback) here so
+        # it survives the tab closing, instead of relying on a manual dev-mode
+        # download. One file per (sessionId, exportStage) — stage1 fires at the
+        # elicitation->video boundary, stage2 at video end, so a session that's
+        # abandoned mid-video still leaves a stage1 record behind.
+        try:
+            length = int(self.headers['Content-Length'])
+            body = json.loads(self.rfile.read(length))
+            session_dir = os.path.join(DIR, 'session_data')
+            os.makedirs(session_dir, exist_ok=True)
+
+            session_id = str(body.get('sessionId') or int(time.time() * 1000))
+            stage = body.get('exportStage', 'unknown')
+            fname = f"sense-session-{session_id}-{stage}.json"
+            path = os.path.join(session_dir, fname)
+            with open(path, 'w') as f:
+                json.dump(body, f, indent=2)
+            print(f"Session data saved: {fname}")
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'status': 'ok', 'file': fname}).encode())
+        except Exception as e:
+            print(f"Save session error: {e}")
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()

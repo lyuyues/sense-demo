@@ -533,7 +533,7 @@ function goToPhase(phase) {
     // Auto-download behavior data once per session at Stage 1 -> Stage 2 boundary
     if (!state.dataExported) {
       state.dataExported = true;
-      try { exportData(); } catch (e) { console.warn('Auto-export failed:', e); }
+      try { exportData('stage1'); } catch (e) { console.warn('Auto-export failed:', e); }
     }
   }
   // drum is now a canvas sub-phase, not a separate screen
@@ -642,7 +642,7 @@ document.getElementById('btn-skip-to-video-canvas')?.addEventListener('click', (
   logEvent('caregiver_skip_to_video', { fromSubPhase: state.canvasSubPhase });
   if (!state.dataExported) {
     state.dataExported = true;
-    try { exportData(); } catch (e) { console.warn('Skip export failed:', e); }
+    try { exportData('skip'); } catch (e) { console.warn('Skip export failed:', e); }
   }
   goToPhase('video');
 });
@@ -5108,14 +5108,10 @@ async function callFinalSummary() {
 // ============================================================
 // DATA EXPORT
 // ============================================================
-function exportData() {
-  // Downloading a JSON file mid-session is a dev/testing affordance, not
-  // something a normal Start-button run should surface (Yue saw the save
-  // dialog pop up twice during ordinary play). Gate the whole thing on
-  // ?dev=... rather than just hiding the UI, since nothing else reads `data`.
-  if (!IS_DEV_MODE) return;
-
+function exportData(stage = 'unknown') {
   const data = {
+    sessionId: state.sessionStart,
+    exportStage: stage,
     timestamp: new Date().toISOString(),
     eventType: state.eventType,
     preferences: extractPreferences(),
@@ -5133,7 +5129,33 @@ function exportData() {
     // Until then level_selected is null and manual_adjustments is empty.
     difficulty: state.difficultyMeta,
     condition_contaminated: state.condition_contaminated,
+    // Priming video playback — populated once initVideoPlayer() has run.
+    videoPlayback: {
+      watchedMs: (state.videoWatchMs || 0) +
+        (state.videoPlayStartedAt ? Date.now() - state.videoPlayStartedAt : 0),
+      playCount: state.interactionLog.filter(e => e.event === 'video_play').length,
+      pauseCount: state.interactionLog.filter(e => e.event === 'video_pause').length,
+      seekCount: state.interactionLog.filter(e => e.event === 'video_seek').length,
+    },
   };
+
+  // Persist to the server so a real study session survives the tab closing —
+  // this is the actual data-collection path. The client-side download below
+  // is a dev-only convenience for local inspection, not how study data leaves
+  // the device.
+  if (API_BASE) {
+    fetch(API_BASE + '/api/save-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).catch(e => console.warn('Session save failed:', e));
+  }
+
+  // Downloading a JSON file mid-session is a dev/testing affordance, not
+  // something a normal Start-button run should surface (Yue saw the save
+  // dialog pop up twice during ordinary play). Gate the whole thing on
+  // ?dev=... rather than just hiding the UI, since nothing else reads `data`.
+  if (!IS_DEV_MODE) return;
 
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -5702,6 +5724,22 @@ function initVideoPlayer() {
   // Set up Web Audio lowpass for auditory (once per video element)
   setupVideoAudioChain(video);
 
+  // Watch-time + play/pause/seek logging for the evaluation data set. Reset
+  // per initVideoPlayer() call so a "try another" rewatch starts a fresh count.
+  state.videoWatchMs = 0;
+  state.videoPlayStartedAt = null;
+  video.addEventListener('play', () => {
+    state.videoPlayStartedAt = Date.now();
+    logEvent('video_play', { currentTime: +video.currentTime.toFixed(2) });
+  });
+  video.addEventListener('pause', () => {
+    if (state.videoPlayStartedAt != null) {
+      state.videoWatchMs += Date.now() - state.videoPlayStartedAt;
+      state.videoPlayStartedAt = null;
+    }
+    logEvent('video_pause', { currentTime: +video.currentTime.toFixed(2) });
+  });
+
   // Apply initial preferences
   applyVideoPreferences();
 
@@ -5793,7 +5831,10 @@ function initVideoPlayer() {
   document.getElementById('timeline-track').onclick = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
-    video.currentTime = pct * video.duration;
+    const fromTime = video.currentTime;
+    const toTime = pct * video.duration;
+    video.currentTime = toTime;
+    logEvent('video_seek', { fromTime: +fromTime.toFixed(2), toTime: +toTime.toFixed(2) });
   };
 
   // Settings panel toggle — refresh slider positions on every open to reflect current state
@@ -5842,7 +5883,7 @@ function initVideoPlayer() {
     // Stage 2 export — captures difficulty choice + any caregiver manual_adjustments
     // accumulated during playback. The earlier Stage 1 export (at processing entry)
     // pre-dated the difficulty modal, so this second export is the full-session record.
-    try { exportData(); } catch (e) { console.warn('Stage 2 export failed:', e); }
+    try { exportData('stage2'); } catch (e) { console.warn('Stage 2 export failed:', e); }
     goToPhase('wrapup');
   };
 
