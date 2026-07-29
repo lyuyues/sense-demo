@@ -38,6 +38,11 @@ const state = {
   sessionStart: Date.now(),
   phaseStartTime: Date.now(),
   phaseDurations: {},
+  // Per-canvas-sub-phase timing (place-self, add-elements, color, light,
+  // sound-studio, animate) — the 'canvas' entry in phaseDurations lumps all
+  // 6 together; this breaks it down. Reset when 'canvas' phase is (re-)entered.
+  subPhaseStartTime: Date.now(),
+  subPhaseDurations: {},
   // Audio
   audioCtx: null,
   gainNode: null,
@@ -515,6 +520,15 @@ function goToPhase(phase) {
   state.phaseDurations[state.phase] = (state.phaseDurations[state.phase] || 0) + (now - state.phaseStartTime);
   state.phaseStartTime = now;
 
+  // Close out whichever canvas sub-phase was active. Leaving 'canvas' doesn't
+  // always route through setCanvasSubPhase() (finishing 'animate' or a
+  // caregiver skip both jump straight to goToPhase()), so the last sub-phase
+  // needs its time recorded here too.
+  if (state.phase === 'canvas') {
+    state.subPhaseDurations[state.canvasSubPhase] =
+      (state.subPhaseDurations[state.canvasSubPhase] || 0) + (now - state.subPhaseStartTime);
+  }
+
   document.querySelectorAll('.screen').forEach(s => {
     s.classList.remove('active', 'fade-in');
   });
@@ -527,7 +541,10 @@ function goToPhase(phase) {
 
   // Phase-specific init
   if (phase === 'photo') initPhotoScreen();
-  if (phase === 'canvas') initCanvasScreen();
+  if (phase === 'canvas') {
+    state.subPhaseStartTime = now;
+    initCanvasScreen();
+  }
   if (phase === 'processing') {
     runProcessing();
     // Auto-download behavior data once per session at Stage 1 -> Stage 2 boundary
@@ -1082,6 +1099,11 @@ function clearStageTimer() {
 // the reward. Reward collection is a separate, explicit action; see
 // showRewardCollectButton() and docs/plans/2026-07-23-decoupled-stage-reward-design.md.
 function setCanvasSubPhase(subPhase) {
+  const now = Date.now();
+  state.subPhaseDurations[state.canvasSubPhase] =
+    (state.subPhaseDurations[state.canvasSubPhase] || 0) + (now - state.subPhaseStartTime);
+  state.subPhaseStartTime = now;
+
   state.canvasSubPhase = subPhase;
   logEvent('sub_phase_change', { subPhase });
 
@@ -2165,6 +2187,11 @@ function setupLightStage() {
 
   // Pointer / touch drag handlers
   let dragging = false;
+  // Trajectory sampling (~100ms, see startDrag() for the rationale) — reset
+  // per drag gesture in onDown, since the sun/moon can be dragged repeatedly.
+  let dragStartTime = 0;
+  let path = [];
+  let lastSampleTime = 0;
 
   function onDown(e) {
     e.preventDefault();
@@ -2173,19 +2200,34 @@ function setupLightStage() {
     celestial.classList.add('dragging');
     const cx = e.touches ? e.touches[0].clientX : e.clientX;
     positionCelestial(clientXToT(cx));
+    dragStartTime = Date.now();
+    lastSampleTime = dragStartTime;
+    path = [{ arcPosition: t, brightness: state.lightData.brightness, timestamp: dragStartTime }];
   }
   function onMove(e) {
     if (!dragging) return;
     e.preventDefault();
     const cx = e.touches ? e.touches[0].clientX : e.clientX;
     positionCelestial(clientXToT(cx));
+    const now = Date.now();
+    if (now - lastSampleTime >= 100) {
+      path.push({ arcPosition: t, brightness: state.lightData.brightness, timestamp: now });
+      lastSampleTime = now;
+    }
   }
   function onUp() {
     if (!dragging) return;
     dragging = false;
     celestial.classList.remove('dragging');
+    const now = Date.now();
+    path.push({ arcPosition: t, brightness: state.lightData.brightness, timestamp: now });
     if (typeof logEvent === 'function') {
-      logEvent('light_arc_set', { arcPosition: t, brightness: state.lightData.brightness });
+      logEvent('light_arc_set', {
+        arcPosition: t,
+        brightness: state.lightData.brightness,
+        path,
+        durationMs: now - dragStartTime,
+      });
     }
   }
 
@@ -2424,6 +2466,12 @@ function spawnStaffElement(snd, startEvent) {
 
 function makeStaffDraggable(el, snd) {
   let offsetX, offsetY, dragging = false;
+  // Trajectory sampling (~100ms, see startDrag() for the rationale). Stored
+  // as pitch/volume rather than raw x/y since that's the actual signal —
+  // position is just the input mechanism.
+  let dragStartTime = 0;
+  let path = [];
+  let lastSampleTime = 0;
 
   el.addEventListener('pointerdown', (e) => {
     e.preventDefault();
@@ -2434,6 +2482,18 @@ function makeStaffDraggable(el, snd) {
     offsetY = e.clientY - rect.top;
     el.classList.add('dragging');
     el.setPointerCapture(e.pointerId);
+
+    const staffArea = document.getElementById('staff-area');
+    const sRect = staffArea.getBoundingClientRect();
+    const x0 = parseFloat(el.style.left) || 0;
+    const y0 = parseFloat(el.style.top) || 0;
+    dragStartTime = Date.now();
+    lastSampleTime = dragStartTime;
+    path = [{
+      pitch: Math.round((1 - y0 / sRect.height) * 100),
+      volume: Math.round(x0 / sRect.width * 100),
+      timestamp: dragStartTime,
+    }];
   });
 
   el.addEventListener('pointermove', (e) => {
@@ -2444,11 +2504,23 @@ function makeStaffDraggable(el, snd) {
     const newY = e.clientY - sRect.top - offsetY;
 
     // Clamp within staff area
-    el.style.left = Math.max(0, Math.min(sRect.width - 60, newX)) + 'px';
-    el.style.top = Math.max(0, Math.min(sRect.height - 60, newY)) + 'px';
+    const clampedX = Math.max(0, Math.min(sRect.width - 60, newX));
+    const clampedY = Math.max(0, Math.min(sRect.height - 60, newY));
+    el.style.left = clampedX + 'px';
+    el.style.top = clampedY + 'px';
 
     // Live pitch + volume + size update
     updateStudioLayer(snd.type, el, sRect.width, sRect.height);
+
+    const now = Date.now();
+    if (now - lastSampleTime >= 100) {
+      path.push({
+        pitch: Math.round((1 - clampedY / sRect.height) * 100),
+        volume: Math.round(clampedX / sRect.width * 100),
+        timestamp: now,
+      });
+      lastSampleTime = now;
+    }
 
     // Highlight trash if near bottom
     const trash = document.getElementById('sound-trash');
@@ -2513,10 +2585,16 @@ function makeStaffDraggable(el, snd) {
 
     const finalX = parseFloat(el.style.left);
     const finalY = parseFloat(el.style.top);
+    const finalPitch = Math.round((1 - finalY / sRect.height) * 100);
+    const finalVolume = Math.round(finalX / sRect.width * 100);
+    const now = Date.now();
+    path.push({ pitch: finalPitch, volume: finalVolume, timestamp: now });
     logEvent('staff_element_set', {
       type: snd.type,
-      pitch: Math.round((1 - finalY / sRect.height) * 100),
-      volume: Math.round(finalX / sRect.width * 100),
+      pitch: finalPitch,
+      volume: finalVolume,
+      path,
+      durationMs: now - dragStartTime,
     });
   });
 }
@@ -2860,12 +2938,36 @@ function startDrag(el, e, onMoveCallback) {
   el.classList.add('dragging');
   el.setPointerCapture(e.pointerId);
 
+  // Trajectory sampling for the evaluation data set (avatar + all placed
+  // items share this function). One point at drag start, one every ~100ms
+  // while moving — reach-gesture motor-control work doesn't need finer than
+  // ~10Hz to see hesitation/path shape, and this keeps interactionLog from
+  // being flooded by 60-120Hz native pointermove — plus always the exact
+  // final point, which the 100ms grid never gets to round off.
+  const dragStartTime = Date.now();
+  const startContainer = document.getElementById('element-layer');
+  const startCRect = startContainer.getBoundingClientRect();
+  const path = [{
+    x: Math.round(rect.left - startCRect.left),
+    y: Math.round(rect.top - startCRect.top),
+    t: dragStartTime,
+  }];
+  let lastSampleTime = dragStartTime;
+
   const onMove = (me) => {
     if (onMoveCallback) onMoveCallback();
     const container = document.getElementById('element-layer');
     const cRect = container.getBoundingClientRect();
-    el.style.left = (me.clientX - cRect.left - offsetX) + 'px';
-    el.style.top = (me.clientY - cRect.top - offsetY) + 'px';
+    const x = me.clientX - cRect.left - offsetX;
+    const y = me.clientY - cRect.top - offsetY;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+
+    const now = Date.now();
+    if (now - lastSampleTime >= 100) {
+      path.push({ x: Math.round(x), y: Math.round(y), t: now });
+      lastSampleTime = now;
+    }
 
     // Highlight trash if near
     const trash = document.getElementById('palette-trash');
@@ -2899,10 +3001,16 @@ function startDrag(el, e, onMoveCallback) {
     }
 
     updatePlacedElement(el);
+    const finalX = parseInt(el.style.left);
+    const finalY = parseInt(el.style.top);
+    const now = Date.now();
+    path.push({ x: finalX, y: finalY, t: now });
     logEvent('element_moved', {
       id: el.id,
-      x: parseInt(el.style.left),
-      y: parseInt(el.style.top),
+      x: finalX,
+      y: finalY,
+      path,
+      durationMs: now - dragStartTime,
     });
   };
 
@@ -3531,7 +3639,7 @@ function selectColor(hex) {
   // shows up in *what they pick*, not in how big the strokes are). Stroke area is
   // execution, not intent — so we record the chosen hex here.
   state.colorSelections.push(hex);
-  logEvent('color_selection', { hex });
+  logEvent('color_selection', { hex, saturation: getColorSaturation(hex) });
   const eraserBtn = document.getElementById('btn-eraser');
   if (eraserBtn) eraserBtn.classList.remove('active');
   updateCrayonCursor();
@@ -4812,14 +4920,18 @@ function extractPreferences() {
     ? Math.sqrt(container.offsetWidth ** 2 + container.offsetHeight ** 2)
     : 1000;
 
-  // SPATIAL: average distance of friends/spatial elements from avatar
+  // SPATIAL: average distance of friends/spatial elements from avatar.
+  // distancesPx/avgDistancePx are the raw pixel values behind spatialScore —
+  // kept alongside it since the normalized score alone loses the actual
+  // distance (useful for the evaluation, and for sanity-checking the score).
   const spatialElems = state.placedElements.filter(e => e.dimension === 'spatial');
   let spatialScore = 0.5;
+  let distancesPx = [];
+  let avgDistancePx = null;
   if (avatar && spatialElems.length > 0) {
-    const avgDist = spatialElems.reduce((sum, f) => {
-      return sum + Math.sqrt((f.x - avatar.x) ** 2 + (f.y - avatar.y) ** 2);
-    }, 0) / spatialElems.length;
-    spatialScore = Math.min(1, avgDist / (maxDist * 0.5));
+    distancesPx = spatialElems.map(f => Math.sqrt((f.x - avatar.x) ** 2 + (f.y - avatar.y) ** 2));
+    avgDistancePx = distancesPx.reduce((a, b) => a + b, 0) / distancesPx.length;
+    spatialScore = Math.min(1, avgDistancePx / (maxDist * 0.5));
   }
 
   // AUDITORY: derived from Sound phase staff placements (last value per element type).
@@ -4890,7 +5002,7 @@ function extractPreferences() {
   }
 
   return {
-    spatial: { score: spatialScore, friendCount: spatialElems.length },
+    spatial: { score: spatialScore, friendCount: spatialElems.length, distancesPx, avgDistancePx },
     auditory: {
       score: auditoryScore,
       staffPitch: staffPitchAvg,
@@ -5125,6 +5237,9 @@ function exportData(stage = 'unknown') {
     interactionLog: state.interactionLog,
     totalDuration: Date.now() - state.sessionStart,
     phaseDurations: state.phaseDurations,
+    // Breakdown of the 'canvas' entry above into its 6 sub-phases (place-self
+    // + the 5 reward-paying stages: add-elements/color/light/sound-studio/animate).
+    subPhaseDurations: state.subPhaseDurations,
     // Phase 2 customization layer — populated once the difficulty modal closes.
     // Until then level_selected is null and manual_adjustments is empty.
     difficulty: state.difficultyMeta,
