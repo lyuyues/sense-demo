@@ -12,11 +12,18 @@ Outputs (written next to session_data_dir, default: session_data/):
     phase_visits.csv       — one row per *visit* to a phase/sub-phase (handles revisits)
     watched_ms_hist.png, pause_count_by_event.png — quick sanity plots
 
-Each session can produce up to 3 files (stage1 at elicitation->video
-boundary, skip if the caregiver bailed out of elicitation early, stage2 at
-video end) sharing the same sessionId. Only the most complete one per
-session is used for the summary row; stage2 always wins because
-interactionLog/videoPlayback are cumulative and only final at video end.
+Each session can produce a few files sharing the same sessionId: stage1 at
+the elicitation->video boundary, skip if the caregiver bailed out of
+elicitation early (mutually exclusive with stage1 — a session gets one or
+the other, never both), video-progress autosaved every ~10s while the video
+plays (a safety net for a session abandoned mid-video), stage2 on the
+video's natural end, and wrapup once the child answers the readiness
+question after the video. All of these overwrite the same filename per
+session (exportStage in the name), so there's at most one of each on disk.
+Only the most complete one per session is used for the summary row —
+priority is wrapup > stage2 > video-progress > skip/stage1, since
+interactionLog is cumulative and each later checkpoint is a strict superset
+of the ones before it.
 """
 
 from __future__ import annotations
@@ -27,7 +34,7 @@ from pathlib import Path
 
 import pandas as pd
 
-STAGE_PRIORITY = {"stage2": 2, "skip": 1, "stage1": 0, "unknown": -1}
+STAGE_PRIORITY = {"wrapup": 4, "stage2": 3, "video-progress": 2, "skip": 1, "stage1": 0, "unknown": -1}
 
 
 def load_sessions(session_dir: Path) -> list[dict]:
@@ -58,7 +65,7 @@ def build_summary_df(sessions: list[dict]) -> pd.DataFrame:
             "session_id": s.get("sessionId"),
             "event_type": s.get("eventType"),
             "timestamp": s.get("timestamp"),
-            "completed_video": s.get("exportStage") == "stage2",
+            "completed_video": s.get("exportStage") in ("stage2", "wrapup"),
             "export_stage": s.get("exportStage"),
             "total_duration_s": (s.get("totalDuration") or 0) / 1000,
             "video_phase_duration_s": video_phase_ms / 1000,

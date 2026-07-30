@@ -529,6 +529,13 @@ function goToPhase(phase) {
       (state.subPhaseDurations[state.canvasSubPhase] || 0) + (now - state.subPhaseStartTime);
   }
 
+  // Stop the video-progress autosave once we've actually left the video
+  // phase (natural end, or otherwise) — nothing left to periodically save.
+  if (state.phase === 'video' && state._videoAutosaveInterval) {
+    clearInterval(state._videoAutosaveInterval);
+    state._videoAutosaveInterval = null;
+  }
+
   document.querySelectorAll('.screen').forEach(s => {
     s.classList.remove('active', 'fade-in');
   });
@@ -5220,8 +5227,12 @@ async function callFinalSummary() {
 // ============================================================
 // DATA EXPORT
 // ============================================================
-function exportData(stage = 'unknown') {
-  const data = {
+// Builds the export payload without any side effects (no network, no
+// download) — split out from exportData() so the visibilitychange/pagehide
+// safety net (which must use sendBeacon, not fetch) can reuse the exact same
+// data shape instead of duplicating it.
+function buildExportPayload(stage) {
+  return {
     sessionId: state.sessionStart,
     exportStage: stage,
     timestamp: new Date().toISOString(),
@@ -5253,6 +5264,10 @@ function exportData(stage = 'unknown') {
       seekCount: state.interactionLog.filter(e => e.event === 'video_seek').length,
     },
   };
+}
+
+function exportData(stage = 'unknown') {
+  const data = buildExportPayload(stage);
 
   // Persist to the server so a real study session survives the tab closing —
   // this is the actual data-collection path. The client-side download below
@@ -5282,6 +5297,21 @@ function exportData(stage = 'unknown') {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+// Best-effort save for a video that's abandoned mid-playback (tab closed,
+// iPad backgrounded/killed). visibilitychange is far more reliable than
+// beforeunload on iOS Safari — the latter barely fires at all on mobile.
+// sendBeacon (not fetch) because fetch can get cancelled once the page starts
+// tearing down; sendBeacon is purpose-built to survive that.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && state.phase === 'video' && API_BASE) {
+    const data = buildExportPayload('video-progress');
+    navigator.sendBeacon(
+      API_BASE + '/api/save-session',
+      new Blob([JSON.stringify(data)], { type: 'application/json' })
+    );
+  }
+});
 
 // ============================================================
 // PROCESSING SCREEN
@@ -5854,6 +5884,19 @@ function initVideoPlayer() {
     }
     logEvent('video_pause', { currentTime: +video.currentTime.toFixed(2) });
   });
+
+  // Periodic autosave while watching — 'stage2' only fires on the video's
+  // natural 'ended' event, so a session abandoned mid-video (tab closed,
+  // iPad killed) would otherwise leave no video-playback data at all beyond
+  // whatever stage1/skip captured before the video even started. Every 10s
+  // is frequent enough that "no stage2" still means "off by at most ~10s",
+  // not "no data". Same filename each tick (exportStage: 'video-progress'),
+  // so this overwrites in place rather than piling up files.
+  if (state._videoAutosaveInterval) clearInterval(state._videoAutosaveInterval);
+  state._videoAutosaveInterval = setInterval(() => {
+    if (state.phase !== 'video') return;
+    try { exportData('video-progress'); } catch (e) { console.warn('Video autosave failed:', e); }
+  }, 10000);
 
   // Apply initial preferences
   applyVideoPreferences();
@@ -6660,8 +6703,14 @@ function initWrapupScreen() {
       if (state.wrapupStrategy) return;
       // No right/wrong — record the pick, dim the others, slide in readiness.
       state.wrapupStrategy = opt.label;
+      // `options` is the full question as posed (all 3 choices, in the order
+      // shown) — `picked` alone doesn't tell you what the child was choosing
+      // between, e.g. whether the distractors were plausible or obviously wrong.
       logEvent('wrapup_strategy_pick', {
-        anchor: q.anchor, picked: opt.label, canonical: !!opt.canonical,
+        anchor: q.anchor,
+        options: q.options.map(o => o.label),
+        picked: opt.label,
+        canonical: !!opt.canonical,
       });
       card.classList.add('selected');
       cards.forEach(c => { if (c !== card) c.classList.add('dimmed'); });
@@ -6746,7 +6795,10 @@ function initWrapupScreen() {
       if (state.wrapupFeeling) return;
       const feeling = card.dataset.feeling;
       state.wrapupFeeling = feeling;
-      logEvent('wrapup_readiness_pick', { feeling });
+      // afterReveal distinguishes the two prompt variants ("How are you
+      // feeling?" vs "You saw what happens. How do you feel?") — same 3
+      // options either way, but the question the child is answering differs.
+      logEvent('wrapup_readiness_pick', { feeling, afterReveal: !!state.wrapupRevealed });
       card.classList.add('selected');
       document.querySelectorAll('.readiness-card').forEach(c => {
         if (c !== card) c.classList.add('dimmed');
@@ -6754,6 +6806,12 @@ function initWrapupScreen() {
       setTimeout(() => {
         document.getElementById('wrapup-done').classList.remove('hidden');
       }, 500);
+      // The only other export point (stage2) fires at video-end, which is
+      // BEFORE the child ever reaches wrapup — without this, the strategy/
+      // readiness answers above would only reach session_data/ by accident,
+      // if the child happens to hit "try another" and rewatch. Same filename
+      // each time (overwrites), so repeated wrapup rounds don't pile up files.
+      try { exportData('wrapup'); } catch (e) { console.warn('Wrapup export failed:', e); }
     };
   });
 
