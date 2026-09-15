@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <title>SENSE Baseline — 家长设置面板</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+      background: #fafaf8; color: #2c2c2c;
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh; padding: 3rem 1.5rem;
+    }
+    .wrap { width: 100%; max-width: 420px; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.4rem; }
+    .subtitle { font-size: 0.9rem; color: #777; margin-bottom: 1.6rem; line-height: 1.5; }
+    .info-box {
+      background: #fff8ec; border: 1px solid #f0dfb8; border-radius: 12px;
+      padding: 0.9rem 1.1rem; font-size: 0.82rem; color: #6b5a2e; line-height: 1.6;
+      margin-bottom: 1.8rem;
+    }
+    .info-box b { color: #4a3d1c; }
+    .section-label {
+      font-size: 0.75rem; color: #999; text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 0.6rem; font-weight: 600;
+    }
+    .event-link {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%; text-align: left;
+      background: #fff; color: #2c2c2c; border: 1.5px solid #e2e2de;
+      border-radius: 14px; padding: 0.9rem 1.2rem; font-size: 1rem;
+      font-weight: 600; text-decoration: none;
+      margin-bottom: 0.7rem;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .event-link:active { background: #f5f5f2; border-color: #c9a24a; }
+    .event-link .arrow { color: #c9a24a; font-size: 1.1rem; }
+    .event-emoji { font-size: 1.3rem; margin-right: 0.6rem; }
+    .steps {
+      margin-top: 2rem; font-size: 0.8rem; color: #888; line-height: 1.9;
+    }
+    .steps b { color: #555; }
+    .back-link {
+      display: inline-block; margin-top: 2.2rem; font-size: 0.8rem;
+      color: #bbb; text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>SENSE Baseline</h1>
+    <p class="subtitle">家长/专家版对照系统 — 跳过孩子在画布上的互动环节，直接由家长在设置面板里手动拖动 6 个感官维度的滑块，生成对应的准备视频。</p>
+
+    <div class="info-box">
+      <b>这是什么：</b>与正式 SENSE 流程（孩子拖拽头像、涂色、调灯光等 5 个阶段来外化感官偏好）不同，这个版本让家长/专家直接设定参数，用于跟儿童互动外化的结果做对比实验。
+    </div>
+
+    <div class="section-label">选择场景</div>
+    <a class="event-link" href="index.html?dev=video-dental">
+      <span><span class="event-emoji">🦷</span>看牙医 Dental</span>
+      <span class="arrow">→</span>
+    </a>
+    <a class="event-link" href="index.html?dev=video-grocery">
+      <span><span class="event-emoji">🛒</span>超市购物 Grocery</span>
+      <span class="arrow">→</span>
+    </a>
+    <a class="event-link" href="index.html?dev=video-dining">
+      <span><span class="event-emoji">🍽️</span>外出用餐 Dining</span>
+      <span class="arrow">→</span>
+    </a>
+
+    <div class="steps">
+      <b>进入视频页面后：</b><br>
+      1. 点击播放器右下角的 ⚙️ 齿轮图标，打开"Adjust"设置面板<br>
+      2. 逐个滑块调整：亮度 / 饱和度 / 音调 / 人声音量 / 背景音乐音量 / 音效音量（每个 0–1，中点 = 中性默认）<br>
+      3. 调整后视频会实时应用新的画面滤镜和音频效果，可反复试听
+    </div>
+
+    <a class="back-link" href="index.html">← 回到正式 SENSE 流程</a>
+  </div>
+</body>
+</html>
