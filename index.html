@@ -140,11 +140,11 @@
            narrow phones, where tabs + instruction + reward bar don't all fit. -->
       <div class="canvas-topbar-scroll" id="canvas-topbar-scroll">
         <div id="phase-tabs" class="phase-tabs">
-          <button class="phase-tab active" data-phase="add-elements">🎨 Create</button>
+          <button class="phase-tab active" data-phase="create">🎨 Create</button>
           <button class="phase-tab" data-phase="color">🖍️ Color</button>
           <button class="phase-tab" data-phase="light">☀️ Light</button>
-          <button class="phase-tab" data-phase="sound-studio">🎵 Sound</button>
-          <button class="phase-tab" data-phase="animate">🥁 Rhythm</button>
+          <button class="phase-tab" data-phase="sound">🎵 Sound</button>
+          <button class="phase-tab" data-phase="rhythm">🥁 Rhythm</button>
         </div>
         <span id="canvas-instruction" class="canvas-instruction">Place things on your picture</span>
         <!-- Collect-reward — hidden until dwell threshold is reached (startStageTimer
@@ -406,107 +406,114 @@
            condition_contaminated. Reset (↻) returns the handle to baseline. -->
       <div class="fab-control" id="fab-control">
         <div class="fab-panel hidden" id="fab-panel">
-          <div class="settings-panel-title">Adjust</div>
+          <div class="settings-panel-title">Adjust 调节</div>
           <div class="settings-rows" id="settings-rows">
             <!-- Continuous channels -->
             <div class="settings-row settings-row-axis" data-channel="brightness">
-              <span class="settings-name">Brightness</span>
+              <span class="settings-name">Brightness 亮度（视觉）</span>
               <div class="settings-track-wrap">
                 <input type="range" class="settings-slider" data-channel="brightness" min="0" max="100" value="50">
                 <span class="settings-tick settings-tick-p"></span>
                 <span class="settings-tick settings-tick-baseline"></span>
                 <span class="settings-tick settings-tick-c"></span>
-                <div class="settings-axis-labels"><span>dim</span><span>bright</span></div>
+                <div class="settings-axis-labels"><span>dim 暗</span><span>bright 亮</span></div>
               </div>
-              <button class="settings-reset" data-channel="brightness" title="Reset to baseline">&#8634;</button>
+              <button class="settings-reset" data-channel="brightness" title="Reset to baseline 恢复到基线值">&#8634;</button>
             </div>
             <div class="settings-row settings-row-axis" data-channel="saturation">
-              <span class="settings-name">Saturation</span>
+              <span class="settings-name">Saturation 饱和度（视觉）</span>
               <div class="settings-track-wrap">
                 <input type="range" class="settings-slider" data-channel="saturation" min="0" max="100" value="50">
                 <span class="settings-tick settings-tick-p"></span>
                 <span class="settings-tick settings-tick-baseline"></span>
                 <span class="settings-tick settings-tick-c"></span>
-                <div class="settings-axis-labels"><span>muted</span><span>vivid</span></div>
+                <div class="settings-axis-labels"><span>muted 柔和</span><span>vivid 鲜艳</span></div>
               </div>
-              <button class="settings-reset" data-channel="saturation" title="Reset to baseline">&#8634;</button>
+              <button class="settings-reset" data-channel="saturation" title="Reset to baseline 恢复到基线值">&#8634;</button>
             </div>
             <div class="settings-row settings-row-axis" data-channel="pitch">
-              <span class="settings-name">Pitch</span>
+              <span class="settings-name">Pitch 音调（听觉）</span>
               <div class="settings-track-wrap">
                 <input type="range" class="settings-slider" data-channel="pitch" min="0" max="100" value="50">
                 <span class="settings-tick settings-tick-p"></span>
                 <span class="settings-tick settings-tick-baseline"></span>
                 <span class="settings-tick settings-tick-c"></span>
-                <div class="settings-axis-labels"><span>muffled</span><span>bright</span></div>
+                <div class="settings-axis-labels"><span>muffled 低沉</span><span>bright 清亮</span></div>
               </div>
-              <button class="settings-reset" data-channel="pitch" title="Reset to baseline">&#8634;</button>
+              <button class="settings-reset" data-channel="pitch" title="Reset to baseline 恢复到基线值">&#8634;</button>
             </div>
             <div class="settings-row settings-row-axis" data-channel="voice">
-              <span class="settings-name">Voice</span>
+              <span class="settings-name">Voice 人声音量（听觉）</span>
               <div class="settings-track-wrap">
                 <input type="range" class="settings-slider" data-channel="voice" min="0" max="100" value="50">
                 <span class="settings-tick settings-tick-p"></span>
                 <span class="settings-tick settings-tick-baseline"></span>
                 <span class="settings-tick settings-tick-c"></span>
-                <div class="settings-axis-labels"><span>quiet</span><span>loud</span></div>
+                <div class="settings-axis-labels"><span>quiet 安静</span><span>loud 大声</span></div>
               </div>
-              <button class="settings-reset" data-channel="voice" title="Reset to baseline">&#8634;</button>
+              <button class="settings-reset" data-channel="voice" title="Reset to baseline 恢复到基线值">&#8634;</button>
             </div>
             <div class="settings-row settings-row-axis" data-channel="bgm">
-              <span class="settings-name">BGM</span>
+              <span class="settings-name">BGM 背景音乐音量（听觉）</span>
               <div class="settings-track-wrap">
                 <input type="range" class="settings-slider" data-channel="bgm" min="0" max="100" value="50">
                 <span class="settings-tick settings-tick-p"></span>
                 <span class="settings-tick settings-tick-baseline"></span>
                 <span class="settings-tick settings-tick-c"></span>
-                <div class="settings-axis-labels"><span>quiet</span><span>loud</span></div>
+                <div class="settings-axis-labels"><span>quiet 安静</span><span>loud 大声</span></div>
               </div>
-              <button class="settings-reset" data-channel="bgm" title="Reset to baseline">&#8634;</button>
+              <button class="settings-reset" data-channel="bgm" title="Reset to baseline 恢复到基线值">&#8634;</button>
             </div>
             <div class="settings-row settings-row-axis" data-channel="sfx">
-              <span class="settings-name">SFX</span>
+              <span class="settings-name">SFX 音效音量（听觉）</span>
               <div class="settings-track-wrap">
                 <input type="range" class="settings-slider" data-channel="sfx" min="0" max="100" value="50">
                 <span class="settings-tick settings-tick-p"></span>
                 <span class="settings-tick settings-tick-baseline"></span>
                 <span class="settings-tick settings-tick-c"></span>
-                <div class="settings-axis-labels"><span>quiet</span><span>loud</span></div>
+                <div class="settings-axis-labels"><span>quiet 安静</span><span>loud 大声</span></div>
               </div>
-              <button class="settings-reset" data-channel="sfx" title="Reset to baseline">&#8634;</button>
+              <button class="settings-reset" data-channel="sfx" title="Reset to baseline 恢复到基线值">&#8634;</button>
             </div>
             <!-- Bucket channels — slider snaps to 3 positions for visual consistency -->
-            <!-- spatial is read-only (single video file per scene for now); slider disabled
-                 until per-spatial video assets are generated. -->
-            <div class="settings-row settings-row-bucket settings-row-disabled" data-channel="spatial" title="Locked — single video file across distances for now">
-              <span class="settings-name">Distance</span>
+            <!-- spatial/prep unlocked 2026-09-22: video file doesn't switch per distance/pacing yet
+                 (single file per scene, see initVideoPlayer), but the caregiver's chosen value still
+                 needs to be interactive + captured (Baseline condition data). Whether/how to also make
+                 the video reflect these is a separate discussion — not blocking this unlock. -->
+            <div class="settings-row settings-row-bucket" data-channel="spatial">
+              <span class="settings-name">Distance 空间距离（空间）</span>
               <div class="settings-track-wrap">
-                <input type="range" class="settings-slider" data-channel="spatial" min="0" max="100" step="50" value="50" disabled>
+                <input type="range" class="settings-slider" data-channel="spatial" min="0" max="100" step="50" value="50">
                 <span class="settings-tick settings-tick-p"></span>
                 <span class="settings-tick settings-tick-baseline"></span>
                 <span class="settings-tick settings-tick-c"></span>
-                <div class="settings-bucket-labels"><span>close</span><span>mid</span><span>far</span></div>
+                <div class="settings-bucket-labels"><span>close 近</span><span>mid 中</span><span>far 远</span></div>
               </div>
-              <button class="settings-reset" data-channel="spatial" title="Locked" disabled>&#8634;</button>
+              <button class="settings-reset" data-channel="spatial" title="Reset to baseline 恢复到基线值">&#8634;</button>
             </div>
-            <!-- pacing locked along with spatial for now (greyed) -->
-            <div class="settings-row settings-row-bucket settings-row-disabled" data-channel="prep" title="Locked">
-              <span class="settings-name">Pacing</span>
+            <div class="settings-row settings-row-bucket" data-channel="prep">
+              <span class="settings-name">Pacing 情节节奏（时间）</span>
               <div class="settings-track-wrap">
-                <input type="range" class="settings-slider" data-channel="prep" min="0" max="100" step="50" value="50" disabled>
+                <input type="range" class="settings-slider" data-channel="prep" min="0" max="100" step="50" value="50">
                 <span class="settings-tick settings-tick-p"></span>
                 <span class="settings-tick settings-tick-baseline"></span>
                 <span class="settings-tick settings-tick-c"></span>
-                <div class="settings-bucket-labels"><span>fast</span><span>normal</span><span>slow</span></div>
+                <div class="settings-bucket-labels"><span>fast 快</span><span>normal 中</span><span>slow 慢</span></div>
               </div>
-              <button class="settings-reset" data-channel="prep" title="Locked" disabled>&#8634;</button>
+              <button class="settings-reset" data-channel="prep" title="Reset to baseline 恢复到基线值">&#8634;</button>
             </div>
           </div>
-          <div class="settings-divider"></div>
-          <div class="settings-globals">
-            <div class="settings-globals-title">For next session</div>
+          <!-- Hidden 2026-09-22: the Protective/Challenge difficulty modal these
+               feed is no longer invoked anywhere in the flow (see the comment by
+               difficulty-modal.classList.add('hidden') in initVideoPlayer) — these
+               sliders currently have no visible effect on the session. Underlying
+               JS (applyShiftChange, computeLevelValue, etc.) is left intact in case
+               the difficulty picker comes back; only the UI is hidden. -->
+          <div class="settings-divider hidden"></div>
+          <div class="settings-globals hidden">
+            <div class="settings-globals-title">For next session 用于下一次生成</div>
             <div class="settings-row settings-row-global" data-shift="protective">
-              <span class="settings-name">P shift</span>
+              <span class="settings-name">P shift 保护性偏移</span>
               <div class="settings-track-wrap">
                 <input type="range" class="settings-slider settings-shift-slider" data-shift="protective" min="0" max="40" step="1" value="15">
               </div>
@@ -517,7 +524,7 @@
               <button class="settings-reset settings-shift-reset" data-shift="protective" title="Reset to 15%">&#8634;</button>
             </div>
             <div class="settings-row settings-row-global" data-shift="challenge">
-              <span class="settings-name">C shift</span>
+              <span class="settings-name">C shift 挑战性偏移</span>
               <div class="settings-track-wrap">
                 <input type="range" class="settings-slider settings-shift-slider" data-shift="challenge" min="0" max="20" step="1" value="5">
               </div>
@@ -529,7 +536,11 @@
             </div>
           </div>
           <div class="settings-footer">
-            <button class="settings-reset-all" id="settings-reset-all">&#8634; Reset all</button>
+            <button class="settings-reset-all" id="settings-reset-all">&#8634; Reset all 全部恢复默认</button>
+            <!-- Baseline condition only (state.isBaselineMode) — shown/hidden by JS.
+                 One explicit save when the caregiver is done, instead of a save-dialog
+                 popping up on every slider nudge / every 10s autosave tick. -->
+            <button class="settings-confirm hidden" id="settings-confirm">确认设置 Confirm</button>
           </div>
         </div>
       </div>
@@ -669,6 +680,6 @@
     </defs>
   </svg>
 
-  <script src="app.js?v=270"></script>
+  <script src="app.js?v=273"></script>
 </body>
 </html>

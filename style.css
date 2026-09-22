@@ -325,18 +325,34 @@ html, body {
 }
 .btn-collect-reward:active { opacity: 0.7; }
 
-/* Caregiver-only "skip to video" — small, greyed, tucked in the top-right corner
-   so it reads as an adult escape hatch rather than a primary child affordance. */
+/* Caregiver-only "skip to video" — tucked in the top-right corner so it reads
+   as an adult escape hatch rather than a primary child affordance. Slightly
+   more visible than before (was opacity 0.4 + full grayscale), but the real
+   protection against accidental taps is now the press-and-hold requirement
+   in app.js (HOLD_MS), not just low visual salience — a curious tap/brush
+   releases before the hold completes and does nothing. */
 .btn-skip-video-caregiver {
   margin-left: 10px;
   background: none; border: none; padding: 4px 6px;
-  font-size: 16px; line-height: 1;
-  opacity: 0.4; filter: grayscale(1);
+  font-size: 19px; line-height: 1;
+  opacity: 0.6; filter: grayscale(0.6);
   cursor: pointer; align-self: center;
+  border-radius: 50%;
   transition: opacity 0.15s, filter 0.15s;
 }
 .btn-skip-video-caregiver:hover,
-.btn-skip-video-caregiver:active { opacity: 0.85; filter: grayscale(0); }
+.btn-skip-video-caregiver:active { opacity: 0.9; filter: grayscale(0); }
+
+/* Hold-in-progress feedback: an expanding, fading ring — must last exactly
+   HOLD_MS (700ms) from app.js's setupSkipToVideoHold() so the ring finishing
+   its animation lines up with the skip actually triggering. */
+.btn-skip-video-caregiver.holding {
+  animation: skipHoldRing 0.7s linear forwards;
+}
+@keyframes skipHoldRing {
+  from { box-shadow: 0 0 0 0 rgba(44, 44, 44, 0.35); }
+  to   { box-shadow: 0 0 0 14px rgba(44, 44, 44, 0); }
+}
 
 /* --- Canvas container --- */
 .canvas-container {
@@ -2197,13 +2213,13 @@ html, body {
 }
 .settings-row {
   display: grid;
-  grid-template-columns: 90px 1fr 30px;
+  grid-template-columns: 132px 1fr 30px;
   align-items: center;
   column-gap: 10px;
 }
 /* Global shift rows: extra column for the number input + % unit */
 .settings-row-global {
-  grid-template-columns: 90px 1fr 90px 30px;
+  grid-template-columns: 132px 1fr 90px 30px;
 }
 .settings-globals { margin-top: 0.4rem; display: flex; flex-direction: column; gap: 0.7rem; }
 .settings-globals-title {
@@ -2266,9 +2282,9 @@ html, body {
   padding-bottom: 14px;
 }
 .settings-name {
-  font-size: 0.95rem;
+  font-size: 0.76rem;
+  line-height: 1.3;
   color: rgba(255,255,255,0.9);
-  white-space: nowrap;
 }
 .settings-track-wrap {
   position: relative;
@@ -2332,9 +2348,10 @@ html, body {
   position: absolute; left: 0; right: 0; top: 100%;
   display: flex; justify-content: space-between;
   margin-top: 4px;
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   color: rgba(255,255,255,0.55);
   pointer-events: none;
+  white-space: nowrap;
 }
 /* Continuous channel rows that show axis-extreme labels need extra bottom room */
 .settings-row-axis {
@@ -2356,7 +2373,7 @@ html, body {
   margin-top: 0.9rem;
   padding-top: 0.6rem;
   border-top: 1px solid rgba(255,255,255,0.1);
-  display: flex; justify-content: flex-end;
+  display: flex; justify-content: flex-end; align-items: center; gap: 10px;
 }
 .settings-reset-all {
   background: rgba(255,255,255,0.1);
@@ -2368,6 +2385,24 @@ html, body {
   cursor: pointer;
 }
 .settings-reset-all:hover { background: rgba(255,255,255,0.18); }
+/* Baseline-condition confirm button — the one save that actually matters for
+   that condition, so it gets the primary (filled) treatment; Reset all stays
+   secondary. Shows a brief "已保存 Saved" state via .settings-confirm-done. */
+.settings-confirm {
+  background: #c9a24a;
+  border: 1px solid #c9a24a;
+  color: #1a1a1a;
+  border-radius: 10px;
+  padding: 7px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  order: -1; /* sits before Reset all since footer is justify-content:flex-end */
+}
+.settings-confirm:hover { background: #d9b25a; }
+.settings-confirm.settings-confirm-done {
+  background: #4a9d6e; border-color: #4a9d6e; color: #fff;
+}
 
 /* ============================================
    DIFFICULTY MODAL — pop-up before video plays

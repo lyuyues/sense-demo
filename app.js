@@ -38,8 +38,8 @@ const state = {
   sessionStart: Date.now(),
   phaseStartTime: Date.now(),
   phaseDurations: {},
-  // Per-canvas-sub-phase timing (place-self, add-elements, color, light,
-  // sound-studio, animate) — the 'canvas' entry in phaseDurations lumps all
+  // Per-canvas-sub-phase timing (place-self, create, color, light,
+  // sound, rhythm) — the 'canvas' entry in phaseDurations lumps all
   // 6 together; this breaks it down. Reset when 'canvas' phase is (re-)entered.
   subPhaseStartTime: Date.now(),
   subPhaseDurations: {},
@@ -80,6 +80,10 @@ const state = {
   condition_contaminated: false,       // flips true on first manual_adjustment
   baselinePerChannel: {},              // raw canvas-derived, populated when video screen opens
   appliedPerChannel: {},               // difficulty-shifted, recomputed on level change
+  // True when this session entered via devSkipToVideo (the research Baseline
+  // condition: caregiver sets sliders directly, no child play session ever ran).
+  // baselinePerChannel has no real child data in this case — see getChannelTickPositions.
+  isBaselineMode: false,
 };
 
 // --- Animation map: element type → CSS animation name OR sprite frames ---
@@ -162,11 +166,11 @@ function stopAllSpriteAnimations() {
 // --- Sub-phase config ---
 const SUB_PHASES = [
   { id: 'place-self', instruction: '', dotIndex: 0 },
-  { id: 'add-elements', instruction: 'Add friends and things!', dotIndex: 0 },
+  { id: 'create', instruction: 'Add friends and things!', dotIndex: 0 },
   { id: 'color', instruction: 'Color your picture!', dotIndex: 1 },
   { id: 'light', instruction: 'Move the sun across the sky!', dotIndex: 2 },
-  { id: 'sound-studio', instruction: 'Create your soundscape!', dotIndex: 3 },
-  { id: 'animate', instruction: 'Drum time!', dotIndex: 4 },
+  { id: 'sound', instruction: 'Create your soundscape!', dotIndex: 3 },
+  { id: 'rhythm', instruction: 'Drum time!', dotIndex: 4 },
 ];
 
 // ============================================================
@@ -176,7 +180,7 @@ const SUB_PHASES = [
 
 // Stages that pay out a collectible — the 5 real canvas stages, skipping the
 // 'place-self' intro dummy. Keep in sync with TAB_ORDER.
-const REWARD_STAGES = ['add-elements', 'color', 'light', 'sound-studio', 'animate'];
+const REWARD_STAGES = ['create', 'color', 'light', 'sound', 'rhythm'];
 
 // Subjects follow the circumscribed-interests literature (South & Ozonoff 2005;
 // Turner-Brown 2011; Anthony 2013): vehicles, dinosaurs and animals dominate,
@@ -467,7 +471,7 @@ function resolveSessionItem() {
 
 // Pays out the collectible for a stage. Called either from the 🎁 Collect
 // button (once dwell threshold is reached, see startStageTimer) or from the
-// drum-complete path for 'animate'. NOT tied to navigation — see
+// drum-complete path for 'rhythm'. NOT tied to navigation — see
 // docs/plans/2026-07-23-decoupled-stage-reward-design.md.
 //
 // Non-contingent by design: SENSE elicits preferences, and no stage has a
@@ -521,7 +525,7 @@ function goToPhase(phase) {
   state.phaseStartTime = now;
 
   // Close out whichever canvas sub-phase was active. Leaving 'canvas' doesn't
-  // always route through setCanvasSubPhase() (finishing 'animate' or a
+  // always route through setCanvasSubPhase() (finishing 'rhythm' or a
   // caregiver skip both jump straight to goToPhase()), so the last sub-phase
   // needs its time recorded here too.
   if (state.phase === 'canvas') {
@@ -646,6 +650,7 @@ function devSkipToVideo(eventType) {
   state.childPhoto = 'assets/test_avatar.png?v=' + Date.now();
   state.eventType = eventType;
   state.dataExported = true; // suppress export-on-processing
+  state.isBaselineMode = true;
   goToPhase('video');
 }
 
@@ -662,14 +667,49 @@ function devSkipToWrapup() {
 // straight to the video. Unlike the dev button above, this runs mid-elicitation, so it
 // keeps the real eventType/photo and whatever channels the child already set (unfilled
 // ones stay at baseline in extractPreferences). Exports the partial data before leaving.
-document.getElementById('btn-skip-to-video-canvas')?.addEventListener('click', () => {
-  logEvent('caregiver_skip_to_video', { fromSubPhase: state.canvasSubPhase });
-  if (!state.dataExported) {
-    state.dataExported = true;
-    try { exportData('skip'); } catch (e) { console.warn('Skip export failed:', e); }
+// Press-and-hold instead of a tap: the button reads more clearly now (see
+// .btn-skip-video-caregiver), so a single accidental tap/brush from the child needs a
+// different safeguard than "hard to notice" — holding for HOLD_MS gives a visible fill
+// animation as feedback and means a quick touch can't trigger it by accident.
+(function setupSkipToVideoHold() {
+  const btn = document.getElementById('btn-skip-to-video-canvas');
+  if (!btn) return;
+  const HOLD_MS = 700;
+  let holdTimer = null;
+
+  function triggerSkip() {
+    logEvent('caregiver_skip_to_video', { fromSubPhase: state.canvasSubPhase });
+    if (!state.dataExported) {
+      state.dataExported = true;
+      try { exportData('skip'); } catch (e) { console.warn('Skip export failed:', e); }
+    }
+    goToPhase('video');
   }
-  goToPhase('video');
-});
+
+  function startHold(e) {
+    e.preventDefault();
+    if (holdTimer) return;
+    btn.classList.add('holding');
+    holdTimer = setTimeout(() => {
+      holdTimer = null;
+      btn.classList.remove('holding');
+      triggerSkip();
+    }, HOLD_MS);
+  }
+
+  function cancelHold() {
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+    btn.classList.remove('holding');
+  }
+
+  btn.addEventListener('pointerdown', startHold);
+  btn.addEventListener('pointerup', cancelHold);
+  btn.addEventListener('pointerleave', cancelHold);
+  btn.addEventListener('pointercancel', cancelHold);
+})();
 
 // ============================================================
 // PHOTO CAPTURE SCREEN
@@ -1027,11 +1067,11 @@ function drawLineart(ctx, template) {
 // limit reveals the 🎁 Collect button — see
 // docs/plans/2026-07-23-decoupled-stage-reward-design.md.
 const STAGE_TIME_LIMITS = {
-  'add-elements': 30,  // seconds
+  'create': 30,  // seconds
   'color': 30,
   'light': 15,
-  'sound-studio': 30,
-  'animate': 0, // drum has its own flow — reward fires from finishDrum()
+  'sound': 30,
+  'rhythm': 0, // drum has its own flow — reward fires from finishDrum()
 };
 let stageTimerInterval = null;
 let stageTimerLastTick = null;
@@ -1176,7 +1216,7 @@ function setCanvasSubPhase(subPhase) {
     const prevIdx = newIdx - 1;
     if (prevIdx >= 0) {
       const leaving = order[prevIdx];
-      if (leaving === 'add-elements') {
+      if (leaving === 'create') {
         state.stageScreenshots.elements = captureStageScreenshot();
         triggerStageAI('create');
       } else if (leaving === 'color') {
@@ -1191,7 +1231,7 @@ function setCanvasSubPhase(subPhase) {
       } else if (leaving === 'light') {
         state.stageScreenshots.light = captureStageScreenshot();
         triggerStageAI('light');
-      } else if (leaving === 'sound-studio') {
+      } else if (leaving === 'sound') {
         state.stageScreenshots.sound = captureStageScreenshot();
         triggerStageAI('sound');
       }
@@ -1227,10 +1267,10 @@ function setCanvasSubPhase(subPhase) {
       // Auto-place avatar and sun (for playground)
       autoPlaceAvatar();
       if (state.eventType === 'playground') autoPlaceSun();
-      setCanvasSubPhase('add-elements');
+      setCanvasSubPhase('create');
       return;
 
-    case 'add-elements':
+    case 'create':
       document.getElementById('light-stage')?.classList.add('hidden');
       renderElementPalette();
       break;
@@ -1262,7 +1302,7 @@ function setCanvasSubPhase(subPhase) {
       if (typeof setupLightStage === 'function') setupLightStage();
       break;
 
-    case 'sound-studio':
+    case 'sound':
       palette.classList.add('hidden');
       document.getElementById('element-palette').style.display = 'none';
       document.getElementById('light-stage')?.classList.add('hidden');
@@ -1271,7 +1311,7 @@ function setCanvasSubPhase(subPhase) {
       setupSoundStudio();
       break;
 
-    case 'animate':
+    case 'rhythm':
       document.getElementById('sound-studio').classList.add('hidden');
       document.getElementById('light-stage')?.classList.add('hidden');
       stopAllStudioLayers();
@@ -1294,7 +1334,7 @@ function setCanvasSubPhase(subPhase) {
 function updatePhaseDots(activeIdx) {
   // Tab order matches SUB_PHASE_ORDER (skipping 'place-self'): tabs to the LEFT of
   // the active tab are marked .done (sage green); the current tab is .active (tomato).
-  const TAB_ORDER = ['add-elements', 'color', 'light', 'sound-studio', 'animate'];
+  const TAB_ORDER = ['create', 'color', 'light', 'sound', 'rhythm'];
   const activeIndex = TAB_ORDER.indexOf(state.canvasSubPhase);
   document.querySelectorAll('.phase-tab').forEach(tab => {
     const idx = TAB_ORDER.indexOf(tab.dataset.phase);
@@ -1304,7 +1344,7 @@ function updatePhaseDots(activeIdx) {
 }
 
 // --- Tab / Back navigation ---
-const SUB_PHASE_ORDER = ['place-self', 'add-elements', 'color', 'light', 'sound-studio', 'animate'];
+const SUB_PHASE_ORDER = ['place-self', 'create', 'color', 'light', 'sound', 'rhythm'];
 
 // Phase tab clicks — switch between stages freely
 document.querySelectorAll('.phase-tab').forEach(tab => {
@@ -1330,7 +1370,7 @@ document.getElementById('btn-collect-reward')?.addEventListener('click', () => {
 
 // --- Animate done button ---
 // (#btn-animate-done no longer exists — animate-bar is an empty placeholder and
-// the drum finishes itself. Left as-is; the 'animate' reward is paid out on the
+// the drum finishes itself. Left as-is; the 'rhythm' reward is paid out on the
 // live drum-complete path instead.)
 document.getElementById('btn-animate-done')?.addEventListener('click', () => {
   goToPhase('processing');
@@ -2408,7 +2448,7 @@ async function generateCustomSound(name) {
 
     SOUND_ELEMENTS.push(customSnd);
     // Only re-render if still in sound stage
-    if (state.canvasSubPhase === 'sound-studio') {
+    if (state.canvasSubPhase === 'sound') {
       setupSoundStudio();
     }
   } catch (e) {
@@ -2884,7 +2924,7 @@ function makeDraggable(el) {
 
   el.addEventListener('pointerdown', (e) => {
     if (state.canvasSubPhase === 'color') return;
-    if (state.canvasSubPhase === 'animate') return;
+    if (state.canvasSubPhase === 'rhythm') return;
     if (state.canvasSubPhase === 'adjust') return; // Let audio/lights click handlers take over
     e.preventDefault();
     e.stopPropagation();
@@ -4790,7 +4830,10 @@ function setupAnimatePhase() {
     }, { once: true });
   }
 
-  // --- Finish: compute SMT as median ISI across all 3 sessions ---
+  // --- Finish: compute SMT as the median of each session's *mean* ISI ---
+  // Each round contributes exactly one number regardless of how many taps it
+  // had, so one round with unusually few/many taps can't skew the result the
+  // way pooling every tap from all 3 rounds into one list would.
   function finishDrum() {
     clearAllTimers();
     instructionEl.textContent = 'Great job!';
@@ -4804,30 +4847,28 @@ function setupAnimatePhase() {
       }
     });
 
-    if (allIntervals.length >= 2) {
-      const sorted = [...allIntervals].sort((a, b) => a - b);
-      const mid = Math.floor(sorted.length / 2);
-      const median = sorted.length % 2 === 0
-        ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)
-        : sorted[mid];
-      state.drumAvgInterval = median;     // SMT (median ISI across all sessions)
+    const sessionMeans = drumData.sessions.map(session => {
+      if (session.length < 2) return null;
+      const ints = [];
+      for (let i = 1; i < session.length; i++) ints.push(session[i] - session[i - 1]);
+      return ints.reduce((a, b) => a + b, 0) / ints.length;
+    }).filter(m => m !== null);
+
+    if (sessionMeans.length >= 1) {
+      const sortedMeans = [...sessionMeans].sort((a, b) => a - b);
+      const midM = Math.floor(sortedMeans.length / 2);
+      const medianOfMeans = sortedMeans.length % 2 === 0
+        ? Math.round((sortedMeans[midM - 1] + sortedMeans[midM]) / 2)
+        : Math.round(sortedMeans[midM]);
+      state.drumAvgInterval = medianOfMeans;     // SMT
       state.drumIntervals = allIntervals;
       state.drumSessions = drumData.sessions.map(s => [...s]);
-      state.drumSessionMedians = drumData.sessions.map(s => {
-        if (s.length < 2) return null;
-        const ints = [];
-        for (let i = 1; i < s.length; i++) ints.push(s[i] - s[i - 1]);
-        const sorted = [...ints].sort((a, b) => a - b);
-        const m = Math.floor(sorted.length / 2);
-        return sorted.length % 2 === 0
-          ? Math.round((sorted[m - 1] + sorted[m]) / 2)
-          : sorted[m];
-      });
+      state.drumSessionMeans = sessionMeans;
     }
 
     logEvent('drum_complete', {
       sessionsTaps: drumData.sessions.map(s => s.length),
-      sessionMedians: state.drumSessionMedians,
+      sessionMeans: state.drumSessionMeans,
       drumSMT: state.drumAvgInterval,
     });
 
@@ -4839,7 +4880,7 @@ function setupAnimatePhase() {
 
     // 5th collectible — a full bar is what unlocks the video, so wait for it to
     // actually land rather than racing a fixed timer against the animation.
-    awardRewardFor('animate').then(() => setTimeout(() => goToPhase('processing'), 400));
+    awardRewardFor('rhythm').then(() => setTimeout(() => goToPhase('processing'), 400));
   }
 
   // Start!
@@ -5249,7 +5290,7 @@ function buildExportPayload(stage) {
     totalDuration: Date.now() - state.sessionStart,
     phaseDurations: state.phaseDurations,
     // Breakdown of the 'canvas' entry above into its 6 sub-phases (place-self
-    // + the 5 reward-paying stages: add-elements/color/light/sound-studio/animate).
+    // + the 5 reward-paying stages: create/color/light/sound/rhythm).
     subPhaseDurations: state.subPhaseDurations,
     // Phase 2 customization layer — populated once the difficulty modal closes.
     // Until then level_selected is null and manual_adjustments is empty.
@@ -5285,7 +5326,14 @@ function exportData(stage = 'unknown') {
   // something a normal Start-button run should surface (Yue saw the save
   // dialog pop up twice during ordinary play). Gate the whole thing on
   // ?dev=... rather than just hiding the UI, since nothing else reads `data`.
-  if (!IS_DEV_MODE) return;
+  //
+  // Baseline-condition sessions (dev=video-*) are excluded even though they're
+  // IS_DEV_MODE: that entry point is now the real study's Baseline condition,
+  // not local dev testing, so caregivers must never see the repeated
+  // save-dialog from the 10s video-progress autosave. The POST above already
+  // persists every autosave tick server-side; the local download here would
+  // be redundant for real sessions, so skip it.
+  if (!IS_DEV_MODE || state.isBaselineMode) return;
 
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -5713,7 +5761,14 @@ function refreshSettingsRow(channel) {
   const baseTick = row.querySelector('.settings-tick-baseline');
   const cTick = row.querySelector('.settings-tick-c');
   if (pTick) pTick.style.left = `${ticks.p}%`;
-  if (baseTick) baseTick.style.left = `${ticks.baseline}%`;
+  // In Baseline mode there's no child play session, so baselinePerChannel is
+  // just the 0.5/mid fallback default, not a real reference value — showing
+  // the star would misleadingly suggest a "recommended" position to the
+  // caregiver, which defeats the point of them setting it independently.
+  if (baseTick) {
+    baseTick.style.display = state.isBaselineMode ? 'none' : '';
+    baseTick.style.left = `${ticks.baseline}%`;
+  }
   if (cTick) cTick.style.left = `${ticks.c}%`;
 }
 
@@ -5777,6 +5832,8 @@ function setupSettingsPanel() {
   refreshAllSettingsRows();
   syncShiftUI('protective');
   syncShiftUI('challenge');
+  const confirmBtn = document.getElementById('settings-confirm');
+  if (confirmBtn) confirmBtn.classList.toggle('hidden', !state.isBaselineMode);
   if (_settingsPanelBound) return;
 
   document.querySelectorAll('.settings-slider').forEach(slider => {
@@ -5827,6 +5884,38 @@ function setupSettingsPanel() {
       });
       refreshAllSettingsRows();
       applyVideoPreferences();
+    });
+  }
+
+  // Baseline condition: one explicit save when the caregiver is done adjusting,
+  // instead of a save-dialog popping up on every slider nudge / autosave tick
+  // (see exportData's isBaselineMode gate). Brief "已保存" state is just a
+  // button-label swap — no toast component exists elsewhere in this app.
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', () => {
+      try { exportData('baseline-confirmed'); } catch (e) { console.warn('Baseline confirm save failed:', e); }
+      // Whatever the caregiver watched while nudging sliders was mid-scrub, not a
+      // real viewing — the child needs to see the confirmed settings play out from
+      // the start. Same pause/icon pattern as triggerTemporalFreeze.
+      const video = document.getElementById('sense-video');
+      if (video) { video.pause(); video.currentTime = 0; }
+      const playPauseBtn = document.getElementById('vc-play-pause');
+      if (playPauseBtn) playPauseBtn.innerHTML = '&#9654;';
+      const videoWrap = document.querySelector('.video-fullscreen');
+      if (videoWrap) videoWrap.classList.add('paused');
+      const original = confirmBtn.textContent;
+      confirmBtn.textContent = '已保存 Saved ✓';
+      confirmBtn.classList.add('settings-confirm-done');
+      confirmBtn.disabled = true;
+      // Auto-close the panel after the brief "Saved" feedback so the video's own
+      // play overlay (▶, already the app's standard "how to start" affordance) is
+      // what the caregiver sees next, instead of leaving the panel open over it.
+      setTimeout(() => {
+        confirmBtn.textContent = original;
+        confirmBtn.classList.remove('settings-confirm-done');
+        confirmBtn.disabled = false;
+        document.getElementById('fab-panel')?.classList.add('hidden');
+      }, 900);
     });
   }
   _settingsPanelBound = true;
@@ -6374,7 +6463,7 @@ function formatTime(s) {
       panStartY = currentY;
 
       // Check if pinch is on an element
-      if (state.canvasSubPhase === 'add-elements' || state.canvasSubPhase === 'adjust') {
+      if (state.canvasSubPhase === 'create' || state.canvasSubPhase === 'adjust') {
         const el = document.elementFromPoint(pinchStartMidX, pinchStartMidY);
         const canvasEl = el && el.closest('.canvas-element');
         if (canvasEl) {
@@ -6487,10 +6576,19 @@ const WRAPUP_QUESTIONS = {
       anchor: 'After you walk in',
       options: [
         { label: 'Walk to the cake', emoji: '🎂', canonical: true },
-        { label: 'Hear loud music',  emoji: '🔊' },
+        { label: 'Look around first', emoji: '👀' },
         { label: 'Find a chair',     emoji: '🪑' },
       ],
       revealSegment: 0.13,
+    },
+    {
+      anchor: 'After you reach the cake',
+      options: [
+        { label: 'You see the candles glowing', emoji: '🕯️', canonical: true },
+        { label: 'You start clapping',          emoji: '👏' },
+        { label: 'You look for a present',       emoji: '🎁' },
+      ],
+      revealSegment: 0.30,
     },
     {
       anchor: 'After the candles are lit',
@@ -6526,7 +6624,7 @@ const WRAPUP_QUESTIONS = {
       options: [
         { label: 'Pick up a basket', emoji: '🧺', canonical: true },
         { label: 'Look at the shelves', emoji: '👀' },
-        { label: 'Wave to the door', emoji: '👋' },
+        { label: 'Ask where the snacks are', emoji: '🍿' },
       ],
       revealSegment: 0.15,
     },
@@ -6551,11 +6649,20 @@ const WRAPUP_QUESTIONS = {
     {
       anchor: 'At the counter',
       options: [
-        { label: 'The cashier beeps each item', emoji: '🔊', canonical: true },
-        { label: 'The cashier gives a balloon', emoji: '🎈' },
-        { label: 'The lights turn blue', emoji: '🔵' },
+        { label: 'Put your items on the belt', emoji: '🛒', canonical: true },
+        { label: 'Grab a candy bar', emoji: '🍬' },
+        { label: 'Walk straight back out', emoji: '🚶' },
       ],
       revealSegment: 0.72,
+    },
+    {
+      anchor: 'After you pay',
+      options: [
+        { label: 'You get your bags and receipt', emoji: '🧾', canonical: true },
+        { label: 'You walk back for more items',   emoji: '🛒' },
+        { label: 'You open a snack right there',   emoji: '🍪' },
+      ],
+      revealSegment: 0.85,
     },
   ],
   dental: [
@@ -6563,7 +6670,7 @@ const WRAPUP_QUESTIONS = {
       anchor: 'When the dentist waves hello',
       options: [
         { label: 'Walk in and follow', emoji: '🚶', canonical: true },
-        { label: 'Wave back first', emoji: '👋' },
+        { label: 'Sit in the waiting chair first', emoji: '🪑' },
         { label: 'Look at the pictures', emoji: '🖼️' },
       ],
       revealSegment: 0.15,
@@ -6582,7 +6689,7 @@ const WRAPUP_QUESTIONS = {
       options: [
         { label: 'A little mirror checks your teeth', emoji: '🪞', canonical: true },
         { label: 'You get sunglasses', emoji: '🕶️' },
-        { label: 'The chair spins around', emoji: '🌀' },
+        { label: 'The light gets even brighter', emoji: '💡' },
       ],
       revealSegment: 0.55,
     },
@@ -6599,7 +6706,7 @@ const WRAPUP_QUESTIONS = {
       anchor: 'When the polishing ends',
       options: [
         { label: 'You get a sticker reward', emoji: '⭐', canonical: true },
-        { label: 'You wave goodbye', emoji: '👋' },
+        { label: 'The dentist checks one more time', emoji: '🔍' },
         { label: 'You pick a new toothbrush', emoji: '🪥' },
       ],
       revealSegment: 0.9,
@@ -6627,9 +6734,9 @@ const WRAPUP_QUESTIONS = {
     {
       anchor: 'At the register',
       options: [
-        { label: 'It makes a soft ka-ching', emoji: '🔊', canonical: true },
-        { label: 'A soft song plays', emoji: '🎵' },
-        { label: 'A light blinks once', emoji: '💡' },
+        { label: 'Pay for the food', emoji: '💳', canonical: true },
+        { label: 'Ask for a toy', emoji: '🧸' },
+        { label: 'Wave to the cook', emoji: '👋' },
       ],
       revealSegment: 0.55,
     },
