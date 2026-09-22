@@ -2288,7 +2288,13 @@ html, body {
 }
 .settings-track-wrap {
   position: relative;
-  height: 22px;
+  /* min-height, not height: the axis/bucket labels below are positioned via
+     top:100% relative to THIS box, not to .settings-name. If the name wraps
+     to 2 lines on a narrower viewport (now common since the 2026-09-22
+     Chinese + dimension-tag labels are longer), a fixed 22px here would put
+     the labels underneath the name's own row rather than the track, so they'd
+     render on top of the name's second line instead of below the slider. */
+  min-height: 38px;
   display: flex; align-items: center;
 }
 .settings-slider {
