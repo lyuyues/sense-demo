@@ -4255,10 +4255,20 @@ function setupAnimatePhase() {
   // Data collection per session (3 sessions for SMT reliability — Provasi & Bobin-Bègue 2003)
   const drumData = {
     sessions: [[], [], []],  // tap timestamps per session
+    fast: [],                // tap timestamps of the "as fast as you can" round (not part of SMT)
   };
 
-  let currentRound = 0;        // 0 = Demo, 1..3 = Free sessions
+  let currentRound = 0;        // 0 = Demo, 1..3 = Free sessions, 4 = Fast round
   const SESSIONS_TOTAL = 3;
+  // Fast round (2026-10-08): a short "tap as fast as you can" window after the free sessions,
+  // recording the child's motor ceiling. If the preferred tempo sits near that ceiling, a slow
+  // tempo may reflect motor limits rather than preference -> flagged for analysis.
+  const FAST_ROUND = SESSIONS_TOTAL + 1;
+  const FAST_ROUND_MS = 5000;   // window starts at the child's first tap
+  const FAST_IDLE_MS = 8000;    // give up if the child doesn't tap at all
+  let fastTimer = null;
+  let fastIdleTimer = null;
+  let fastEnded = false;
   const BEAT_INTERVAL = 700;
   const FREE_TAPS_NEEDED = 30;
   let roundTimer = null;
@@ -4278,6 +4288,13 @@ function setupAnimatePhase() {
     state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
   state.audioCtx.resume();
+
+  // Drum loudness follows the child's own volume choice from the Sound stage (2026-10-08),
+  // so a sound-sensitive child isn't pushed to tap slowly just to avoid loud hits — that
+  // would read as a slow-pace preference. Unplayed Sound stage -> neutral default 0.5.
+  const childVolume = getChildVolumePref();
+  state.drumVolumeSource = childVolume == null ? 'default' : 'child_sound_phase';
+  state.drumGainScale = DRUM_MIN_GAIN + (1 - DRUM_MIN_GAIN) * (childVolume ?? 0.5);
 
   // Remove adjust handlers from elements
   document.querySelectorAll('.canvas-element').forEach(el => {
@@ -4340,9 +4357,15 @@ function setupAnimatePhase() {
           setTimeout(() => startFreeRound(sessionIdx + 1), 1100);
         } else {
           setTimeout(() => spawnSparkles(20), 200);
-          setTimeout(() => finishDrum(), 1500);
+          setTimeout(() => startFastRound(), 1500);
         }
       }
+    }
+
+    if (currentRound === FAST_ROUND) {
+      drumData.fast.push(now);
+      if (fastIdleTimer) { clearTimeout(fastIdleTimer); fastIdleTimer = null; }
+      if (!fastTimer) fastTimer = setTimeout(endFastRound, FAST_ROUND_MS);
     }
 
     logEvent('drum_tap', { round: currentRound, session: currentRound, timestamp: now });
@@ -4507,7 +4530,7 @@ function setupAnimatePhase() {
     swoop.frequency.exponentialRampToValueAtTime(1100 * pitchMul, t + 0.22);
     const swoopGain = ctx.createGain();
     swoopGain.gain.setValueAtTime(0, t);
-    swoopGain.gain.linearRampToValueAtTime(0.16, t + 0.02);
+    swoopGain.gain.linearRampToValueAtTime(0.16 * (state.drumGainScale ?? 1), t + 0.02);
     swoopGain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
     swoop.connect(swoopGain); swoopGain.connect(ctx.destination);
     swoop.start(t); swoop.stop(t + 0.3);
@@ -4522,7 +4545,7 @@ function setupAnimatePhase() {
       osc.frequency.value = chordRoot * mul;
       const g = ctx.createGain();
       g.gain.setValueAtTime(0, chordStart);
-      g.gain.linearRampToValueAtTime(0.07 - i * 0.01, chordStart + 0.015);
+      g.gain.linearRampToValueAtTime((0.07 - i * 0.01) * (state.drumGainScale ?? 1), chordStart + 0.015);
       g.gain.exponentialRampToValueAtTime(0.001, chordStart + 0.55);
       osc.connect(g); g.connect(ctx.destination);
       osc.start(chordStart); osc.stop(chordStart + 0.6);
@@ -4544,7 +4567,7 @@ function setupAnimatePhase() {
         osc.frequency.value = f * pitchMul;
         const gain = ctx.createGain();
         gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(0.18, t + 0.02);
+        gain.gain.linearRampToValueAtTime(0.18 * (state.drumGainScale ?? 1), t + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
         osc.connect(gain);
         gain.connect(ctx.destination);
@@ -4732,6 +4755,8 @@ function setupAnimatePhase() {
   function clearAllTimers() {
     if (roundTimer) { clearInterval(roundTimer); roundTimer = null; }
     if (introTimer) { clearInterval(introTimer); introTimer = null; }
+    if (fastTimer) { clearTimeout(fastTimer); fastTimer = null; }
+    if (fastIdleTimer) { clearTimeout(fastIdleTimer); fastIdleTimer = null; }
   }
 
   // Store cleanup function so re-entry can stop previous session
@@ -4830,6 +4855,27 @@ function setupAnimatePhase() {
     }, { once: true });
   }
 
+  // --- Fast round: "tap as fast as you can" (motor ceiling, not preference) ---
+  function startFastRound() {
+    clearAllTimers();
+    fastEnded = false;
+    setRound(FAST_ROUND);
+    if (taikoTrack) taikoTrack.classList.remove('visible');
+    instructionEl.textContent = '🐇 Fast, fast, fast!';
+    runCountdown(() => {
+      drumEnabled = true;
+      fastIdleTimer = setTimeout(endFastRound, FAST_IDLE_MS);
+    });
+  }
+
+  function endFastRound() {
+    if (fastEnded) return;
+    fastEnded = true;
+    drumEnabled = false;
+    clearAllTimers();
+    finishDrum();
+  }
+
   // --- Finish: compute SMT as the median of each session's *mean* ISI ---
   // Each round contributes exactly one number regardless of how many taps it
   // had, so one round with unusually few/many taps can't skew the result the
@@ -4866,10 +4912,33 @@ function setupAnimatePhase() {
       state.drumSessionMeans = sessionMeans;
     }
 
+    // Motor ceiling from the fast round: median inter-tap interval (needs >= 3 taps).
+    const fastInts = [];
+    for (let i = 1; i < drumData.fast.length; i++) fastInts.push(drumData.fast[i] - drumData.fast[i - 1]);
+    let fastMedian = null;
+    if (fastInts.length >= 2) {
+      const sortedFast = [...fastInts].sort((a, b) => a - b);
+      const midF = Math.floor(sortedFast.length / 2);
+      fastMedian = Math.round(sortedFast.length % 2 === 0
+        ? (sortedFast[midF - 1] + sortedFast[midF]) / 2
+        : sortedFast[midF]);
+    }
+    state.drumFastTaps = [...drumData.fast];
+    state.drumFastMedianInterval = fastMedian;
+    // Preferred tempo within 25% of the fastest the child can tap -> may be motor-limited.
+    state.drumMotorCeilingFlag = (fastMedian && state.drumAvgInterval)
+      ? state.drumAvgInterval <= MOTOR_CEILING_RATIO * fastMedian
+      : null;
+
     logEvent('drum_complete', {
       sessionsTaps: drumData.sessions.map(s => s.length),
       sessionMeans: state.drumSessionMeans,
       drumSMT: state.drumAvgInterval,
+      fastTaps: drumData.fast.length,
+      fastMedianInterval: state.drumFastMedianInterval,
+      motorCeilingFlag: state.drumMotorCeilingFlag,
+      drumGainScale: state.drumGainScale,
+      drumVolumeSource: state.drumVolumeSource,
     });
 
     // Trigger drum AI + final summary in parallel
@@ -4906,13 +4975,33 @@ function updateCanvasAnimationSpeed(intervalMs) {
   });
 }
 
+// Drum loudness floor: even at the child's quietest Sound-stage choice the hit stays audible.
+const DRUM_MIN_GAIN = 0.15;
+// Preferred inter-tap interval <= this × fast-round interval -> flag as possibly motor-limited.
+const MOTOR_CEILING_RATIO = 1.25;
+
+// Child's volume choice from the Sound stage (0-1), same source as extractPreferences();
+// null if the Sound stage was not played.
+function getChildVolumePref() {
+  const staffByType = {};
+  for (const ev of state.interactionLog) {
+    if (ev.event === 'staff_element_set') staffByType[ev.type] = ev;
+  }
+  const settings = Object.values(staffByType);
+  if (settings.length === 0) return null;
+  const avg = settings.reduce((s, e) => s + (e.volume ?? 0), 0) / settings.length / 100;
+  return Math.max(0, Math.min(1, avg));
+}
+
 // Drum hit — synthesized; same sound across all 3 sessions per Yue 2026-05-07
-// (S1 sounded most natural, so we drop pitch/overtone escalation)
+// (S1 sounded most natural, so we drop pitch/overtone escalation).
+// Loudness scaled by state.drumGainScale (child's Sound-stage volume; set in setupAnimatePhase).
 function playDrumHit(sessionPhase) {
   if (!state.audioCtx) {
     state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
   const ctx = state.audioCtx;
+  const g = state.drumGainScale ?? 1;
   ctx.resume().then(() => {
     const now = ctx.currentTime;
 
@@ -4922,7 +5011,7 @@ function playDrumHit(sessionPhase) {
     body.frequency.setValueAtTime(180, now);
     body.frequency.exponentialRampToValueAtTime(60, now + 0.15);
     const bodyGain = ctx.createGain();
-    bodyGain.gain.setValueAtTime(0.5, now);
+    bodyGain.gain.setValueAtTime(0.5 * g, now);
     bodyGain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
 
     // 2. Warmth harmonic
@@ -4931,7 +5020,7 @@ function playDrumHit(sessionPhase) {
     body2.frequency.setValueAtTime(90, now);
     body2.frequency.exponentialRampToValueAtTime(40, now + 0.2);
     const body2Gain = ctx.createGain();
-    body2Gain.gain.setValueAtTime(0.3, now);
+    body2Gain.gain.setValueAtTime(0.3 * g, now);
     body2Gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
 
     // 3. Stick hit (bandpass noise)
@@ -4946,7 +5035,7 @@ function playDrumHit(sessionPhase) {
     noiseFilter.frequency.value = 3000;
     noiseFilter.Q.value = 1.5;
     const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(0.15, now);
+    noiseGain.gain.setValueAtTime(0.15 * g, now);
     noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
 
     body.connect(bodyGain); bodyGain.connect(ctx.destination);
@@ -5069,6 +5158,9 @@ function extractPreferences() {
     temporal: {
       score: temporalScore,
       smt: state.drumAvgInterval ?? null,   // median ISI in ms (alias for spec field "drumSMT")
+      fastMedianInterval: state.drumFastMedianInterval ?? null,  // motor ceiling (fast round)
+      motorCeilingFlag: state.drumMotorCeilingFlag ?? null,     // preferred tempo near motor ceiling
+      drumVolumeSource: state.drumVolumeSource ?? null,         // 'child_sound_phase' | 'default'
       animatedCount: state.animatedElements.size,
       totalCount: state.placedElements.filter(e => e.type !== 'avatar').length,
     },
@@ -5166,6 +5258,8 @@ function buildBehaviorData() {
     },
     drum: {
       freeAvgInterval: state.drumAvgInterval || null,
+      fastMedianInterval: state.drumFastMedianInterval ?? null,
+      motorCeilingFlag: state.drumMotorCeilingFlag ?? null,
     },
   };
 }
