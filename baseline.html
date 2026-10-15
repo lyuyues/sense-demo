@@ -98,7 +98,15 @@
     // Carry the participant ID into the video page so baseline records pair
     // with the same family's SENSE records. Blocks navigation until filled.
     const pidEl = document.getElementById('pid');
-    try { pidEl.value = localStorage.getItem('sense_pid') || ''; } catch (_) {}
+    // Public GitHub Pages demo: no data collection there, so no ID required.
+    const IS_PUBLIC_DEMO = location.hostname.endsWith('github.io') || location.protocol === 'file:';
+    if (IS_PUBLIC_DEMO) {
+      pidEl.style.display = 'none';
+      pidEl.previousElementSibling.style.display = 'none';
+      pidEl.value = 'DEMO';
+    } else {
+      try { pidEl.value = localStorage.getItem('sense_pid') || ''; } catch (_) {}
+    }
     document.querySelectorAll('.event-link').forEach(a => {
       a.addEventListener('click', e => {
         const pid = pidEl.value.trim();

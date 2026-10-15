@@ -626,17 +626,24 @@ function setStoredPid(pid) {
 }
 state.participantId = (new URLSearchParams(location.search).get('pid') || getStoredPid()).trim();
 if (state.participantId) setStoredPid(state.participantId);
+// The public GitHub Pages demo is for showing the system, not collecting data
+// (no server there), so the ID box is hidden and records are tagged DEMO.
+// Same test as API_BASE, which is declared further down (TDZ at this point).
+const IS_PUBLIC_DEMO = location.hostname.endsWith('github.io') || location.protocol === 'file:';
 const pidInput = document.getElementById('input-pid');
-if (pidInput) pidInput.value = state.participantId;
+if (pidInput) {
+  pidInput.value = state.participantId;
+  if (IS_PUBLIC_DEMO) pidInput.classList.add('hidden');
+}
 
 document.getElementById('btn-start').addEventListener('click', () => {
-  const pid = (pidInput?.value || '').trim();
+  const pid = IS_PUBLIC_DEMO ? 'DEMO' : (pidInput?.value || '').trim();
   if (!pid) {
     pidInput?.classList.add('pid-missing');
     pidInput?.focus();
     return;
   }
-  pidInput.classList.remove('pid-missing');
+  pidInput?.classList.remove('pid-missing');
   state.participantId = pid;
   setStoredPid(pid);
   state.condition = 'sense';
