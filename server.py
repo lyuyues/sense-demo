@@ -135,8 +135,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def _guard_static(self):
         from urllib.parse import urlsplit, unquote
-        path = unquote(urlsplit(self.path).path).lower()
-        if path.startswith(BLOCKED_PREFIXES) or path.endswith(BLOCKED_SUFFIXES) or '/.' in path:
+        import posixpath
+        raw = unquote(urlsplit(self.path).path).lower()
+        # Normalise (collapse //, /./, ..) before matching, so the guard doesn't
+        # depend on how this Python version's http.server treats such paths.
+        path = posixpath.normpath('/' + raw.lstrip('/'))
+        if raw.endswith('/') and path != '/':
+            path += '/'
+        if path.startswith(BLOCKED_PREFIXES) or path.endswith(BLOCKED_SUFFIXES) or '/.' in path or '/.' in raw:
             self._deny(404, 'Not found')
             return False
         if not self._authorized():
