@@ -87,7 +87,7 @@ def build_summary_df(sessions: list[dict]) -> pd.DataFrame:
         # Flatten phase durations: phase_photo_s, phase_canvas_s, ...
         for phase, ms in phase_durations.items():
             row[f"phase_{phase}_s"] = ms / 1000
-        # Flatten canvas sub-phase durations: subphase_add-elements_s, ...
+        # Flatten canvas sub-phase durations: subphase_create_s, ...
         for sub, ms in (s.get("subPhaseDurations") or {}).items():
             row[f"subphase_{sub}_s"] = ms / 1000
 
@@ -130,7 +130,7 @@ def build_visits_df(sessions: list[dict]) -> pd.DataFrame:
     visit_index (0, 1, 2...) says whether it's the first time or a revisit.
     A sub-phase visit is closed out either by the next sub_phase_change, or —
     for whichever sub-phase was active when 'canvas' is left (finishing
-    'animate' or a caregiver skip) — by the enclosing phase_change, mirroring
+    'rhythm' or a caregiver skip) — by the enclosing phase_change, mirroring
     the goToPhase()/setCanvasSubPhase() bookkeeping in app.js.
     """
     rows = []

@@ -73,16 +73,16 @@ body {
   line-height: 1.2;
   color: inherit;
 }
-.phase-tab[data-phase="add-elements"] { background-image: url("assets/icons-hd/star.png"); }
-.phase-tab[data-phase="color"]        { background-image: url("assets/icons-hd/crayon.png?v=3"); }
-.phase-tab[data-phase="light"]        { background-image: url("assets/icons-hd/sun.png"); }
-.phase-tab[data-phase="sound-studio"] { background-image: url("assets/icons-hd/note.png"); }
-.phase-tab[data-phase="animate"]      { background-image: url("assets/icons-hd/drum.png"); }
-.phase-tab[data-phase="add-elements"]::before { content: "Create"; }
-.phase-tab[data-phase="color"]::before        { content: "Color"; }
-.phase-tab[data-phase="light"]::before        { content: "Light"; }
-.phase-tab[data-phase="sound-studio"]::before { content: "Sound"; }
-.phase-tab[data-phase="animate"]::before      { content: "Rhythm"; }
+.phase-tab[data-phase="create"] { background-image: url("assets/icons-hd/star.png"); }
+.phase-tab[data-phase="color"]  { background-image: url("assets/icons-hd/crayon.png?v=3"); }
+.phase-tab[data-phase="light"]  { background-image: url("assets/icons-hd/sun.png"); }
+.phase-tab[data-phase="sound"]  { background-image: url("assets/icons-hd/note.png"); }
+.phase-tab[data-phase="rhythm"] { background-image: url("assets/icons-hd/drum.png"); }
+.phase-tab[data-phase="create"]::before { content: "Create"; }
+.phase-tab[data-phase="color"]::before  { content: "Color"; }
+.phase-tab[data-phase="light"]::before  { content: "Light"; }
+.phase-tab[data-phase="sound"]::before  { content: "Sound"; }
+.phase-tab[data-phase="rhythm"]::before { content: "Rhythm"; }
 
 .phase-tab:nth-child(1) { transform: rotate(-1.4deg); }
 .phase-tab:nth-child(2) { transform: rotate(0.8deg); }
