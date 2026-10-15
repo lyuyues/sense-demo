@@ -100,8 +100,105 @@ EVENT_CONTEXTS = {
 }
 
 
+# --- Public-deployment guards (home server behind a tunnel) ---
+# STUDY_TOKEN set → every request needs it, either as ?k=<token> (first visit;
+# the server then sets a cookie) or the sense_k cookie. Unset → open, as on a
+# trusted LAN. Without this, anyone on the internet could call the Gemini
+# endpoints on our quota or hit save-session.
+STUDY_TOKEN = os.environ.get('STUDY_TOKEN', '')
+# Never served as static files, token or not: participant data, secrets, code.
+BLOCKED_PREFIXES = ('/session_data', '/.git', '/.env', '/__pycache__', '/deploy')
+BLOCKED_SUFFIXES = ('.pem', '.py', '.env', '.pyc', '.sh', '.service', '.yml', '.yaml')
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
+    def _authorized(self):
+        if not STUDY_TOKEN:
+            return True
+        from urllib.parse import urlsplit, parse_qs
+        from http.cookies import SimpleCookie
+        q = parse_qs(urlsplit(self.path).query)
+        if q.get('k', [''])[0] == STUDY_TOKEN:
+            self._set_token_cookie = True
+            return True
+        c = SimpleCookie(self.headers.get('Cookie', ''))
+        return 'sense_k' in c and c['sense_k'].value == STUDY_TOKEN
+
+    def _deny(self, code, msg):
+        body = msg.encode('utf-8')
+        self.send_response(code)
+        self.send_header('Content-Type', 'text/plain; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        if self.command != 'HEAD':
+            self.wfile.write(body)
+
+    def _guard_static(self):
+        from urllib.parse import urlsplit, unquote
+        path = unquote(urlsplit(self.path).path).lower()
+        if path.startswith(BLOCKED_PREFIXES) or path.endswith(BLOCKED_SUFFIXES) or '/.' in path:
+            self._deny(404, 'Not found')
+            return False
+        if not self._authorized():
+            self._deny(403, '需要访问口令：请使用研究团队提供的完整链接打开。')
+            return False
+        return True
+
+    def do_GET(self):
+        if not self._guard_static():
+            return
+        if self.headers.get('Range') and self._serve_range():
+            return
+        super().do_GET()
+
+    def _serve_range(self):
+        # iOS Safari refuses to play <video> from servers that ignore Range
+        # (SimpleHTTPRequestHandler always answers 200 with the whole file).
+        # Single "bytes=a-b" ranges only — all Safari/Chrome send for media.
+        import re
+        m = re.match(r'bytes=(\d*)-(\d*)$', self.headers['Range'].strip())
+        path = self.translate_path(self.path)
+        if not m or not os.path.isfile(path):
+            return False
+        size = os.path.getsize(path)
+        a, b = m.groups()
+        if a == '':  # suffix range: last N bytes
+            start, end = max(0, size - int(b or 0)), size - 1
+        else:
+            start, end = int(a), min(int(b) if b else size - 1, size - 1)
+        if start >= size or start > end:
+            self.send_response(416)
+            self.send_header('Content-Range', f'bytes */{size}')
+            self.end_headers()
+            return True
+        length = end - start + 1
+        self.send_response(206)
+        self.send_header('Content-Type', self.guess_type(path))
+        self.send_header('Accept-Ranges', 'bytes')
+        self.send_header('Content-Range', f'bytes {start}-{end}/{size}')
+        self.send_header('Content-Length', str(length))
+        self.end_headers()
+        try:
+            with open(path, 'rb') as f:
+                f.seek(start)
+                while length > 0:
+                    chunk = f.read(min(65536, length))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    length -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # player aborted the request (seek) — normal
+        return True
+
+    def do_HEAD(self):
+        if self._guard_static():
+            super().do_HEAD()
+
     def do_POST(self):
+        if not self._authorized():
+            self._deny(403, 'forbidden')
+            return
         if self.path == '/api/convert-avatar':
             self._handle_convert(AVATAR_PROMPT, remove_bg=True)
         elif self.path == '/api/convert-background':
@@ -404,14 +501,21 @@ Return JSON only:
         self.end_headers()
 
     def end_headers(self):
-        self.send_header('Access-Control-Allow-Origin', '*')
+        if getattr(self, '_set_token_cookie', False):
+            self.send_header('Set-Cookie', f'sense_k={STUDY_TOKEN}; Path=/; Max-Age=15552000; SameSite=Lax; HttpOnly')
+            self._set_token_cookie = False
+        if not STUDY_TOKEN:
+            self.send_header('Access-Control-Allow-Origin', '*')
         super().end_headers()
 
 
 def main():
     port = int(os.environ.get('PORT', 8443))
     use_https = os.environ.get('USE_HTTPS', '1') != '0'
-    server = http.server.ThreadingHTTPServer(('0.0.0.0', port), Handler)
+    # HOST=127.0.0.1 when behind a tunnel, so the server is reachable only via
+    # the tunnel (which carries the token check), not directly from the LAN.
+    host = os.environ.get('HOST', '0.0.0.0')
+    server = http.server.ThreadingHTTPServer((host, port), Handler)
 
     cert = os.path.join(DIR, 'cert.pem')
     key = os.path.join(DIR, 'key.pem')
@@ -419,9 +523,9 @@ def main():
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(cert, key)
         server.socket = ctx.wrap_socket(server.socket, server_side=True)
-        print(f"HTTPS server at https://0.0.0.0:{port}")
+        print(f"HTTPS server at https://{host}:{port}")
     else:
-        print(f"HTTP server at http://0.0.0.0:{port}")
+        print(f"HTTP server at http://{host}:{port}" + (" (token required)" if STUDY_TOKEN else ""))
 
     server.serve_forever()
 

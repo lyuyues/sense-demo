@@ -12,3 +12,5 @@ session_data/
 
 .env
 session_data/
+deploy/study.env
+.venv/
