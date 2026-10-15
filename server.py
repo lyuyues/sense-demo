@@ -17,12 +17,18 @@ from rembg import remove
 # Load API key from environment or .env file
 API_KEY = os.environ.get("GEMINI_API_KEY", "")
 if not API_KEY:
-    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', '..', '..',
-                            'Claudcode_AI_workspace', 'Research', 'SENSE', 'prototype', 'veo_test', '.env')
-    if os.path.exists(env_path):
+    # 1) .env next to server.py (pilot laptops); 2) Yue's workspace copy.
+    here = os.path.dirname(os.path.abspath(__file__))
+    for env_path in (os.path.join(here, '.env'),
+                     os.path.join(here, '..', '..', '..', 'Research', 'SENSE',
+                                  'prototype', 'veo_test', '.env')):
+        if not os.path.exists(env_path):
+            continue
         for line in open(env_path):
             if line.startswith('GEMINI_API__KEY=') or line.startswith('GEMINI_API_KEY='):
                 API_KEY = line.split('=', 1)[1].strip()
+        if API_KEY:
+            break
 
 if not API_KEY:
     print("ERROR: No GEMINI_API_KEY found. Set env var or check .env file.")
@@ -180,16 +186,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             prompt = f"A cute {name} {context}, {STICKER_STYLE}"
             print(f"Generating sticker: '{name}'...")
 
-            resp = client.models.generate_images(
-                model='imagen-4.0-generate-001',
-                prompt=prompt,
-                config=types.GenerateImagesConfig(number_of_images=1),
+            # Imagen was retired from the Gemini API (2026-10); use the same
+            # image model as avatar conversion.
+            resp = client.models.generate_content(
+                model="gemini-2.5-flash-image",
+                contents=[prompt],
+                config=types.GenerateContentConfig(response_modalities=["IMAGE", "TEXT"]),
             )
 
             result_data = None
-            for img in resp.generated_images:
-                result_data = img.image.image_bytes
-                break
+            for part in resp.candidates[0].content.parts:
+                if part.inline_data:
+                    result_data = part.inline_data.data
+                    break
 
             if not result_data:
                 raise Exception("No image generated")
@@ -334,7 +343,7 @@ Return JSON only:
 
             print("AI observation: calling Gemini...")
             resp = client.models.generate_content(
-                model="gemini-2.0-flash",
+                model="gemini-2.5-flash",  # gemini-2.0-flash retired (404) as of 2026-10
                 contents=parts,
             )
 
@@ -366,9 +375,12 @@ Return JSON only:
             session_dir = os.path.join(DIR, 'session_data')
             os.makedirs(session_dir, exist_ok=True)
 
-            session_id = str(body.get('sessionId') or int(time.time() * 1000))
+            session_id = "".join(c for c in str(body.get("sessionId") or int(time.time() * 1000)) if c.isdigit())
             stage = body.get('exportStage', 'unknown')
-            fname = f"sense-session-{session_id}-{stage}.json"
+            pid = ''.join(c for c in str(body.get('participantId') or 'NO-PID') if c.isalnum() or c in '-_')
+            cond = ''.join(c for c in str(body.get('condition') or 'unknown') if c.isalnum())
+            stage = ''.join(c for c in str(stage) if c.isalnum() or c in '-_')
+            fname = f"sense-{pid}-{cond}-{session_id}-{stage}.json"
             path = os.path.join(session_dir, fname)
             with open(path, 'w') as f:
                 json.dump(body, f, indent=2)

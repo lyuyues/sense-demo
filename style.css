@@ -2629,3 +2629,17 @@ html, body {
   .reward-option { padding: 6px 4px; }
   .reward-option-img { width: 78px; height: 78px; }
 }
+
+/* Researcher-facing: participant ID on welcome screen + server-save status dot */
+.pid-input {
+  display: block; margin: 0 auto 0.8rem; width: 220px;
+  padding: 0.45rem 0.7rem; font-size: 0.95rem; text-align: center;
+  border: 1.5px solid #d8d4cc; border-radius: 10px; background: #fff;
+}
+.pid-input.pid-missing { border-color: #d9534f; box-shadow: 0 0 0 3px rgba(217,83,79,0.2); }
+#save-status-dot {
+  position: fixed; left: 6px; bottom: 6px; width: 8px; height: 8px;
+  border-radius: 50%; z-index: 99999; pointer-events: none; opacity: 0.7;
+}
+#save-status-dot.ok { background: #3c9d5d; }
+#save-status-dot.fail { background: #d9534f; }

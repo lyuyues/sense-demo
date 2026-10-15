@@ -45,6 +45,16 @@
       display: inline-block; margin-top: 2.2rem; font-size: 0.8rem;
       color: #bbb; text-decoration: none;
     }
+    .pid {
+      width: 100%; padding: 0.75rem 1rem; font-size: 1rem; margin-bottom: 1.4rem;
+      border: 1.5px solid #e2e2de; border-radius: 12px; background: #fff;
+    }
+    .pid.missing { border-color: #d9534f; box-shadow: 0 0 0 3px rgba(217,83,79,0.2); }
+    .backup-btn {
+      margin-top: 1.6rem; width: 100%; padding: 0.7rem; font-size: 0.9rem;
+      border: 1.5px dashed #c9a24a; border-radius: 12px; background: #fffdf6; color: #6b5a2e;
+    }
+    .backup-status { font-size: 0.8rem; color: #888; margin-top: 0.4rem; min-height: 1em; }
   </style>
 </head>
 <body>
@@ -56,6 +66,8 @@
       <b>这是什么：</b>与正式 SENSE 流程（孩子拖拽头像、涂色、调灯光等 5 个阶段来外化感官偏好）不同，这个版本让家长/专家直接设定参数，用于跟儿童互动外化的结果做对比实验。
     </div>
 
+    <div class="section-label">参与者编号</div>
+    <input id="pid" class="pid" type="text" placeholder="例如 P01（与 SENSE 条件用同一个编号）" autocomplete="off" autocapitalize="characters" />
     <div class="section-label">选择场景</div>
     <a class="event-link" href="index.html?dev=video-dental">
       <span><span class="event-emoji">🦷</span>看牙医 Dental</span>
@@ -77,7 +89,24 @@
       3. 调整后视频会实时应用新的画面滤镜和音频效果，可反复试听
     </div>
 
+    <button class="backup-btn" onclick="exportLocalBackups()">导出本机备份数据</button>
+    <div id="backup-status" class="backup-status"></div>
     <a class="back-link" href="index.html">← 回到正式 SENSE 流程</a>
   </div>
+  <script src="backup-export.js"></script>
+  <script>
+    // Carry the participant ID into the video page so baseline records pair
+    // with the same family's SENSE records. Blocks navigation until filled.
+    const pidEl = document.getElementById('pid');
+    try { pidEl.value = localStorage.getItem('sense_pid') || ''; } catch (_) {}
+    document.querySelectorAll('.event-link').forEach(a => {
+      a.addEventListener('click', e => {
+        const pid = pidEl.value.trim();
+        if (!pid) { e.preventDefault(); pidEl.classList.add('missing'); pidEl.focus(); return; }
+        try { localStorage.setItem('sense_pid', pid); } catch (_) {}
+        a.href = a.getAttribute('href').split('&pid=')[0] + '&pid=' + encodeURIComponent(pid);
+      });
+    });
+  </script>
 </body>
 </html>

@@ -615,7 +615,32 @@ function runTransition() {
 // ============================================================
 // WELCOME SCREEN
 // ============================================================
+// Participant ID: entered by the researcher on the welcome screen (SENSE) or
+// baseline.html (?pid=...), so both conditions' records for one family can be
+// paired. Remembered across reloads; the researcher overwrites it per family.
+function getStoredPid() {
+  try { return localStorage.getItem('sense_pid') || ''; } catch (_) { return ''; }
+}
+function setStoredPid(pid) {
+  try { localStorage.setItem('sense_pid', pid); } catch (_) {}
+}
+state.participantId = (new URLSearchParams(location.search).get('pid') || getStoredPid()).trim();
+if (state.participantId) setStoredPid(state.participantId);
+const pidInput = document.getElementById('input-pid');
+if (pidInput) pidInput.value = state.participantId;
+
 document.getElementById('btn-start').addEventListener('click', () => {
+  const pid = (pidInput?.value || '').trim();
+  if (!pid) {
+    pidInput?.classList.add('pid-missing');
+    pidInput?.focus();
+    return;
+  }
+  pidInput.classList.remove('pid-missing');
+  state.participantId = pid;
+  setStoredPid(pid);
+  state.condition = 'sense';
+  logEvent('session_start', { participantId: pid, condition: 'sense' });
   // Try to enter fullscreen (works on iPad Safari if added to home screen)
   const el = document.documentElement;
   if (el.requestFullscreen) {
@@ -651,6 +676,8 @@ function devSkipToVideo(eventType) {
   state.eventType = eventType;
   state.dataExported = true; // suppress export-on-processing
   state.isBaselineMode = true;
+  state.condition = 'baseline';
+  logEvent('session_start', { participantId: state.participantId, condition: 'baseline' });
   goToPhase('video');
 }
 
@@ -784,18 +811,15 @@ document.getElementById('btn-capture-scene').addEventListener('click', () => {
   document.getElementById('btn-photo-next').disabled = false;
 });
 
-// API server for photo conversion (local dev or same origin).
-// TEMP for 2026-07 group meeting (Yue confirmed): routes the deployed Pages
-// site to a cloudflared quick tunnel in front of a locally-run server.py, so
-// live avatar/sticker generation works during the demo without a real
-// backend deployment. Remove TEMP_TUNNEL_BASE and revert to '' after the
-// meeting — the tunnel URL dies when the presenter's laptop/tunnel stops,
-// and leaving this in permanently would route all site visitors' generation
-// requests through a personal machine.
-const TEMP_TUNNEL_BASE = 'https://notification-quantum-comics-tubes.trycloudflare.com';
-const API_BASE = location.hostname === 'localhost' || location.hostname.startsWith('192.168')
-  ? location.origin
-  : TEMP_TUNNEL_BASE;
+// API server = whoever served the page. The pilot runs server.py on a laptop
+// and the iPad loads it over LAN, so any non-Pages host (localhost, 192.168.*,
+// 10.*, 172.16-31.*, a .local name) is the server. GitHub Pages has no
+// backend: API_BASE '' disables AI features and server saves there, leaving
+// only the localStorage backup. (The 2026-07 cloudflared demo tunnel is gone —
+// it had expired, so Pages sessions were silently POSTing into nothing.)
+const API_BASE = location.hostname.endsWith('github.io') || location.protocol === 'file:'
+  ? ''
+  : location.origin;
 
 // True only when the page was reached via a ?dev=<action> link (see dev.html
 // and the dispatcher at the bottom of this file). Used to gate the
@@ -2509,6 +2533,19 @@ function spawnStaffElement(snd, startEvent) {
   makeStaffDraggable(el, snd);
 
   logEvent('staff_element_placed', { type: snd.type });
+  // Record the drop position as this layer's starting setting. Without it a
+  // layer the child adds but never drags left no staff_element_set at all, so
+  // extractPreferences() saw 0 layers and the auditory channel fell back to
+  // the 0.5 default. initial:true lets analysis separate "accepted where it
+  // landed" from a deliberate drag (which overwrites this, last-per-type wins).
+  logEvent('staff_element_set', {
+    type: snd.type,
+    pitch: Math.round((1 - y / rect.height) * 100),
+    volume: Math.round(x / rect.width * 100),
+    path: [],
+    durationMs: 0,
+    initial: true,
+  });
 }
 
 function makeStaffDraggable(el, snd) {
@@ -4396,6 +4433,11 @@ function setupAnimatePhase() {
       { intro: '🍽️ Add more energy! (2/3)', desc: 'Tables setting themselves!',   complete: '🎵 Food on its way!' },
       { intro: '🍝 Final burst! (3/3)',     desc: 'Time to eat!',                 complete: '🎉 Off to dinner!' },
     ],
+    dental: [
+      { intro: '✨ Charge the magic! (1/3)', desc: 'Wake up the clinic!',         complete: '⚡ Lights are on!' },
+      { intro: '🦷 Add more energy! (2/3)', desc: 'The big chair is ready!',      complete: '🎵 Almost your turn!' },
+      { intro: '🪥 Final burst! (3/3)',     desc: 'Time for a check-up!',         complete: '🎉 Off to the dentist!' },
+    ],
     // legacy
     birthday: [
       { intro: '✨ Charge the magic! (1/3)', desc: 'Wake up the party!',     complete: '⚡ Sparks flying!' },
@@ -5368,6 +5410,8 @@ async function callFinalSummary() {
 // data shape instead of duplicating it.
 function buildExportPayload(stage) {
   return {
+    participantId: state.participantId || 'NO-PID',
+    condition: state.condition || 'unknown',
     sessionId: state.sessionStart,
     exportStage: stage,
     timestamp: new Date().toISOString(),
@@ -5401,8 +5445,36 @@ function buildExportPayload(stage) {
   };
 }
 
+// Every export is also kept on the device, keyed like the server filename
+// (same key per sessionId+stage → overwrites, so autosaves don't pile up).
+// This is the safety net when the laptop/Wi-Fi drops mid-session; researchers
+// pull it out with the "导出本机备份" button on baseline.html / dev.html.
+const BACKUP_PREFIX = 'sense_backup_';
+function backupLocally(data) {
+  try {
+    localStorage.setItem(
+      `${BACKUP_PREFIX}${data.participantId}_${data.sessionId}_${data.exportStage}`,
+      JSON.stringify(data));
+  } catch (e) { console.warn('Local backup failed:', e); }
+}
+
+// Tiny corner dot so the researcher can see whether the server is receiving
+// data (green) or not (red — data is only in the on-device backup).
+function showSaveStatus(ok) {
+  let dot = document.getElementById('save-status-dot');
+  if (!dot) {
+    dot = document.createElement('div');
+    dot.id = 'save-status-dot';
+    document.body.appendChild(dot);
+  }
+  dot.classList.toggle('ok', ok);
+  dot.classList.toggle('fail', !ok);
+  dot.title = ok ? 'saved to server' : 'server save FAILED — on-device backup only';
+}
+
 function exportData(stage = 'unknown') {
   const data = buildExportPayload(stage);
+  backupLocally(data);
 
   // Persist to the server so a real study session survives the tab closing —
   // this is the actual data-collection path. The client-side download below
@@ -5413,7 +5485,10 @@ function exportData(stage = 'unknown') {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-    }).catch(e => console.warn('Session save failed:', e));
+    }).then(r => showSaveStatus(r.ok))
+      .catch(e => { console.warn('Session save failed:', e); showSaveStatus(false); });
+  } else {
+    showSaveStatus(false);
   }
 
   // Downloading a JSON file mid-session is a dev/testing affordance, not
@@ -5446,8 +5521,10 @@ function exportData(stage = 'unknown') {
 // sendBeacon (not fetch) because fetch can get cancelled once the page starts
 // tearing down; sendBeacon is purpose-built to survive that.
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && state.phase === 'video' && API_BASE) {
+  if (document.hidden && state.phase === 'video') {
     const data = buildExportPayload('video-progress');
+    backupLocally(data);
+    if (!API_BASE) return;
     navigator.sendBeacon(
       API_BASE + '/api/save-session',
       new Blob([JSON.stringify(data)], { type: 'application/json' })
@@ -6131,6 +6208,11 @@ function initVideoPlayer() {
   video.onplay   = stemKickoff;
   video.onpause  = () => { if (usesStems) stopStems(); };
   video.onseeked = () => { if (!usesStems) return; if (!video.paused) stemKickoff(); else stopStems(); };
+
+  // Show the real duration before the first play (was "0:00 / 0:00" until playback).
+  const showDuration = () => { if (video.duration) timeDisplay.textContent = formatTime(video.currentTime) + ' / ' + formatTime(video.duration); };
+  video.onloadedmetadata = showDuration;
+  showDuration();
 
   // Time update
   video.ontimeupdate = () => {
