@@ -4289,6 +4289,24 @@ function stopAudio() {
 function setupAnimatePhase() {
   const drumArea = document.getElementById('drum-area');
   const drumImg = document.getElementById('drum-img');
+  const sticks = [document.getElementById('drum-stick-left'), document.getElementById('drum-stick-right')];
+  let nextStick = 0;
+  // One hit = the next stick (L/R alternating) strikes, and the drum body trembles on contact.
+  // Restarting the animation per tap keeps the sticks locked to the child's own tempo.
+  function strikeDrum() {
+    const stick = sticks[nextStick];
+    nextStick = 1 - nextStick;
+    restartAnim(stick, 'strike', 320);   // hdStickStrikeL/R duration
+    restartAnim(drumImg, 'hit', 240);    // hdDrumTremble duration
+  }
+  function restartAnim(el, cls, ms) {
+    if (!el) return;
+    clearTimeout(el._animTimer);
+    el.classList.remove(cls);
+    void el.offsetWidth;   // restart animation on rapid repeat taps
+    el.classList.add(cls);
+    el._animTimer = setTimeout(() => el.classList.remove(cls), ms);
+  }
   const taikoTrack = document.getElementById('taiko-track');
   const taikoNotes = document.getElementById('taiko-notes');
   const taikoTarget = document.getElementById('taiko-target');
@@ -4361,9 +4379,8 @@ function setupAnimatePhase() {
     const tapY = (e.clientY != null) ? e.clientY :
                  (e.touches && e.touches[0]) ? e.touches[0].clientY : null;
 
-    // Visual + sound feedback (match hdDrumHit duration in style-handdrawn.css)
-    drumImg.classList.add('hit');
-    setTimeout(() => drumImg.classList.remove('hit'), 280);
+    // Visual + sound feedback (stick strike + body tremble, see style-handdrawn.css)
+    strikeDrum();
     const ripple = document.createElement('div');
     ripple.className = 'drum-ripple';
     document.getElementById('drum-hits').appendChild(ripple);
@@ -4789,8 +4806,7 @@ function setupAnimatePhase() {
     introTimer = setInterval(() => {
       if (currentRound !== 0) return;
       playDrumHit(currentRound);
-      drumImg.classList.add('hit');
-      setTimeout(() => drumImg.classList.remove('hit'), 280);
+      strikeDrum();
       introBeats++;
       updateProgress(introBeats, 6);
       if (introBeats >= 6) {
@@ -7125,6 +7141,7 @@ const DEV_ACTIONS = {
   'video-grocery': () => devSkipToVideo('grocery'),
   'video-dining': () => devSkipToVideo('dining'),
   'wrapup': devSkipToWrapup,
+  'drum': () => { goToPhase('canvas'); setCanvasSubPhase('rhythm'); },
 };
 DEV_ACTIONS[new URLSearchParams(location.search).get('dev')]?.();
 

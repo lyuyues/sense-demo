@@ -221,25 +221,56 @@ body {
 .drum-area {
   filter: drop-shadow(4px 5px 0 rgba(44, 36, 24, 0.55)) drop-shadow(0 0 1px rgba(44, 36, 24, 0.4));
 }
-/* Default idle bob: gentle sway + breathe so the drum isn't dead static */
-.drum-img {
-  transform-origin: center 80% !important;
-  animation: hdDrumBob 2.4s ease-in-out infinite !important;
-  transition: none !important;
+/* Drum = 3 layers (body + 2 sticks, split from drum.png 2026-10-17).
+   Idle bob lives on the wrapper so body and sticks sway together. */
+.drum-stack {
+  position: relative; width: 100%; height: 100%;
+  transform-origin: center 80%;
+  animation: hdDrumBob 2.4s ease-in-out infinite;
+  pointer-events: none;
 }
 @keyframes hdDrumBob {
   0%, 100% { transform: rotate(-1.4deg) scale(1); }
   50%      { transform: rotate(1.2deg) scale(1.018); }
 }
-/* Tap reaction: squash + tilt + bounce-back, with overshoot easing for liveliness */
-.drum-img.hit {
-  animation: hdDrumHit 280ms cubic-bezier(.34, 1.56, .64, 1) !important;
+.drum-img, .drum-stick {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: contain;
+  -webkit-user-drag: none; user-select: none; touch-action: none;
 }
-@keyframes hdDrumHit {
-  0%   { transform: rotate(-1.4deg) scale(1); }
-  28%  { transform: rotate(-5deg) scale(0.84) translateY(6px); }
-  62%  { transform: rotate(3deg) scale(1.06) translateY(-3px); }
-  100% { transform: rotate(-1.4deg) scale(1); }
+.drum-img {
+  transform-origin: center 80% !important;
+  animation: none !important;
+  transition: none !important;
+}
+/* Tap reaction on the body: a slight tremble, driven by the stick contact */
+.drum-img.hit {
+  animation: hdDrumTremble 240ms ease-out !important;
+}
+@keyframes hdDrumTremble {
+  0%   { transform: translate(0, 0) rotate(0); }
+  20%  { transform: translate(0, 2px) scale(0.985, 0.97) rotate(-0.8deg); }
+  45%  { transform: translate(0, -1px) rotate(0.6deg); }
+  70%  { transform: translate(0, 0.5px) rotate(-0.3deg); }
+  100% { transform: translate(0, 0) rotate(0); }
+}
+/* Sticks pivot at their handle ends (pixel coords in the 300px source).
+   Rest = slightly raised; each tap snaps the tip down onto the head and back up. */
+.drum-stick-left  { transform-origin: 30.7% 26.3%; transform: translateY(-10%) rotate(-18deg); }
+.drum-stick-right { transform-origin: 69%   26.3%; transform: translateY(-10%) rotate(18deg); }
+.drum-stick-left.strike  { animation: hdStickStrikeL 320ms ease-out; }
+.drum-stick-right.strike { animation: hdStickStrikeR 320ms ease-out; }
+@keyframes hdStickStrikeL {
+  0%   { transform: translateY(-10%) rotate(-18deg); }
+  20%  { transform: translateY(0)    rotate(1deg); }    /* contact */
+  38%  { transform: translateY(-4%)  rotate(-7deg); }   /* rebound */
+  100% { transform: translateY(-10%) rotate(-18deg); }
+}
+@keyframes hdStickStrikeR {
+  0%   { transform: translateY(-10%) rotate(18deg); }
+  20%  { transform: translateY(0)    rotate(-1deg); }
+  38%  { transform: translateY(-4%)  rotate(7deg); }
+  100% { transform: translateY(-10%) rotate(18deg); }
 }
 
 /* Ripple removed per Yue 2026-05-07 — drum-img bounce is enough; ring was distracting */
@@ -329,8 +360,8 @@ body {
 .drum-overlay.drum-s1 .drum-area { filter: drop-shadow(4px 5px 0 rgba(44, 36, 24, 0.55)); }
 .drum-overlay.drum-s2 .drum-area { filter: drop-shadow(4px 5px 0 rgba(44, 36, 24, 0.55)) drop-shadow(0 0 18px rgba(255, 209, 102, 0.55)); }
 .drum-overlay.drum-s3 .drum-area { filter: drop-shadow(4px 5px 0 rgba(44, 36, 24, 0.55)) drop-shadow(0 0 26px rgba(236, 107, 74, 0.7)); }
-.drum-overlay.drum-s2 .drum-img { animation-duration: 1.6s !important; }  /* Faster bob */
-.drum-overlay.drum-s3 .drum-img { animation: hdDrumHeartbeat 0.8s ease-in-out infinite !important; }  /* Heartbeat */
+.drum-overlay.drum-s2 .drum-stack { animation-duration: 1.6s; }  /* Faster bob */
+.drum-overlay.drum-s3 .drum-stack { animation: hdDrumHeartbeat 0.8s ease-in-out infinite; }  /* Heartbeat */
 @keyframes hdDrumHeartbeat {
   0%, 100% { transform: rotate(-1.4deg) scale(1); }
   20%      { transform: rotate(-2deg) scale(1.04); }
