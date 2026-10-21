@@ -6028,6 +6028,8 @@ function setupSettingsPanel() {
   syncShiftUI('challenge');
   const confirmBtn = document.getElementById('settings-confirm');
   if (confirmBtn) confirmBtn.classList.toggle('hidden', !state.isBaselineMode);
+  // Distance/Pacing "how to choose" sub-labels are for the Baseline caregiver only.
+  document.querySelectorAll('.settings-note').forEach(n => n.classList.toggle('hidden', !state.isBaselineMode));
   if (_settingsPanelBound) return;
 
   document.querySelectorAll('.settings-slider').forEach(slider => {
