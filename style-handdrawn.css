@@ -27,7 +27,7 @@
 
 /* ===== Body / global typography ===== */
 body {
-  font-family: "Patrick Hand", "Caveat", -apple-system, system-ui, sans-serif !important;
+  font-family: "Patrick Hand", "Caveat", "ZCOOL KuaiLe", -apple-system, system-ui, sans-serif !important;
   background: var(--hd-paper) !important;
   color: var(--hd-ink) !important;
 }
@@ -54,7 +54,7 @@ body {
   border: 2.5px solid var(--hd-ink) !important;
   border-radius: var(--hd-r-tab) !important;
   padding: 6px 40px 4px 50px !important;  /* extra left padding for icon, extra right for reward badge */
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 18px !important;
   font-weight: 400 !important;
   color: var(--hd-ink-muted) !important;
@@ -68,7 +68,7 @@ body {
 }
 .phase-tab::before {
   display: inline-block;
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 18px;
   line-height: 1.2;
   color: inherit;
@@ -115,7 +115,7 @@ body {
   cursor: pointer;
   transform: rotate(-1.5deg);
   box-shadow: var(--hd-shadow-sm);
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 0 !important;  /* hide SVG-area sizing influence */
   display: flex; align-items: center; justify-content: center;
   padding: 0 !important;
@@ -123,7 +123,7 @@ body {
 .btn-canvas-back svg { display: none !important; }
 .btn-canvas-back::before {
   content: "←";
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 22px;
   line-height: 1;
   color: var(--hd-ink);
@@ -132,7 +132,7 @@ body {
 
 /* ===== Canvas instruction ===== */
 .canvas-instruction {
-  font-family: "Caveat", cursive !important;
+  font-family: "Caveat", "ZCOOL KuaiLe", cursive !important;
   font-size: 26px !important;
   font-weight: 700 !important;
   color: var(--hd-ink) !important;
@@ -383,7 +383,7 @@ body {
   border: 2.5px solid var(--hd-ink) !important;
   border-radius: var(--hd-r-next) !important;
   padding: 9px 22px 7px !important;
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 19px !important;
   font-weight: 400 !important;
   cursor: pointer;
@@ -424,7 +424,7 @@ body {
   border-radius: var(--hd-r-tab) !important;
   height: 52px !important;
   padding: 6px 16px 6px 8px !important;
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 17px !important;
   color: var(--hd-ink) !important;
   box-shadow: var(--hd-shadow-sm);
@@ -437,7 +437,7 @@ body {
   box-shadow: 2px 2px 0 var(--hd-ink) !important;
 }
 .hue-dropdown-label {
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-weight: 400 !important;
 }
 .hue-dropdown-chevron { color: var(--hd-ink) !important; }
@@ -463,7 +463,7 @@ body {
   border: 2px solid var(--hd-ink) !important;
 }
 .hue-tile-name {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 0.8rem !important;
   color: var(--hd-ink) !important;
 }
@@ -516,7 +516,7 @@ body {
 }
 .btn-tool svg { display: none !important; }
 .btn-tool::before {
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 17px;
   line-height: 1;
   color: var(--hd-ink-muted);
@@ -553,7 +553,7 @@ body {
 }
 .btn-eraser::before {
   content: "Erase";
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 17px;
   color: var(--hd-ink-muted);
 }
@@ -574,7 +574,7 @@ body {
   background: var(--hd-mango) !important;
   border: 2.5px solid var(--hd-ink) !important;
   border-radius: var(--hd-r-hint) !important;
-  font-family: "Caveat", cursive !important;
+  font-family: "Caveat", "ZCOOL KuaiLe", cursive !important;
   font-size: 22px !important;
   font-weight: 700 !important;
   color: var(--hd-ink) !important;
@@ -615,7 +615,7 @@ body {
   box-shadow: 1px 1px 0 var(--hd-ink) !important;
 }
 .palette-label {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 13px !important;
   color: var(--hd-ink-muted) !important;
   font-weight: 400 !important;
@@ -636,7 +636,7 @@ body {
   background-size: 36px 36px !important;
   box-shadow: var(--hd-shadow-sm);
   color: var(--hd-ink-faint) !important;
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 0 !important;
   width: 60px !important; min-width: 60px !important; height: 70px !important;
   transition: transform 200ms, border-color 180ms, background-color 180ms;
@@ -648,7 +648,7 @@ body {
   left: 50%;
   transform: translateX(-50%);
   font-size: 11px;
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   color: var(--hd-ink-faint);
   letter-spacing: 0.02em;
 }
@@ -675,7 +675,7 @@ body {
   box-shadow: 1px 1px 0 var(--hd-ink) !important;
 }
 .palette-add-icon {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   color: var(--hd-ink) !important;
   font-size: 32px !important;
   font-weight: 400 !important;
@@ -708,11 +708,11 @@ body {
   box-shadow: 1px 1px 0 var(--hd-ink) !important;
 }
 .sound-palette-glyph {
-  font-family: "Caveat", cursive !important;
+  font-family: "Caveat", "ZCOOL KuaiLe", cursive !important;
   color: var(--hd-ink) !important;
 }
 .sound-palette-label {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 13px !important;
   color: var(--hd-ink-muted) !important;
   font-weight: 400 !important;
@@ -724,7 +724,7 @@ body {
   background: var(--hd-paper-card) !important;
   box-shadow: var(--hd-shadow-sm);
   color: var(--hd-ink-faint) !important;
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 26px !important;       /* show 🗑 emoji */
   flex-direction: column;
   line-height: 1;
@@ -733,7 +733,7 @@ body {
   content: "Trash";
   display: block;
   font-size: 12px;
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   color: var(--hd-ink-faint);
   margin-top: 2px;
 }
@@ -755,7 +755,7 @@ body {
   transform: rotate(-0.8deg);
 }
 .sticker-name-input {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 18px !important;
   border: 2.5px solid var(--hd-ink) !important;
   border-radius: var(--hd-r-brush) !important;
@@ -777,7 +777,7 @@ body {
   border: 2.5px solid var(--hd-ink) !important;
   border-radius: var(--hd-r-next) !important;
   color: var(--hd-ink) !important;
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 18px !important;
   font-weight: 400 !important;
   padding: 8px 18px 6px !important;
@@ -790,7 +790,7 @@ body {
   background: var(--hd-mango) !important;
 }
 .btn-sticker-cancel {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 22px !important;
   color: var(--hd-ink-muted) !important;
   background: transparent !important;
@@ -799,11 +799,11 @@ body {
 
 /* ===== Magic meter (Rhythm phase) ===== */
 .magic-meter-container {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   bottom: 16px !important;  /* Sits below drum, fully visible above viewport edge */
 }
 .magic-label {
-  font-family: "Caveat", cursive !important;
+  font-family: "Caveat", "ZCOOL KuaiLe", cursive !important;
   font-size: 20px !important;
   color: var(--hd-ink) !important;
   font-weight: 700 !important;
@@ -820,7 +820,7 @@ body {
   opacity: 0.55;
 }
 .magic-seg::before {
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 32px;
   line-height: 1;
   color: var(--hd-ink-muted);
@@ -841,13 +841,13 @@ body {
 
 /* ===== Fab levels (sound studio level switcher) — match phase-tab font size ===== */
 .fab-level-label {
-  font-family: "Caveat", cursive !important;
+  font-family: "Caveat", "ZCOOL KuaiLe", cursive !important;
   font-size: 20px !important;
   color: var(--hd-ink) !important;
   font-weight: 700 !important;
 }
 .fab-level {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 18px !important;
   font-weight: 400 !important;
   border: 2.5px solid var(--hd-ink) !important;
@@ -875,12 +875,12 @@ body {
 
 /* ===== Sound studio staff hints (musical notes) — keep typography unified ===== */
 .staff-clef, .staff-note-hint {
-  font-family: "Caveat", cursive !important;
+  font-family: "Caveat", "ZCOOL KuaiLe", cursive !important;
 }
 
 /* ===== Note display (music label) ===== */
 .note-display {
-  font-family: "Caveat", cursive !important;
+  font-family: "Caveat", "ZCOOL KuaiLe", cursive !important;
   color: var(--hd-ink) !important;
 }
 
@@ -930,7 +930,7 @@ body {
 
 /* Title — handwritten, sits above the video hero */
 .welcome-content h1 {
-  font-family: "Caveat", cursive !important;
+  font-family: "Caveat", "ZCOOL KuaiLe", cursive !important;
   font-size: 3.6rem !important;
   font-weight: 700 !important;
   color: var(--hd-ink) !important;
@@ -945,7 +945,7 @@ body {
 
 /* Subtitle */
 .welcome-subtitle {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 1.2rem !important;
   color: var(--hd-ink-muted) !important;
   margin-bottom: 1.6rem !important;
@@ -1006,7 +1006,7 @@ body {
   color: var(--hd-ink) !important;
   border: 3px solid var(--hd-ink) !important;
   border-radius: var(--hd-r-next) !important;
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 1.8rem !important;
   font-weight: 400 !important;
   padding: 14px 60px !important;
@@ -1030,7 +1030,7 @@ body {
 
 /* Skip button — quiet ghost link */
 #screen-welcome .btn-secondary {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 0.95rem !important;
   border: 2px dashed var(--hd-ink-faint) !important;
   border-radius: var(--hd-r-back) !important;
@@ -1094,7 +1094,7 @@ body {
 
 /* Title — handwritten, matches welcome */
 .processing-content h1 {
-  font-family: "Caveat", cursive !important;
+  font-family: "Caveat", "ZCOOL KuaiLe", cursive !important;
   font-size: 2.6rem !important;
   font-weight: 700 !important;
   color: var(--hd-ink) !important;
@@ -1120,7 +1120,7 @@ body {
   border-radius: var(--hd-r-tab) !important;
   box-shadow: var(--hd-shadow-sm);
   padding: 8px 18px 6px !important;
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 1.05rem !important;
   color: var(--hd-ink-muted) !important;
   font-weight: 400 !important;
@@ -1169,7 +1169,7 @@ body {
 /* AI observation/summary captions */
 .ai-observation,
 .ai-summary {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   color: var(--hd-ink-muted) !important;
   font-style: normal !important;
   position: relative;
@@ -1253,7 +1253,7 @@ body {
 
 /* Photo prompt — Caveat handwritten, bigger */
 .photo-prompt {
-  font-family: "Caveat", cursive !important;
+  font-family: "Caveat", "ZCOOL KuaiLe", cursive !important;
   font-size: 2.2rem !important;
   font-weight: 700 !important;
   color: var(--hd-ink) !important;
@@ -1342,7 +1342,7 @@ body {
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 .photo-thumb-label {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 0.95rem !important;
   font-weight: 400 !important;
   color: var(--hd-ink) !important;
@@ -1362,7 +1362,7 @@ body {
   color: var(--hd-ink) !important;
   border: 2.5px solid var(--hd-ink) !important;
   border-radius: var(--hd-r-next) !important;
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 1.2rem !important;
   padding: 10px 28px !important;
   box-shadow: var(--hd-shadow) !important;
@@ -1378,7 +1378,7 @@ body {
   pointer-events: none;
 }
 .photo-actions .btn-secondary {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   border: 2.5px solid var(--hd-ink-faint) !important;
   border-radius: var(--hd-r-back) !important;
   background: transparent !important;
@@ -1398,7 +1398,7 @@ body {
   justify-content: center !important;
 }
 .event-title {
-  font-family: "Caveat", cursive !important;
+  font-family: "Caveat", "ZCOOL KuaiLe", cursive !important;
   font-weight: 700 !important;
   font-size: 3rem !important;
   color: var(--hd-ink) !important;
@@ -1417,7 +1417,7 @@ body {
   border: 3px solid var(--hd-ink) !important;
   border-radius: var(--hd-r-toolbar) !important;
   box-shadow: var(--hd-shadow-lg) !important;
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   cursor: pointer;
   transition: transform 220ms cubic-bezier(.34,1.56,.64,1),
               box-shadow 180ms,
@@ -1461,7 +1461,7 @@ body {
 .event-card[data-event="dining"]  .event-emoji { background-image: url("assets/icons-hd/dining.png?v=2"); }
 
 .event-name {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 1.6rem !important;
   font-weight: 400 !important;
   color: var(--hd-ink) !important;
@@ -1483,7 +1483,7 @@ body {
   width: 92% !important;
 }
 .difficulty-title {
-  font-family: "Caveat", cursive !important;
+  font-family: "Caveat", "ZCOOL KuaiLe", cursive !important;
   font-weight: 700 !important;
   font-size: 2.6rem !important;
   color: var(--hd-ink) !important;
@@ -1493,7 +1493,7 @@ body {
   margin-bottom: 0.2rem !important;
 }
 .difficulty-subtitle {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 1.15rem !important;
   color: var(--hd-ink-muted) !important;
   margin-bottom: 0.8rem !important;
@@ -1507,7 +1507,7 @@ body {
   border: 3px solid var(--hd-ink) !important;
   border-radius: var(--hd-r-toolbar) !important;
   box-shadow: var(--hd-shadow) !important;
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   min-height: 220px !important;
   gap: 1rem !important;
   padding: 1.6rem 1rem !important;
@@ -1549,7 +1549,7 @@ body {
 .difficulty-card[data-level="normal"]     .difficulty-emoji { background-image: url("assets/icons-hd/normal.png?v=1"); }
 .difficulty-card[data-level="challenge"]  .difficulty-emoji { background-image: url("assets/icons-hd/challenge.png?v=1"); }
 .difficulty-name {
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 1.4rem !important;
   font-weight: 400 !important;
   color: var(--hd-ink) !important;
@@ -1560,7 +1560,7 @@ body {
   color: var(--hd-ink) !important;
   border: 3px solid var(--hd-ink) !important;
   border-radius: 22px 16px 26px 14px / 18px 24px 16px 22px !important;
-  font-family: "Patrick Hand", cursive !important;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 1.3rem !important;
   padding: 10px 36px !important;
   box-shadow: var(--hd-shadow) !important;
@@ -1593,7 +1593,7 @@ body {
   overflow-y: auto;
 }
 .wrapup-title {
-  font-family: "Caveat", cursive;
+  font-family: "Caveat", "ZCOOL KuaiLe", cursive;
   font-weight: 700;
   font-size: 2.8rem;
   color: var(--hd-ink);
@@ -1604,7 +1604,7 @@ body {
   text-align: center;
 }
 .wrapup-subtitle {
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   color: rgba(44, 36, 24, 0.55);
   font-size: 1.05rem;
   margin: 0 0 1.8rem;
@@ -1625,7 +1625,7 @@ body {
   border: 3px solid var(--hd-ink);
   border-radius: var(--hd-r-toolbar);
   box-shadow: var(--hd-shadow-lg);
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -1668,7 +1668,7 @@ body {
   line-height: 1;
 }
 .wrapup-name {
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 1.6rem;
   color: var(--hd-ink);
   letter-spacing: 0.02em;
@@ -1717,7 +1717,7 @@ body {
   100% { opacity: 1; transform: translateY(0); }
 }
 .readiness-title {
-  font-family: "Caveat", cursive;
+  font-family: "Caveat", "ZCOOL KuaiLe", cursive;
   font-weight: 700;
   font-size: 2rem;
   color: var(--hd-ink);
@@ -1735,7 +1735,7 @@ body {
   border: 3px solid var(--hd-ink);
   border-radius: var(--hd-r-toolbar);
   box-shadow: var(--hd-shadow);
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   cursor: pointer;
   padding: 1rem;
   display: flex;
@@ -1780,7 +1780,7 @@ body {
 }
 .wrapup-done.hidden { display: none; }
 .wrapup-done-message {
-  font-family: "Caveat", cursive;
+  font-family: "Caveat", "ZCOOL KuaiLe", cursive;
   font-weight: 700;
   font-size: 2.2rem;
   color: var(--hd-ink);
@@ -1792,7 +1792,7 @@ body {
    🎬 rewatch buttons — one canonical answer per question, one entry. */
 .wrapup-reveal {
   margin-top: 1.6rem;
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 1.2rem;
   background: var(--hd-paper-card);
   color: var(--hd-ink);
@@ -1823,7 +1823,7 @@ body {
   justify-content: center;
 }
 .wrapup-try-another {
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 1.1rem;
   background: var(--hd-paper-card);
   color: var(--hd-ink);
@@ -1843,7 +1843,7 @@ body {
   color: var(--hd-ink);
   border: 3px solid var(--hd-ink);
   border-radius: var(--hd-r-next);
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 1.4rem;
   padding: 10px 32px;
   box-shadow: var(--hd-shadow);
@@ -1867,7 +1867,7 @@ body {
   border: 2.5px solid var(--hd-ink);
   border-radius: 14px;
   box-shadow: 4px 4px 0 var(--hd-ink);
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   color: var(--hd-ink);
   min-width: 260px;
 }
@@ -1925,14 +1925,14 @@ body {
   cursor: pointer;
 }
 .dev-cp-value {
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 0.85rem;
   color: var(--hd-ink);
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 .dev-cp-reset {
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 0.9rem;
   background: var(--hd-paper-card);
   color: var(--hd-ink);
@@ -1958,7 +1958,7 @@ body {
 }
 .dev-cp-bucket-btn {
   flex: 1;
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 0.8rem;
   background: var(--hd-paper-card);
   color: var(--hd-ink);
@@ -1978,7 +1978,7 @@ body {
 .dev-cp-rewind {
   margin-top: 10px;
   width: 100%;
-  font-family: "Patrick Hand", cursive;
+  font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 0.9rem;
   background: var(--hd-paper-card);
   color: var(--hd-ink);
