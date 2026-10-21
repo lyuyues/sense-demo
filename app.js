@@ -781,12 +781,25 @@ function stopCamera() {
   }
 }
 
+// Place photo is part of the designed system (a photo of the real place becomes
+// the canvas background), but the China study keeps the 3 template scenes fixed
+// across participants — so it is off by default. index.html?placePhoto=1 turns
+// it back on for demos of the full pipeline.
+const PLACE_PHOTO_ENABLED = new URLSearchParams(location.search).has('placePhoto');
+if (!PLACE_PHOTO_ENABLED) document.getElementById('preview-scene-wrap')?.classList.add('hidden');
+
 document.getElementById('btn-capture-child').addEventListener('click', () => {
   state.childPhoto = captureFrame();
   const thumb = document.getElementById('preview-child');
   thumb.src = state.childPhoto;
   thumb.classList.remove('placeholder');
   thumb.classList.add('captured');
+
+  if (!PLACE_PHOTO_ENABLED) {
+    // Child photo is the only capture; tapping again retakes it.
+    document.getElementById('btn-photo-next').disabled = false;
+    return;
+  }
 
   // Switch to scene capture
   document.getElementById('photo-step-child').classList.add('hidden');
@@ -2532,10 +2545,24 @@ function spawnStaffElement(snd, startEvent) {
   staffElements.appendChild(el);
   refreshSoundPaletteState();
 
-  // Position at center
+  // Start at the center (neutral pitch/volume). If a note already sits there,
+  // step outward left/right until there's a free slot, so notes never stack
+  // and a child doesn't have to tease them apart by tapping. Offsets depend on
+  // placement order, not sound type, so no type gets a systematic starting
+  // volume. Vertical (pitch) stays centered.
   const rect = staffArea.getBoundingClientRect();
-  const x = rect.width / 2 - 30 + (Math.random() - 0.5) * 100;
-  const y = rect.height / 2 - 30;
+  const NOTE = 60, GAP = 90;
+  const centerX = rect.width / 2 - NOTE / 2;
+  const y = rect.height / 2 - NOTE / 2;
+  const taken = [...staffElements.querySelectorAll('.staff-element')]
+    .filter(o => o !== el)
+    .map(o => parseFloat(o.style.left) || 0);
+  let x = centerX;
+  for (let k = 0; k <= 8; k++) {
+    const step = Math.ceil(k / 2) * GAP * (k % 2 ? -1 : 1);
+    const cand = Math.max(0, Math.min(rect.width - NOTE, centerX + step));
+    if (taken.every(tx => Math.abs(tx - cand) >= GAP * 0.8)) { x = cand; break; }
+  }
   el.style.left = x + 'px';
   el.style.top = y + 'px';
 

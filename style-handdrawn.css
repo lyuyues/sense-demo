@@ -78,11 +78,11 @@ body {
 .phase-tab[data-phase="light"]  { background-image: url("assets/icons-hd/sun.png"); }
 .phase-tab[data-phase="sound"]  { background-image: url("assets/icons-hd/note.png"); }
 .phase-tab[data-phase="rhythm"] { background-image: url("assets/icons-hd/drum.png"); }
-.phase-tab[data-phase="create"]::before { content: "Create"; }
-.phase-tab[data-phase="color"]::before  { content: "Color"; }
-.phase-tab[data-phase="light"]::before  { content: "Light"; }
-.phase-tab[data-phase="sound"]::before  { content: "Sound"; }
-.phase-tab[data-phase="rhythm"]::before { content: "Rhythm"; }
+.phase-tab[data-phase="create"]::before { content: "创作"; }
+.phase-tab[data-phase="color"]::before  { content: "涂色"; }
+.phase-tab[data-phase="light"]::before  { content: "光线"; }
+.phase-tab[data-phase="sound"]::before  { content: "声音"; }
+.phase-tab[data-phase="rhythm"]::before { content: "节奏"; }
 
 .phase-tab:nth-child(1) { transform: rotate(-1.4deg); }
 .phase-tab:nth-child(2) { transform: rotate(0.8deg); }
@@ -527,15 +527,15 @@ body {
   color: var(--hd-ink);
   text-decoration-color: var(--hd-ink-faint);
 }
-#btn-eraser::before { content: "Erase"; }
-#btn-undo::before   { content: "Undo"; }
+#btn-eraser::before { content: "擦除"; }
+#btn-undo::before   { content: "撤销"; }
 .btn-tool.active {
   background: var(--hd-paper) !important;
   border-color: var(--hd-ink) !important;
   box-shadow: var(--hd-shadow-sm);
 }
 .btn-tool.active::before {
-  content: "Erasing";
+  content: "擦除中";
   color: var(--hd-tomato);
 }
 
@@ -552,7 +552,7 @@ body {
   padding: 0 12px !important;
 }
 .btn-eraser::before {
-  content: "Erase";
+  content: "擦除";
   font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 17px;
   color: var(--hd-ink-muted);
@@ -563,7 +563,7 @@ body {
   box-shadow: var(--hd-shadow-sm);
 }
 .btn-eraser.active::before {
-  content: "Erasing";
+  content: "擦除中";
   color: var(--hd-tomato);
 }
 
@@ -642,7 +642,7 @@ body {
   transition: transform 200ms, border-color 180ms, background-color 180ms;
 }
 .palette-trash::before {
-  content: "Trash";
+  content: "垃圾桶";
   position: absolute;
   bottom: 4px;
   left: 50%;
@@ -657,7 +657,7 @@ body {
   background-color: rgba(236,107,74,0.10) !important;
   transform: translateY(-50%) scale(1.12) rotate(-3deg);
 }
-.palette-trash.active::before { color: var(--hd-tomato); content: "Drop!"; }
+.palette-trash.active::before { color: var(--hd-tomato); content: "松手！"; }
 
 .palette-add-btn {
   border: 2.5px dashed var(--hd-ink) !important;
@@ -730,7 +730,7 @@ body {
   line-height: 1;
 }
 .trash-zone::after {
-  content: "Trash";
+  content: "垃圾桶";
   display: block;
   font-size: 12px;
   font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
@@ -742,7 +742,7 @@ body {
   border-color: var(--hd-tomato) !important;
   background: rgba(236,107,74,0.08) !important;
 }
-.trash-zone.active::after { color: var(--hd-tomato); content: "Drop!"; }
+.trash-zone.active::after { color: var(--hd-tomato); content: "松手！"; }
 
 /* ===== Sticker input overlay ("Type an object name…") ===== */
 .sticker-input-card {
