@@ -762,16 +762,38 @@ async function initPhotoScreen() {
   } catch (e) {
     hint.textContent = '摄像头不可用：' + e.message;
     console.warn('Camera error:', e);
+    // Nothing to capture: without this the shutter grabs a blank frame and
+    // sends it to /api/convert-avatar, and Skip then waits on that conversion.
+    document.getElementById('btn-capture-child').disabled = true;
   }
 }
 
+// Returns null instead of a blank image when there's nothing to capture: no
+// camera / no frames yet, or a near-black frame (lens covered, camera still
+// waking up). The caller then keeps the default avatar.
+const BLACK_FRAME_MAX_LUMA = 12;  // mean luma out of 255
 function captureFrame(targetKey) {
   const video = document.getElementById('camera-preview');
+  if (!state.cameraStream || !video.videoWidth) return null;
   const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth || 640;
-  canvas.height = video.videoHeight || 480;
-  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  if (meanLuma(ctx, canvas.width, canvas.height) <= BLACK_FRAME_MAX_LUMA) return null;
   return canvas.toDataURL('image/png');
+}
+
+// Mean luma over a coarse pixel grid — enough to tell a black frame from a photo.
+function meanLuma(ctx, w, h) {
+  const { data } = ctx.getImageData(0, 0, w, h);
+  const step = 4 * 16;  // every 16th pixel
+  let sum = 0, n = 0;
+  for (let i = 0; i < data.length; i += step) {
+    sum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    n++;
+  }
+  return n ? sum / n : 0;
 }
 
 function stopCamera() {
@@ -789,7 +811,15 @@ const PLACE_PHOTO_ENABLED = new URLSearchParams(location.search).has('placePhoto
 if (!PLACE_PHOTO_ENABLED) document.getElementById('preview-scene-wrap')?.classList.add('hidden');
 
 document.getElementById('btn-capture-child').addEventListener('click', () => {
-  state.childPhoto = captureFrame();
+  const frame = captureFrame();
+  if (!frame) {
+    // Leave state.childPhoto unset -> the canvas falls back to the default avatar.
+    const hint = document.getElementById('photo-step-child').querySelector('.photo-prompt');
+    hint.textContent = '画面太暗，没拍到。可以再试一次，或者点跳过用默认头像';
+    logEvent('photo_capture_rejected', { reason: 'black_or_no_frame' });
+    return;
+  }
+  state.childPhoto = frame;
   const thumb = document.getElementById('preview-child');
   thumb.src = state.childPhoto;
   thumb.classList.remove('placeholder');
@@ -822,7 +852,9 @@ async function switchToRearCamera() {
 }
 
 document.getElementById('btn-capture-scene').addEventListener('click', () => {
-  state.scenePhoto = captureFrame();
+  const frame = captureFrame();
+  if (!frame) return;
+  state.scenePhoto = frame;
   const thumb = document.getElementById('preview-scene');
   thumb.src = state.scenePhoto;
   thumb.classList.remove('placeholder');
@@ -930,15 +962,20 @@ document.getElementById('btn-photo-skip').addEventListener('click', async () => 
 // ============================================================
 // EVENT SELECTION SCREEN
 // ============================================================
+// One pick per visit: a double-tap otherwise runs loadTemplate twice and logs
+// the move to 'reward' twice.
+let eventPickInFlight = false;
 document.querySelectorAll('.event-card').forEach(card => {
   card.addEventListener('click', () => {
+    if (state.phase !== 'event' || eventPickInFlight) return;
+    eventPickInFlight = true;
     const eventId = card.dataset.event;
     document.querySelectorAll('.event-card').forEach(c => c.classList.remove('selected'));
     card.classList.add('selected');
     state.eventType = eventId;
     loadTemplate(eventId).then(() => {
       goToPhase('reward');
-    });
+    }).finally(() => { eventPickInFlight = false; });
   });
 });
 
@@ -2764,30 +2801,21 @@ function startStudioLayer(soundType) {
       return;
     }
 
-    if (soundType === 'bgm') {
-      // Load party/playground ambient
-      const file = state.eventType === 'playground' ? 'assets/playground_ambient.mp3' : 'assets/party_ambient.mp3';
+    // Voice/BGM: study scenes use the same Demucs stem the video will play, so
+    // what the child shapes on the staff is what they'll hear in the video.
+    // SFX: pure birdsong (assets/sfx_birds.mp3, 40s seamless loop; source and
+    // licence in README). Yue 2026-10-21: the effects layer must be pure
+    // ambience — no voices, no melody. The old sfx_ambient.mp3 had singing, its
+    // Demucs "other" stem still had melody, and synthesized wind sounded like noise.
+    const LEGACY_STUDIO_AUDIO = {
+      bgm: state.eventType === 'playground' ? 'assets/playground_ambient.mp3' : 'assets/party_ambient.mp3',
+      voice: 'assets/voice_ambient.mp3',
+    };
+    const file = soundType === 'sfx'
+      ? 'assets/sfx_birds.mp3'
+      : STEM_FILES_BY_EVENT[state.eventType]?.[soundType] || LEGACY_STUDIO_AUDIO[soundType];
+    if (file) {
       fetch(file).then(r => r.arrayBuffer()).then(buf => ctx.decodeAudioData(buf)).then(audioBuffer => {
-        const src = ctx.createBufferSource();
-        src.buffer = audioBuffer;
-        src.loop = true;
-        src.connect(layer.gain);
-        src.start();
-        layer.source = src;
-      });
-    } else if (soundType === 'voice') {
-      // Real voice ambient audio
-      fetch('assets/voice_ambient.mp3').then(r => r.arrayBuffer()).then(buf => ctx.decodeAudioData(buf)).then(audioBuffer => {
-        const src = ctx.createBufferSource();
-        src.buffer = audioBuffer;
-        src.loop = true;
-        src.connect(layer.gain);
-        src.start();
-        layer.source = src;
-      });
-    } else if (soundType === 'sfx') {
-      // Real SFX ambient audio
-      fetch('assets/sfx_ambient.mp3').then(r => r.arrayBuffer()).then(buf => ctx.decodeAudioData(buf)).then(audioBuffer => {
         const src = ctx.createBufferSource();
         src.buffer = audioBuffer;
         src.loop = true;
@@ -4371,7 +4399,10 @@ function setupAnimatePhase() {
   let fastIdleTimer = null;
   let fastEnded = false;
   const BEAT_INTERVAL = 700;
-  const FREE_TAPS_NEEDED = 30;
+  // 12 taps = 11 intervals per round; SMT only picks one of 3 pacing buckets, and
+  // the median across 3 rounds absorbs a slow warm-up round. Was 30 (2026-10-21:
+  // ~3 min for the stage, too long for children's bandwidth).
+  const FREE_TAPS_NEEDED = 12;
   let roundTimer = null;
   let introTimer = null;
   let drumEnabled = false;
@@ -4586,7 +4617,7 @@ function setupAnimatePhase() {
     }
   }
 
-  // Big visual + audio celebration when a session (30 taps) completes
+  // Big visual + audio celebration when a session (FREE_TAPS_NEEDED taps) completes
   function sessionCompleteEffect(sessionIdx) {
     const overlay = document.getElementById('drum-overlay');
     if (overlay) {
@@ -4792,9 +4823,9 @@ function setupAnimatePhase() {
     overlay.style.setProperty('--vignette-intensity', Math.min(0.6, sessionTaps / FREE_TAPS_NEEDED * 0.6));
   }
 
-  // Subtle screen shake on the last 5 taps of S3 — per-tap, fixed 100ms (tempo-independent)
+  // Subtle screen shake on the last ~1/6 of S3's taps — per-tap, fixed 100ms (tempo-independent)
   function triggerShakeIfLateS3(sessionPhase, sessionTapCount) {
-    if (sessionPhase !== 3 || sessionTapCount < FREE_TAPS_NEEDED - 5) return;
+    if (sessionPhase !== 3 || sessionTapCount < FREE_TAPS_NEEDED - Math.ceil(FREE_TAPS_NEEDED / 6)) return;
     const overlay = document.getElementById('drum-overlay');
     if (!overlay) return;
     overlay.classList.remove('drum-shake');

@@ -93,3 +93,10 @@ licensed under **Creative Commons Attribution 4.0**:
 
 Voice/SFX stems are separated from the Veo renders; bgm above replaces the generic
 Veo music per scenario.
+
+Sound-studio "音效" (SFX) layer — `assets/sfx_birds.mp3`, a 40 s seamless loop (first
+42 s, 150 Hz high-pass, loudness-normalized, 2 s equal-power crossfade at the seam) of
+**"Bourne Woods 2020-04-26 0815a"** by **Robert EA Harvey**, licensed under
+**Creative Commons Attribution-ShareAlike 4.0**:
+https://commons.wikimedia.org/wiki/File:Bourne_Woods_2020-04-26_0815a.mp3
+Used for all scenes; the layer must be pure ambience (no voices, no melody).
