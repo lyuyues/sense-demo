@@ -1962,6 +1962,34 @@ html, body {
 }
 .vc-right {
   display: flex; align-items: center; gap: 8px;
+  position: relative;
+}
+/* Baseline condition: bubble pointing down at the gear + pulsing gear */
+.baseline-gear-hint {
+  position: absolute; right: 0; bottom: calc(100% + 10px);
+  background: #fff8ec; color: #4a3d1c; border: 1.5px solid #c9a24a;
+  border-radius: 12px; padding: 0.55rem 0.8rem;
+  font-size: 0.95rem; line-height: 1.35; white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  pointer-events: none;
+  animation: gearHintBob 1.4s ease-in-out infinite;
+}
+.baseline-gear-hint small { color: #8a7440; font-size: 0.78rem; }
+.baseline-gear-hint::after {
+  content: ''; position: absolute; right: 18px; top: 100%;
+  border: 8px solid transparent; border-top-color: #c9a24a;
+}
+@keyframes gearHintBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+#fab-dot.gear-attention {
+  opacity: 1; border-radius: 50%;
+  animation: gearPulse 1.4s ease-in-out infinite;
+}
+@keyframes gearPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201,162,74,0.8); }
+  50% { box-shadow: 0 0 0 8px rgba(201,162,74,0); }
 }
 .vc-btn {
   background: none; border: none; color: white;

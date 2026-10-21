@@ -6284,7 +6284,20 @@ function initVideoPlayer() {
   };
 
   // Settings panel toggle — refresh slider positions on every open to reflect current state
+  // Baseline condition lands the caregiver on a paused video with nothing else to
+  // do first — point them at the gear until they tap it once.
+  const gearHint = document.getElementById('baseline-gear-hint');
+  const gearBtn = document.getElementById('fab-dot');
+  const showGearHint = state.isBaselineMode && !state.baselineGearHintSeen;
+  gearHint?.classList.toggle('hidden', !showGearHint);
+  gearBtn.classList.toggle('gear-attention', showGearHint);
+
   document.getElementById('fab-dot').onclick = () => {
+    if (state.isBaselineMode && !state.baselineGearHintSeen) {
+      state.baselineGearHintSeen = true;
+      gearHint?.classList.add('hidden');
+      gearBtn.classList.remove('gear-attention');
+    }
     const panel = document.getElementById('fab-panel');
     const opening = panel.classList.contains('hidden');
     panel.classList.toggle('hidden');
