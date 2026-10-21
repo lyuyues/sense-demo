@@ -6100,7 +6100,7 @@ function setupSettingsPanel() {
       const videoWrap = document.querySelector('.video-fullscreen');
       if (videoWrap) videoWrap.classList.add('paused');
       const original = confirmBtn.textContent;
-      confirmBtn.textContent = '已保存 Saved ✓';
+      confirmBtn.textContent = '已保存 ✓';
       confirmBtn.classList.add('settings-confirm-done');
       confirmBtn.disabled = true;
       // Auto-close the panel after the brief "Saved" feedback so the video's own
