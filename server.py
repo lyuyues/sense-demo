@@ -512,6 +512,11 @@ Return JSON only:
             self._set_token_cookie = False
         if not STUDY_TOKEN:
             self.send_header('Access-Control-Allow-Origin', '*')
+        # HTML pages aren't versioned like app.js?v=N, so without this the iPad
+        # heuristically caches index.html and keeps serving stale text after a pull.
+        page = self.path.split('?', 1)[0]
+        if page.endswith('.html') or page.endswith('/'):
+            self.send_header('Cache-Control', 'no-cache')
         super().end_headers()
 
 
