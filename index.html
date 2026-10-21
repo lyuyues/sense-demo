@@ -600,8 +600,8 @@
   <!-- Screen 7: Wrap-up (Pick + Readiness) -->
   <div id="screen-wrapup" class="screen">
     <div class="wrapup-content">
-      <h1 id="wrapup-title" class="wrapup-title">After ____, what happens next?</h1>
-      <p class="wrapup-subtitle">Grown-up: read it together and let your child point. There&rsquo;s no wrong answer &mdash; this is to help the procedure feel familiar.</p>
+      <h1 id="wrapup-title" class="wrapup-title">____，接下来会发生什么？</h1>
+      <p class="wrapup-subtitle">家长：请和孩子一起读，让孩子用手指选。没有对错，这是为了让孩子熟悉流程。</p>
 
       <!-- 3 cards populated dynamically from a question pool by initWrapupScreen.
            Procedure-focused: "after X, what happens next?" — anchors are universal
@@ -625,19 +625,19 @@
            .wrapup-pending, so revealing them never moves the buttons above —
            a tap aimed at the old position used to land on a readiness card. -->
       <div class="readiness-panel wrapup-pending" id="readiness-panel">
-        <h2 class="readiness-title" id="readiness-title">How are you feeling?</h2>
+        <h2 class="readiness-title" id="readiness-title">你现在感觉怎么样？</h2>
         <div class="readiness-grid">
           <button class="readiness-card" data-feeling="nervous">
             <span class="readiness-emoji">&#128543;</span>
-            <span class="readiness-name">A little nervous</span>
+            <span class="readiness-name">有点紧张</span>
           </button>
           <button class="readiness-card" data-feeling="ok">
             <span class="readiness-emoji">&#128578;</span>
-            <span class="readiness-name">Okay</span>
+            <span class="readiness-name">还好</span>
           </button>
           <button class="readiness-card" data-feeling="ready">
             <span class="readiness-emoji">&#128512;</span>
-            <span class="readiness-name">Ready!</span>
+            <span class="readiness-name">准备好了！</span>
           </button>
         </div>
       </div>
@@ -649,14 +649,14 @@
            shared button, no scoring on the child's pick). Two exits: restart
            the whole flow, or draw a fresh question from the pool. -->
       <div class="wrapup-done wrapup-pending" id="wrapup-done">
-        <p class="wrapup-done-message">All set. See you there!</p>
-        <button id="wrapup-reveal" class="wrapup-reveal" title="See what happens next">
-          &#127909; See what happens
+        <p class="wrapup-done-message">都准备好啦，到时候见！</p>
+        <button id="wrapup-reveal" class="wrapup-reveal" title="看看接下来会发生什么">
+          &#127909; 看看会发生什么
         </button>
         <div class="wrapup-done-actions">
-          <button id="btn-wrapup-restart" class="btn-primary">Start over</button>
-          <button id="wrapup-try-another" class="wrapup-try-another" title="Pick a different anchor from the pool">
-            &#8634; Try another question
+          <button id="btn-wrapup-restart" class="btn-primary">重新开始</button>
+          <button id="wrapup-try-another" class="wrapup-try-another" title="换一道题">
+            &#8634; 换一个问题
           </button>
         </div>
       </div>
@@ -692,6 +692,6 @@
     </defs>
   </svg>
 
-  <script src="app.js?v=281"></script>
+  <script src="app.js?v=283"></script>
 </body>
 </html>

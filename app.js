@@ -6787,188 +6787,188 @@ function formatTime(s) {
 const WRAPUP_QUESTIONS = {
   birthday: [
     {
-      anchor: 'After you walk in',
+      anchor: '走进去以后',
       options: [
-        { label: 'Walk to the cake', emoji: '🎂', canonical: true },
-        { label: 'Look around first', emoji: '👀' },
-        { label: 'Find a chair',     emoji: '🪑' },
+        { label: '走到蛋糕旁边', emoji: '🎂', canonical: true },
+        { label: '先看看四周', emoji: '👀' },
+        { label: '找一把椅子',     emoji: '🪑' },
       ],
       revealSegment: 0.13,
     },
     {
-      anchor: 'After you reach the cake',
+      anchor: '走到蛋糕旁边以后',
       options: [
-        { label: 'You see the candles glowing', emoji: '🕯️', canonical: true },
-        { label: 'You start clapping',          emoji: '👏' },
-        { label: 'You look for a present',       emoji: '🎁' },
+        { label: '看到蜡烛亮着', emoji: '🕯️', canonical: true },
+        { label: '开始拍手',          emoji: '👏' },
+        { label: '找礼物',       emoji: '🎁' },
       ],
       revealSegment: 0.30,
     },
     {
-      anchor: 'After the candles are lit',
+      anchor: '蜡烛点亮以后',
       options: [
-        { label: 'Everyone sings Happy Birthday', emoji: '🎵', canonical: true },
-        { label: 'Eat the cake right away',       emoji: '🍴' },
-        { label: 'Open presents',                 emoji: '🎁' },
+        { label: '大家一起唱生日歌', emoji: '🎵', canonical: true },
+        { label: '马上吃蛋糕',       emoji: '🍴' },
+        { label: '拆礼物',                 emoji: '🎁' },
       ],
       revealSegment: 0.50,
     },
     {
-      anchor: 'After everyone sings',
+      anchor: '大家唱完歌以后',
       options: [
-        { label: 'Blow out the candles', emoji: '💨', canonical: true },
-        { label: 'Eat the cake',         emoji: '🍴' },
-        { label: 'Take a photo',         emoji: '📷' },
+        { label: '吹蜡烛', emoji: '💨', canonical: true },
+        { label: '吃蛋糕',         emoji: '🍴' },
+        { label: '拍张照片',         emoji: '📷' },
       ],
       revealSegment: 0.63,
     },
     {
-      anchor: 'After you blow out the candles',
+      anchor: '吹完蜡烛以后',
       options: [
-        { label: 'Cut and share the cake', emoji: '🎂', canonical: true },
-        { label: 'Light them again',       emoji: '🕯️' },
-        { label: 'Leave the party',        emoji: '🚪' },
+        { label: '切蛋糕分给大家', emoji: '🎂', canonical: true },
+        { label: '再点一次蜡烛',       emoji: '🕯️' },
+        { label: '离开派对',        emoji: '🚪' },
       ],
       revealSegment: 0.78,
     },
   ],
   grocery: [
     {
-      anchor: 'After the doors slide open',
+      anchor: '门滑开以后',
       options: [
-        { label: 'Pick up a basket', emoji: '🧺', canonical: true },
-        { label: 'Look at the shelves', emoji: '👀' },
-        { label: 'Ask where the snacks are', emoji: '🍿' },
+        { label: '拿一个篮子', emoji: '🧺', canonical: true },
+        { label: '看看货架', emoji: '👀' },
+        { label: '问零食在哪里', emoji: '🍿' },
       ],
       revealSegment: 0.15,
     },
     {
-      anchor: 'While walking through the aisles',
+      anchor: '在货架中间走的时候',
       options: [
-        { label: 'Put an item in the basket', emoji: '🥫', canonical: true },
-        { label: 'Skip to the next aisle', emoji: '🦶' },
-        { label: 'Count the lights', emoji: '💡' },
+        { label: '把东西放进篮子', emoji: '🥫', canonical: true },
+        { label: '跳到下一排货架', emoji: '🦶' },
+        { label: '数一数灯', emoji: '💡' },
       ],
       revealSegment: 0.35,
     },
     {
-      anchor: 'When you reach the checkout',
+      anchor: '走到收银台的时候',
       options: [
-        { label: 'Wait in the line', emoji: '🧍', canonical: true },
-        { label: 'Look out the window', emoji: '🪟' },
-        { label: 'Hum a little song', emoji: '🎵' },
+        { label: '排队等一等', emoji: '🧍', canonical: true },
+        { label: '看看窗外', emoji: '🪟' },
+        { label: '哼一首小歌', emoji: '🎵' },
       ],
       revealSegment: 0.55,
     },
     {
-      anchor: 'At the counter',
+      anchor: '在收银台前',
       options: [
-        { label: 'Put your items on the belt', emoji: '🛒', canonical: true },
-        { label: 'Grab a candy bar', emoji: '🍬' },
-        { label: 'Walk straight back out', emoji: '🚶' },
+        { label: '把东西放到传送带上', emoji: '🛒', canonical: true },
+        { label: '拿一块糖', emoji: '🍬' },
+        { label: '直接走出去', emoji: '🚶' },
       ],
       revealSegment: 0.72,
     },
     {
-      anchor: 'After you pay',
+      anchor: '付完钱以后',
       options: [
-        { label: 'You get your bags and receipt', emoji: '🧾', canonical: true },
-        { label: 'You walk back for more items',   emoji: '🛒' },
-        { label: 'You open a snack right there',   emoji: '🍪' },
+        { label: '拿好袋子和小票', emoji: '🧾', canonical: true },
+        { label: '回去再拿东西',   emoji: '🛒' },
+        { label: '马上打开零食吃',   emoji: '🍪' },
       ],
       revealSegment: 0.85,
     },
   ],
   dental: [
     {
-      anchor: 'When the dentist waves hello',
+      anchor: '牙医跟你打招呼的时候',
       options: [
-        { label: 'Walk in and follow', emoji: '🚶', canonical: true },
-        { label: 'Sit in the waiting chair first', emoji: '🪑' },
-        { label: 'Look at the pictures', emoji: '🖼️' },
+        { label: '走进去，跟着牙医', emoji: '🚶', canonical: true },
+        { label: '先坐在等候椅上', emoji: '🪑' },
+        { label: '看墙上的画', emoji: '🖼️' },
       ],
       revealSegment: 0.15,
     },
     {
-      anchor: 'After you sit in the chair',
+      anchor: '坐到椅子上以后',
       options: [
-        { label: 'A soft bib goes on', emoji: '🧣', canonical: true },
-        { label: 'You get a pillow', emoji: '🛏️' },
-        { label: 'You put on a hat', emoji: '🧢' },
+        { label: '围上一块软软的围兜', emoji: '🧣', canonical: true },
+        { label: '拿到一个枕头', emoji: '🛏️' },
+        { label: '戴上一顶帽子', emoji: '🧢' },
       ],
       revealSegment: 0.35,
     },
     {
-      anchor: 'When the bright light tilts down',
+      anchor: '亮亮的灯转下来的时候',
       options: [
-        { label: 'A little mirror checks your teeth', emoji: '🪞', canonical: true },
-        { label: 'You get sunglasses', emoji: '🕶️' },
-        { label: 'The light gets even brighter', emoji: '💡' },
+        { label: '小镜子检查你的牙齿', emoji: '🪞', canonical: true },
+        { label: '戴上墨镜', emoji: '🕶️' },
+        { label: '灯变得更亮', emoji: '💡' },
       ],
       revealSegment: 0.55,
     },
     {
-      anchor: 'After the mirror check',
+      anchor: '小镜子检查完以后',
       options: [
-        { label: 'A soft brush buzzes gently', emoji: '🪥', canonical: true },
-        { label: 'A soft song plays', emoji: '🎵' },
-        { label: 'You get a drink', emoji: '🥤' },
+        { label: '软软的小刷子轻轻嗡嗡响', emoji: '🪥', canonical: true },
+        { label: '放一首轻轻的歌', emoji: '🎵' },
+        { label: '喝一杯饮料', emoji: '🥤' },
       ],
       revealSegment: 0.72,
     },
     {
-      anchor: 'When the polishing ends',
+      anchor: '牙齿清洁完的时候',
       options: [
-        { label: 'You get a sticker reward', emoji: '⭐', canonical: true },
-        { label: 'The dentist checks one more time', emoji: '🔍' },
-        { label: 'You pick a new toothbrush', emoji: '🪥' },
+        { label: '得到一张贴纸奖励', emoji: '⭐', canonical: true },
+        { label: '牙医再检查一次', emoji: '🔍' },
+        { label: '挑一把新牙刷', emoji: '🪥' },
       ],
       revealSegment: 0.9,
     },
   ],
   dining: [
     {
-      anchor: 'After you push the door open',
+      anchor: '推开门以后',
       options: [
-        { label: 'Walk up to the counter', emoji: '🚶', canonical: true },
-        { label: 'Look at the menu board', emoji: '📋' },
-        { label: 'Wave to the cashier', emoji: '👋' },
+        { label: '走到柜台前', emoji: '🚶', canonical: true },
+        { label: '看菜单牌', emoji: '📋' },
+        { label: '跟收银员挥挥手', emoji: '👋' },
       ],
       revealSegment: 0.15,
     },
     {
-      anchor: 'When you reach the menu board',
+      anchor: '走到菜单牌前的时候',
       options: [
-        { label: 'Look up and choose', emoji: '🍽️', canonical: true },
-        { label: 'Sit down first', emoji: '🪑' },
-        { label: 'Count the pictures', emoji: '🔢' },
+        { label: '抬头看，选想吃的', emoji: '🍽️', canonical: true },
+        { label: '先坐下', emoji: '🪑' },
+        { label: '数一数图片', emoji: '🔢' },
       ],
       revealSegment: 0.35,
     },
     {
-      anchor: 'At the register',
+      anchor: '在收银台',
       options: [
-        { label: 'Pay for the food', emoji: '💳', canonical: true },
-        { label: 'Ask for a toy', emoji: '🧸' },
-        { label: 'Wave to the cook', emoji: '👋' },
+        { label: '付钱买吃的', emoji: '💳', canonical: true },
+        { label: '要一个玩具', emoji: '🧸' },
+        { label: '跟厨师挥挥手', emoji: '👋' },
       ],
       revealSegment: 0.55,
     },
     {
-      anchor: 'After you take your tray',
+      anchor: '拿好托盘以后',
       options: [
-        { label: 'Carry it to a table and sit', emoji: '🍱', canonical: true },
-        { label: 'Wave to the cashier', emoji: '👋' },
-        { label: 'Look for a window seat', emoji: '🪟' },
+        { label: '端到桌子边坐下', emoji: '🍱', canonical: true },
+        { label: '跟收银员挥挥手', emoji: '👋' },
+        { label: '找一个靠窗的座位', emoji: '🪟' },
       ],
       revealSegment: 0.72,
     },
     {
-      anchor: 'Once you are seated',
+      anchor: '坐好以后',
       options: [
-        { label: 'Take a sip and a small bite', emoji: '🥪', canonical: true },
-        { label: 'Look around the room', emoji: '👀' },
-        { label: 'Wait a little longer', emoji: '⏳' },
+        { label: '喝一口，吃一小口', emoji: '🥪', canonical: true },
+        { label: '看看四周', emoji: '👀' },
+        { label: '再等一会儿', emoji: '⏳' },
       ],
       revealSegment: 0.9,
     },
@@ -7009,7 +7009,7 @@ function initWrapupScreen() {
   // ever want to shuffle option order per session, do it here.
   const q = state.wrapupQuestion || pickWrapupQuestion(state.eventType);
   const titleEl = document.getElementById('wrapup-title');
-  if (titleEl) titleEl.textContent = `${q.anchor}, what happens next?`;
+  if (titleEl) titleEl.textContent = `${q.anchor}，接下来会发生什么？`;
 
   const cards = document.querySelectorAll('#wrapup-strategy-grid .wrapup-card');
   cards.forEach((card, i) => {
