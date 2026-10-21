@@ -1,6 +1,6 @@
 {
   "id": "dental",
-  "name": "Dental Visit",
+  "name": "看牙医",
   "icon": "🦷",
   "backgroundImage": "assets/dental_bg.png",
   "background": {
@@ -13,11 +13,11 @@
     ]
   },
   "elements": [
-    {"type": "friend",  "id": "dental_assistant",   "asset": "assets/dental_assistant.png",   "label": "Assistant",  "dimension": "spatial"},
-    {"type": "friend",  "id": "dental_dentist",     "asset": "assets/dental_dentist.png",     "label": "Dentist",    "dimension": "spatial"},
-    {"type": "balloon", "id": "dental_teddy",       "asset": "assets/dental_teddy.png",       "label": "Teddy",      "dimension": "decoration"},
-    {"type": "present", "id": "dental_stickers",    "asset": "assets/dental_stickers.png",    "label": "Stickers",   "dimension": "decoration"},
-    {"type": "cake",    "id": "dental_tooth_plush", "asset": "assets/dental_tooth_plush.png", "label": "Tooth Buddy","dimension": "decoration"}
+    {"type": "friend",  "id": "dental_assistant",   "asset": "assets/dental_assistant.png",   "label": "助手",  "dimension": "spatial"},
+    {"type": "friend",  "id": "dental_dentist",     "asset": "assets/dental_dentist.png",     "label": "牙医",    "dimension": "spatial"},
+    {"type": "balloon", "id": "dental_teddy",       "asset": "assets/dental_teddy.png",       "label": "小熊",      "dimension": "decoration"},
+    {"type": "present", "id": "dental_stickers",    "asset": "assets/dental_stickers.png",    "label": "贴纸",   "dimension": "decoration"},
+    {"type": "cake",    "id": "dental_tooth_plush", "asset": "assets/dental_tooth_plush.png", "label": "牙齿玩偶","dimension": "decoration"}
   ],
   "animations": {
     "friend":  ["wave"],

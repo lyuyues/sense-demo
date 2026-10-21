@@ -1709,9 +1709,11 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  animation: wrapupSlideUp 360ms cubic-bezier(.34,1.56,.64,1);
 }
-.readiness-panel.hidden { display: none; }
+/* Wrap-up panels keep their space while pending (no layout shift on reveal);
+   .wrapup-in replays the slide-up each time one is shown. */
+.wrapup-pending { visibility: hidden; pointer-events: none; }
+.wrapup-in { animation: wrapupSlideUp 360ms cubic-bezier(.34,1.56,.64,1); }
 @keyframes wrapupSlideUp {
   0%   { opacity: 0; transform: translateY(20px); }
   100% { opacity: 1; transform: translateY(0); }
@@ -1776,9 +1778,7 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 1rem;
-  animation: wrapupSlideUp 360ms cubic-bezier(.34,1.56,.64,1);
 }
-.wrapup-done.hidden { display: none; }
 .wrapup-done-message {
   font-family: "Caveat", "ZCOOL KuaiLe", cursive;
   font-weight: 700;
@@ -1788,10 +1788,10 @@ body {
   margin: 0;
 }
 
-/* Single shared reveal button below the 3 option cards. Replaces the per-card
-   🎬 rewatch buttons — one canonical answer per question, one entry. */
+/* Single shared reveal button in the done panel (after readiness). Replaces the
+   per-card 🎬 rewatch buttons — one canonical answer per question, one entry. */
+.wrapup-reveal.hidden { display: none; }
 .wrapup-reveal {
-  margin-top: 1.6rem;
   font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 1.2rem;
   background: var(--hd-paper-card);

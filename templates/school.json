@@ -14,12 +14,12 @@
     ]
   },
   "elements": [
-    {"type": "friend",  "id": "school_classmate1", "asset": "assets/friend1.png", "label": "Classmate", "dimension": "spatial"},
-    {"type": "friend",  "id": "school_classmate2", "asset": "assets/friend2.png", "label": "Classmate", "dimension": "spatial"},
-    {"type": "friend",  "id": "school_classmate3", "asset": "assets/friend3.png", "label": "Classmate", "dimension": "spatial"},
-    {"type": "balloon", "id": "school_book",       "asset": "assets/school_book.png",       "label": "Book",      "dimension": "decoration"},
-    {"type": "present", "id": "school_pencil",     "asset": "assets/school_pencil.png",     "label": "Pencil",    "dimension": "decoration"},
-    {"type": "cake",    "id": "school_plant",      "asset": "assets/school_plant.png",      "label": "Plant",     "dimension": "decoration"}
+    {"type": "friend",  "id": "school_classmate1", "asset": "assets/friend1.png", "label": "同学", "dimension": "spatial"},
+    {"type": "friend",  "id": "school_classmate2", "asset": "assets/friend2.png", "label": "同学", "dimension": "spatial"},
+    {"type": "friend",  "id": "school_classmate3", "asset": "assets/friend3.png", "label": "同学", "dimension": "spatial"},
+    {"type": "balloon", "id": "school_book",       "asset": "assets/school_book.png",       "label": "书",      "dimension": "decoration"},
+    {"type": "present", "id": "school_pencil",     "asset": "assets/school_pencil.png",     "label": "铅笔",    "dimension": "decoration"},
+    {"type": "cake",    "id": "school_plant",      "asset": "assets/school_plant.png",      "label": "植物",     "dimension": "decoration"}
   ],
   "animations": {
     "friend":  ["wave"],

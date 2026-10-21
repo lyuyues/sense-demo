@@ -7,14 +7,14 @@
     "shapes": []
   },
   "elements": [
-    {"type": "friend", "id": "friend1", "asset": "assets/friend1.svg", "label": "Friend", "dimension": "spatial"},
-    {"type": "friend", "id": "friend2", "asset": "assets/friend2.svg", "label": "Friend", "dimension": "spatial"},
-    {"type": "friend", "id": "friend3", "asset": "assets/friend3.svg", "label": "Friend", "dimension": "spatial"},
-    {"type": "dog", "id": "dog1", "asset": "assets/dog.svg", "label": "Dog", "dimension": "spatial"},
-    {"type": "ball", "id": "ball1", "asset": "assets/ball.svg", "label": "Ball", "dimension": "decoration"},
-    {"type": "tree", "id": "tree1", "asset": "assets/tree.svg", "label": "Tree", "dimension": "decoration"},
-    {"type": "cloud", "id": "cloud1", "asset": "assets/cloud.png", "label": "Cloud", "dimension": "visual"},
-    {"type": "cloud", "id": "cloud2", "asset": "assets/cloud.png", "label": "Cloud", "dimension": "visual"}
+    {"type": "friend", "id": "friend1", "asset": "assets/friend1.svg", "label": "朋友", "dimension": "spatial"},
+    {"type": "friend", "id": "friend2", "asset": "assets/friend2.svg", "label": "朋友", "dimension": "spatial"},
+    {"type": "friend", "id": "friend3", "asset": "assets/friend3.svg", "label": "朋友", "dimension": "spatial"},
+    {"type": "dog", "id": "dog1", "asset": "assets/dog.svg", "label": "小狗", "dimension": "spatial"},
+    {"type": "ball", "id": "ball1", "asset": "assets/ball.svg", "label": "球", "dimension": "decoration"},
+    {"type": "tree", "id": "tree1", "asset": "assets/tree.svg", "label": "树", "dimension": "decoration"},
+    {"type": "cloud", "id": "cloud1", "asset": "assets/cloud.png", "label": "云朵", "dimension": "visual"},
+    {"type": "cloud", "id": "cloud2", "asset": "assets/cloud.png", "label": "云朵", "dimension": "visual"}
   ],
   "animations": {
     "friend": ["wave"],

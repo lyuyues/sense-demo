@@ -14,12 +14,12 @@
     ]
   },
   "elements": [
-    {"type": "friend", "id": "friend1", "asset": "assets/friend1.svg", "label": "Friend", "dimension": "spatial"},
-    {"type": "friend", "id": "friend2", "asset": "assets/friend2.svg", "label": "Friend", "dimension": "spatial"},
-    {"type": "friend", "id": "friend3", "asset": "assets/friend3.svg", "label": "Friend", "dimension": "spatial"},
-    {"type": "balloon", "id": "balloon1", "asset": "assets/balloon.svg", "label": "Balloon", "dimension": "decoration"},
-    {"type": "cake", "id": "cake1", "asset": "assets/cake.svg", "label": "Cake", "dimension": "decoration"},
-    {"type": "present", "id": "present1", "asset": "assets/present.svg", "label": "Present", "dimension": "decoration"}
+    {"type": "friend", "id": "friend1", "asset": "assets/friend1.svg", "label": "朋友", "dimension": "spatial"},
+    {"type": "friend", "id": "friend2", "asset": "assets/friend2.svg", "label": "朋友", "dimension": "spatial"},
+    {"type": "friend", "id": "friend3", "asset": "assets/friend3.svg", "label": "朋友", "dimension": "spatial"},
+    {"type": "balloon", "id": "balloon1", "asset": "assets/balloon.svg", "label": "气球", "dimension": "decoration"},
+    {"type": "cake", "id": "cake1", "asset": "assets/cake.svg", "label": "蛋糕", "dimension": "decoration"},
+    {"type": "present", "id": "present1", "asset": "assets/present.svg", "label": "礼物", "dimension": "decoration"}
   ],
   "animations": {
     "friend": ["wave"],

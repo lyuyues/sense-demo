@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
-  <title>SENSE - Create Your Story</title>
+  <title>SENSE - 创作你的故事</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:opsz,ital,wght@9..144,0,500;9..144,1,500&family=Patrick+Hand&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
@@ -18,18 +18,18 @@
   <!-- Screen 1: Welcome -->
   <div id="screen-welcome" class="screen active">
     <div class="welcome-content">
-      <h1>Create Your Story!</h1>
-      <p class="welcome-subtitle">Draw, color, and bring your picture to life</p>
+      <h1>创作你的故事！</h1>
+      <p class="welcome-subtitle">画一画、涂一涂，让你的画动起来</p>
       <div class="welcome-video-frame">
         <video id="welcome-video" autoplay loop muted playsinline preload="auto">
           <source src="video/intro_transition.mp4" type="video/mp4">
         </video>
       </div>
-      <input id="input-pid" class="pid-input" type="text" placeholder="Participant ID (e.g. P01)" autocomplete="off" autocapitalize="characters" />
-      <button id="btn-start" class="btn-primary bounce-hover">Start</button>
+      <input id="input-pid" class="pid-input" type="text" placeholder="参与者编号（如 P01）" autocomplete="off" autocapitalize="characters" />
+      <button id="btn-start" class="btn-primary bounce-hover">开始</button>
       <!-- Dev/testing shortcuts live on dev.html now — this welcome screen only
            needs to offer Start. -->
-      <a href="dev.html" class="welcome-dev-link">Dev Tools</a>
+      <a href="dev.html" class="welcome-dev-link">开发工具</a>
     </div>
   </div>
 
@@ -49,7 +49,7 @@
 
           <!-- Step A: Child photo -->
           <div class="photo-step" id="photo-step-child">
-            <p class="photo-prompt">Take a photo of yourself!</p>
+            <p class="photo-prompt">给自己拍张照吧！</p>
             <button id="btn-capture-child" class="btn-capture">
               <span class="capture-ring"></span>
             </button>
@@ -57,7 +57,7 @@
 
           <!-- Step B: Scene photo -->
           <div class="photo-step hidden" id="photo-step-scene">
-            <p class="photo-prompt">Take a photo of the place!</p>
+            <p class="photo-prompt">拍一拍要去的地方！</p>
             <button id="btn-capture-scene" class="btn-capture">
               <span class="capture-ring"></span>
             </button>
@@ -67,19 +67,19 @@
         <!-- Thumbnail previews -->
         <div class="photo-previews">
           <div class="photo-thumb-wrap">
-            <img id="preview-child" class="photo-thumb" src="assets/test_child_photo.png" alt="Child photo">
-            <span class="photo-thumb-label">You</span>
+            <img id="preview-child" class="photo-thumb" src="assets/test_child_photo.png" alt="孩子照片">
+            <span class="photo-thumb-label">你</span>
           </div>
           <div class="photo-thumb-wrap">
-            <img id="preview-scene" class="photo-thumb" src="assets/sample_livingroom_crayon.png" alt="Scene photo">
-            <span class="photo-thumb-label">Place</span>
+            <img id="preview-scene" class="photo-thumb" src="assets/sample_livingroom_crayon.png" alt="场景照片">
+            <span class="photo-thumb-label">地点</span>
           </div>
         </div>
       </div>
 
       <div class="photo-actions">
-        <button id="btn-photo-next" class="btn-primary" disabled>Next</button>
-        <button id="btn-photo-skip" class="btn-secondary">Skip</button>
+        <button id="btn-photo-next" class="btn-primary" disabled>下一步</button>
+        <button id="btn-photo-skip" class="btn-secondary">跳过</button>
       </div>
     </div>
   </div>
@@ -87,19 +87,19 @@
   <!-- Screen 3: Event Selection -->
   <div id="screen-event" class="screen">
     <div class="event-content">
-      <h1 class="event-title">Where are you going?</h1>
+      <h1 class="event-title">你要去哪里呀？</h1>
       <div class="event-grid">
         <button class="event-card" data-event="dental">
           <span class="event-emoji">🦷</span>
-          <span class="event-name">Dental Visit</span>
+          <span class="event-name">看牙医</span>
         </button>
         <button class="event-card" data-event="grocery">
           <span class="event-emoji">🛒</span>
-          <span class="event-name">Grocery Store</span>
+          <span class="event-name">去超市</span>
         </button>
         <button class="event-card" data-event="dining">
           <span class="event-emoji">🍽️</span>
-          <span class="event-name">Dining Out</span>
+          <span class="event-name">去餐厅吃饭</span>
         </button>
       </div>
     </div>
@@ -111,22 +111,21 @@
        continue button — it resolves while the child works through stage 1. -->
   <div id="screen-reward" class="screen">
     <div class="event-content">
-      <h1 class="event-title">Collect something!</h1>
+      <h1 class="event-title">来收集宝贝吧！</h1>
       <div class="reward-picker" id="reward-picker">
-        <p class="reward-picker-title">Grown-up: pick what your child likes &mdash; they&rsquo;ll earn one after every step.</p>
+        <p class="reward-picker-title">家长：请选择孩子喜欢的东西——每完成一步，孩子就能得到一个。</p>
         <div class="reward-grid" id="reward-grid"></div>
         <div class="reward-custom">
           <input type="text" id="reward-custom-input" class="reward-custom-input"
-                 placeholder="or type anything&hellip;" maxlength="30" autocomplete="off">
-          <button id="reward-custom-go" class="reward-custom-go">Make it</button>
+                 placeholder="或者输入任何东西…" maxlength="30" autocomplete="off">
+          <button id="reward-custom-go" class="reward-custom-go">生成</button>
         </div>
         <p class="reward-status" id="reward-status"></p>
         <p class="reward-custom-hint hidden" id="reward-custom-hint">
-          Real-time generation only works when running the local dev server
-          &mdash; it falls back to a star on this deployed demo.
+          实时生成只在本地服务器运行时可用——在线版本会用星星代替。
         </p>
       </div>
-      <button id="btn-reward-next" class="btn-primary bounce-hover">Let&rsquo;s go!</button>
+      <button id="btn-reward-next" class="btn-primary bounce-hover">出发吧！</button>
     </div>
   </div>
 
@@ -134,24 +133,24 @@
   <div id="screen-canvas" class="screen">
     <!-- Top bar -->
     <div class="canvas-topbar">
-      <button id="btn-canvas-back" class="btn-canvas-back" title="Back">
+      <button id="btn-canvas-back" class="btn-canvas-back" title="返回">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
       <!-- Everything except the Back button scrolls together as one unit on
            narrow phones, where tabs + instruction + reward bar don't all fit. -->
       <div class="canvas-topbar-scroll" id="canvas-topbar-scroll">
         <div id="phase-tabs" class="phase-tabs">
-          <button class="phase-tab active" data-phase="create">🎨 Create</button>
-          <button class="phase-tab" data-phase="color">🖍️ Color</button>
-          <button class="phase-tab" data-phase="light">☀️ Light</button>
-          <button class="phase-tab" data-phase="sound">🎵 Sound</button>
-          <button class="phase-tab" data-phase="rhythm">🥁 Rhythm</button>
+          <button class="phase-tab active" data-phase="create">🎨 创作</button>
+          <button class="phase-tab" data-phase="color">🖍️ 涂色</button>
+          <button class="phase-tab" data-phase="light">☀️ 光线</button>
+          <button class="phase-tab" data-phase="sound">🎵 声音</button>
+          <button class="phase-tab" data-phase="rhythm">🥁 节奏</button>
         </div>
-        <span id="canvas-instruction" class="canvas-instruction">Place things on your picture</span>
+        <span id="canvas-instruction" class="canvas-instruction">把东西放到你的画里</span>
         <!-- Collect-reward — hidden until dwell threshold is reached (startStageTimer
              in app.js). Clicking it awards the current stage in place; navigation
              (tabs/Back) no longer triggers or waits on the reward. -->
-        <button id="btn-collect-reward" class="btn-collect-reward hidden">🎁 Collect</button>
+        <button id="btn-collect-reward" class="btn-collect-reward hidden">🎁 领取</button>
         <!-- Reward collection bar — one slot per canvas stage, filled on collect.
              Sits at the far right of the tab row; rendered by renderRewardBar(). -->
         <div class="reward-bar" id="reward-bar"></div>
@@ -159,7 +158,7 @@
              straight to the video. Deliberately small/greyed so children don't
              tap through the elicitation; only surfaced to a guiding caregiver. -->
         <button id="btn-skip-to-video-canvas" class="btn-skip-video-caregiver"
-                title="Skip to video" aria-label="Skip to video">⏭</button>
+                title="跳到视频" aria-label="跳到视频">⏭</button>
       </div>
     </div>
     <!-- Stage timer bar -->
@@ -223,14 +222,14 @@
         <div class="light-celestial" id="light-celestial">
           <!-- Sun (crayon image + face overlay) -->
           <div class="celestial-sun" id="celestial-sun">
-            <img src="assets/sun.png?v=200" class="celestial-img" draggable="false" alt="sun">
+            <img src="assets/sun.png?v=200" class="celestial-img" draggable="false" alt="太阳">
           </div>
           <!-- Moon (AI-generated crayon image, matches sun.png style) -->
           <div class="celestial-moon-wrap" id="celestial-moon">
-            <img src="assets/moon.png?v=200" class="celestial-img" draggable="false" alt="moon">
+            <img src="assets/moon.png?v=200" class="celestial-img" draggable="false" alt="月亮">
           </div>
         </div>
-        <div class="light-hint" id="light-hint">Drag the sun across the sky</div>
+        <div class="light-hint" id="light-hint">拖着太阳划过天空</div>
       </div>
 
       <!-- Drum overlay (animate sub-phase) -->
@@ -257,7 +256,7 @@
           </div>
           <div class="drum-area" id="drum-area">
             <div class="drum-stack" id="drum-stack">
-              <img src="assets/drum_body.png?v=2" class="drum-img" id="drum-img" alt="Drum" draggable="false" />
+              <img src="assets/drum_body.png?v=2" class="drum-img" id="drum-img" alt="鼓" draggable="false" />
               <img src="assets/stick_left.png?v=3" class="drum-stick drum-stick-left" id="drum-stick-left" alt="" draggable="false" />
               <img src="assets/stick_right.png?v=3" class="drum-stick drum-stick-right" id="drum-stick-right" alt="" draggable="false" />
             </div>
@@ -281,7 +280,7 @@
     <!-- Custom sticker input overlay (inline, not fullscreen) -->
     <div id="sticker-input-overlay" class="sticker-input-overlay hidden">
       <div class="sticker-input-card">
-        <input type="text" id="sticker-name-input" class="sticker-name-input" placeholder="Type an object name..." autocomplete="off" />
+        <input type="text" id="sticker-name-input" class="sticker-name-input" placeholder="输入一个东西的名字…" autocomplete="off" />
         <button id="btn-sticker-generate" class="btn-sticker-generate">Go</button>
         <button id="btn-sticker-cancel" class="btn-sticker-cancel">&times;</button>
       </div>
@@ -293,7 +292,7 @@
       <div class="color-picker-row">
         <button class="hue-dropdown-btn" id="hue-dropdown-btn" aria-haspopup="listbox" aria-expanded="false">
           <span class="hue-dropdown-dot" id="hue-dropdown-dot"></span>
-          <span class="hue-dropdown-label" id="hue-dropdown-label">Red</span>
+          <span class="hue-dropdown-label" id="hue-dropdown-label">红色</span>
           <span class="hue-dropdown-chevron">▾</span>
         </button>
         <div class="hue-dropdown-menu hidden" id="hue-dropdown-menu" role="listbox"></div>
@@ -306,10 +305,10 @@
           <button class="brush-size" data-size="4"><span class="brush-dot brush-l"></span></button>
         </div>
         <div class="toolbar-divider"></div>
-        <button class="btn-tool" id="btn-eraser" title="Eraser">
+        <button class="btn-tool" id="btn-eraser" title="橡皮擦">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 20H7L3 16l9-9 8 8-4 4"/><path d="M6.5 13.5l5 5"/></svg>
         </button>
-        <button class="btn-tool" id="btn-undo" title="Undo">
+        <button class="btn-tool" id="btn-undo" title="撤销">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15-6.7L21 9"/></svg>
         </button>
       </div>
@@ -327,23 +326,23 @@
   <div id="screen-processing" class="screen">
     <div class="processing-content">
       <div class="processing-icon">🎬</div>
-      <h1>Creating Your Video</h1>
+      <h1>正在制作你的视频</h1>
       <div class="processing-steps" id="processing-steps">
         <div class="processing-step active" id="step-reading">
           <span class="step-dot active"></span>
-          <span>Reading your picture...</span>
+          <span>正在看你的画…</span>
         </div>
         <div class="processing-step" id="step-scene">
           <span class="step-dot"></span>
-          <span>Setting up the scene...</span>
+          <span>正在布置场景…</span>
         </div>
         <div class="processing-step" id="step-prefs">
           <span class="step-dot"></span>
-          <span>Adding your preferences...</span>
+          <span>正在加入你的喜好…</span>
         </div>
         <div class="processing-step" id="step-ready">
           <span class="step-dot"></span>
-          <span>Ready!</span>
+          <span>准备好啦！</span>
         </div>
       </div>
       <!-- AI behavior observation -->
@@ -531,7 +530,7 @@
                 <input type="number" class="settings-shift-input" data-shift="protective" min="0" max="40" step="1" value="15">
                 <span class="settings-shift-unit">%</span>
               </div>
-              <button class="settings-reset settings-shift-reset" data-shift="protective" title="Reset to 15%">&#8634;</button>
+              <button class="settings-reset settings-shift-reset" data-shift="protective" title="重置为 15%">&#8634;</button>
             </div>
             <div class="settings-row settings-row-global" data-shift="challenge">
               <span class="settings-name">挑战性偏移</span>
@@ -542,7 +541,7 @@
                 <input type="number" class="settings-shift-input" data-shift="challenge" min="0" max="20" step="1" value="5">
                 <span class="settings-shift-unit">%</span>
               </div>
-              <button class="settings-reset settings-shift-reset" data-shift="challenge" title="Reset to 5%">&#8634;</button>
+              <button class="settings-reset settings-shift-reset" data-shift="challenge" title="重置为 5%">&#8634;</button>
             </div>
           </div>
           <div class="settings-footer">
@@ -558,26 +557,26 @@
       <!-- S2 pause overlay -->
       <div class="s2-pause-overlay hidden" id="s2-pause-overlay">
         <div class="s2-pause-card">
-          <p class="s2-pause-title">How is your child feeling?</p>
-          <p class="s2-pause-subtitle">Choose a level for the rest of the video</p>
+          <p class="s2-pause-title">孩子现在感觉怎么样？</p>
+          <p class="s2-pause-subtitle">为剩下的视频选择一个强度</p>
           <div class="s2-level-options">
             <button class="s2-level-btn" data-level="1">
               <span class="s2-level-icon">&#128737;</span>
-              <span class="s2-level-name">Gentle</span>
-              <span class="s2-level-desc">More filtered</span>
+              <span class="s2-level-name">温和</span>
+              <span class="s2-level-desc">更柔和</span>
             </button>
             <button class="s2-level-btn selected" data-level="2">
               <span class="s2-level-icon">&#9679;</span>
-              <span class="s2-level-name">Child's Own</span>
-              <span class="s2-level-desc">Baseline</span>
+              <span class="s2-level-name">孩子的设定</span>
+              <span class="s2-level-desc">基线</span>
             </button>
             <button class="s2-level-btn" data-level="3">
               <span class="s2-level-icon">&#127919;</span>
-              <span class="s2-level-name">Challenge</span>
-              <span class="s2-level-desc">Closer to real</span>
+              <span class="s2-level-name">挑战</span>
+              <span class="s2-level-desc">更接近真实</span>
             </button>
           </div>
-          <button class="s2-continue-btn" id="s2-continue">Continue &#9654;</button>
+          <button class="s2-continue-btn" id="s2-continue">继续 &#9654;</button>
         </div>
       </div>
 
@@ -585,9 +584,9 @@
       <div class="freeze-overlay hidden" id="freeze-overlay">
         <div class="freeze-indicator">
           <div class="freeze-icon">&#9208;</div>
-          <div class="freeze-label">Preparing...</div>
+          <div class="freeze-label">准备中…</div>
           <div class="freeze-countdown">0.0s</div>
-          <div class="freeze-hint">tap to skip</div>
+          <div class="freeze-hint">点击跳过</div>
         </div>
       </div>
 

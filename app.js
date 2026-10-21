@@ -166,11 +166,11 @@ function stopAllSpriteAnimations() {
 // --- Sub-phase config ---
 const SUB_PHASES = [
   { id: 'place-self', instruction: '', dotIndex: 0 },
-  { id: 'create', instruction: 'Add friends and things!', dotIndex: 0 },
-  { id: 'color', instruction: 'Color your picture!', dotIndex: 1 },
-  { id: 'light', instruction: 'Move the sun across the sky!', dotIndex: 2 },
-  { id: 'sound', instruction: 'Create your soundscape!', dotIndex: 3 },
-  { id: 'rhythm', instruction: 'Drum time!', dotIndex: 4 },
+  { id: 'create', instruction: '添加朋友和东西吧！', dotIndex: 0 },
+  { id: 'color', instruction: '给你的画涂上颜色！', dotIndex: 1 },
+  { id: 'light', instruction: '让太阳在天空中移动！', dotIndex: 2 },
+  { id: 'sound', instruction: '创作你的声音世界！', dotIndex: 3 },
+  { id: 'rhythm', instruction: '敲鼓时间！', dotIndex: 4 },
 ];
 
 // ============================================================
@@ -189,14 +189,14 @@ const REWARD_STAGES = ['create', 'color', 'light', 'sound', 'rhythm'];
 // pipeline as custom items, so both share one art style — and, being static,
 // they still work on GitHub Pages where there is no server.
 const REWARD_PRESETS = [
-  { id: 'train',    label: 'Train',    src: 'assets/rewards/train.png' },
-  { id: 'dinosaur', label: 'Dinosaur', src: 'assets/rewards/dinosaur.png' },
-  { id: 'car',      label: 'Car',      src: 'assets/rewards/car.png' },
-  { id: 'cat',      label: 'Cat',      src: 'assets/rewards/cat.png' },
-  { id: 'numbers',  label: 'Numbers',  src: 'assets/rewards/numbers.png' },
-  { id: 'letters',  label: 'Letters',  src: 'assets/rewards/letters.png' },
-  { id: 'space',    label: 'Space',    src: 'assets/rewards/space.png' },
-  { id: 'star',     label: 'Star',     src: 'assets/rewards/star.png' },
+  { id: 'train',    label: '火车',    src: 'assets/rewards/train.png' },
+  { id: 'dinosaur', label: '恐龙', src: 'assets/rewards/dinosaur.png' },
+  { id: 'car',      label: '小汽车',      src: 'assets/rewards/car.png' },
+  { id: 'cat',      label: '小猫',      src: 'assets/rewards/cat.png' },
+  { id: 'numbers',  label: '数字',  src: 'assets/rewards/numbers.png' },
+  { id: 'letters',  label: '字母',  src: 'assets/rewards/letters.png' },
+  { id: 'space',    label: '太空',    src: 'assets/rewards/space.png' },
+  { id: 'star',     label: '星星',     src: 'assets/rewards/star.png' },
 ];
 const DEFAULT_REWARD = REWARD_PRESETS.find(p => p.id === 'star');
 
@@ -227,17 +227,17 @@ function setRewardItem({ preset, text }) {
     state.rewardReady = Promise.resolve({ ...preset, source: 'preset' });
     if (status) status.textContent = '';
   } else {
-    if (status) status.textContent = `Drawing a ${text}…`;
+    if (status) status.textContent = `正在画「${text}」…`;
     state.rewardReady = generateRewardItem(text)
       .then(item => {
-        if (status) status.textContent = `${text} ready!`;
+        if (status) status.textContent = `「${text}」画好啦！`;
         return item;
       })
       .catch(err => {
         // Offline / on Pages / model failure — degrade to the default star so a
         // collectible always flies and the bar never shows a hole.
         console.warn('Reward generation failed, falling back to default:', err);
-        if (status) status.textContent = `Couldn’t draw that — using a star instead.`;
+        if (status) status.textContent = `没画出来——先用星星代替吧。`;
         return { ...DEFAULT_REWARD, source: 'fallback' };
       });
   }
@@ -751,16 +751,16 @@ function devSkipToWrapup() {
 async function initPhotoScreen() {
   const hint = document.getElementById('photo-step-child').querySelector('.photo-prompt');
   try {
-    hint.textContent = 'Requesting camera...';
+    hint.textContent = '正在打开摄像头…';
     state.cameraStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
     });
     const preview = document.getElementById('camera-preview');
     preview.srcObject = state.cameraStream;
     preview.onloadedmetadata = () => preview.play();
-    hint.textContent = 'Take a photo of yourself!';
+    hint.textContent = '给自己拍张照吧！';
   } catch (e) {
-    hint.textContent = 'Camera not available: ' + e.message;
+    hint.textContent = '摄像头不可用：' + e.message;
     console.warn('Camera error:', e);
   }
 }
@@ -839,7 +839,7 @@ document.getElementById('btn-photo-next').addEventListener('click', async () => 
 
   // Show processing state
   const btn = document.getElementById('btn-photo-next');
-  btn.textContent = 'Converting...';
+  btn.textContent = '转换中…';
   btn.disabled = true;
 
   // Convert child photo to crayon avatar
@@ -879,7 +879,7 @@ document.getElementById('btn-photo-next').addEventListener('click', async () => 
     }
   }
 
-  btn.textContent = 'Next';
+  btn.textContent = '下一步';
   btn.disabled = false;
   goToPhase('event');
 });
@@ -890,7 +890,7 @@ document.getElementById('btn-photo-skip').addEventListener('click', async () => 
   // If child photo was taken, still convert it
   if (state.childPhoto && API_BASE) {
     const btn = document.getElementById('btn-photo-skip');
-    btn.textContent = 'Converting...';
+    btn.textContent = '转换中…';
     try {
       const resp = await fetch(API_BASE + '/api/convert-avatar', {
         method: 'POST',
@@ -902,7 +902,7 @@ document.getElementById('btn-photo-skip').addEventListener('click', async () => 
     } catch (e) {
       console.warn('Avatar conversion failed:', e);
     }
-    btn.textContent = 'Skip';
+    btn.textContent = '跳过';
     // Pre-generate the lineart in the background (non-blocking)
     if (state.childPhoto && !state.childPhoto.includes('test_avatar')) {
       state._lineartPromise = generateLineartViaApi(state.childPhoto)
@@ -1458,11 +1458,11 @@ function renderAvatarInPalette() {
 
   // If we have multiple avatar variations, show them all for selection
   const avatarVariations = [
-    { src: 'assets/test_avatar.png', label: 'Standing' },
-    { src: 'assets/test_avatar_v1.png', label: 'Waving' },
-    { src: 'assets/test_avatar_v2.png', label: 'Sitting' },
-    { src: 'assets/test_avatar_v3.png', label: 'Jumping' },
-    { src: 'assets/test_avatar_v4.png', label: 'Party' },
+    { src: 'assets/test_avatar.png', label: '站着' },
+    { src: 'assets/test_avatar_v1.png', label: '挥手' },
+    { src: 'assets/test_avatar_v2.png', label: '坐着' },
+    { src: 'assets/test_avatar_v3.png', label: '跳跳' },
+    { src: 'assets/test_avatar_v4.png', label: '派对' },
   ];
 
   // Use child photo directly if available (no variations generated yet)
@@ -2139,6 +2139,18 @@ function normalizeLightBrightness(b) {
   return Math.max(0, Math.min(1, (b - 0.4) / 0.75));
 }
 
+// Light-stage brightness -> video brightness channel, what-you-see-is-what-you-get.
+// applyVideoPreferences renders brightness(0.5 + value), so value = b - 0.5 replays
+// exactly the CSS brightness the child saw on the Light stage (b=1.0 -> 0.5, the
+// channel's neutral). Don't reuse normalizeLightBrightness here: it stretches
+// 0.4–1.15 onto the full 0.5–1.5 video range, which pushed every child's video
+// 0.1–0.35 brighter than what they picked. Only the arc's very ends (b < 0.5)
+// clip, to the video's 0.5 floor.
+function lightBrightnessToChannel(b) {
+  if (typeof b !== 'number') return null;
+  return Math.max(0, Math.min(1, b - 0.5));
+}
+
 // Per-event scene illustrations (Imagen-generated, watercolor + ink, magenta interior chroma-keyed transparent).
 const LIGHT_SCENE_BY_EVENT = {
   school: 'assets/light_scene_school.png?v=209',
@@ -2334,9 +2346,9 @@ function setupLightStage() {
 // SOUND STUDIO — Five-line staff for sound composition
 // ============================================================
 const SOUND_ELEMENTS = [
-  { type: 'bgm', asset: 'assets/music_note.png', glyph: '♫', label: 'BGM', color: '#FF8C42' },
-  { type: 'voice', asset: 'assets/microphone.png', glyph: '♩', label: 'Voices', color: '#4D96FF' },
-  { type: 'sfx', asset: 'assets/bell.png', glyph: '♪', label: 'Effects', color: '#6BCB77' },
+  { type: 'bgm', asset: 'assets/music_note.png', glyph: '♫', label: '音乐', color: '#FF8C42' },
+  { type: 'voice', asset: 'assets/microphone.png', glyph: '♩', label: '人声', color: '#4D96FF' },
+  { type: 'sfx', asset: 'assets/bell.png', glyph: '♪', label: '音效', color: '#6BCB77' },
 ];
 
 function setupSoundStudio() {
@@ -2402,7 +2414,7 @@ function showCustomSoundInput() {
 
   overlay.classList.remove('hidden');
   input.value = '';
-  input.placeholder = 'Type a sound (rain, birds, car...)';
+  input.placeholder = '输入一种声音（下雨、小鸟、汽车…）';
   input.focus();
 
   const doGenerate = () => {
@@ -2421,7 +2433,7 @@ function showCustomSoundInput() {
   btnCancel.replaceWith(newCancel);
   newCancel.addEventListener('click', () => {
     overlay.classList.add('hidden');
-    input.placeholder = 'Type an object name...';
+    input.placeholder = '输入一个东西的名字…';
   });
 
   input.onkeydown = (e) => { if (e.key === 'Enter') doGenerate(); };
@@ -2485,7 +2497,7 @@ async function generateCustomSound(name) {
   } catch (e) {
     placeholder?.remove();
     console.warn('Custom sound generation failed:', e);
-    alert('Could not generate sound: ' + e.message);
+    alert('声音生成失败：' + e.message);
   }
 }
 
@@ -3589,36 +3601,36 @@ function updateCrayonCursor() {
 // 30 hues across the spectrum. Each hue exposes 6 saturation steps at L=50% by default.
 // Modifiers: lShift (lightness offset), gray/black/brown (special handling).
 const HUE_PALETTE = [
-  { key: 'red',      name: 'Red',      hue: 0   },
-  { key: 'crimson',  name: 'Crimson',  hue: 348, lShift: -8 },
-  { key: 'coral',    name: 'Coral',    hue: 12  },
-  { key: 'salmon',   name: 'Salmon',   hue: 8,   lShift: 10 },
-  { key: 'orange',   name: 'Orange',   hue: 28  },
-  { key: 'peach',    name: 'Peach',    hue: 22,  lShift: 12 },
-  { key: 'amber',    name: 'Amber',    hue: 42  },
-  { key: 'gold',     name: 'Gold',     hue: 46,  lShift: -5 },
-  { key: 'yellow',   name: 'Yellow',   hue: 54  },
-  { key: 'olive',    name: 'Olive',    hue: 65,  lShift: -15 },
-  { key: 'lime',     name: 'Lime',     hue: 80  },
-  { key: 'green',    name: 'Green',    hue: 130 },
-  { key: 'forest',   name: 'Forest',   hue: 140, lShift: -18 },
-  { key: 'jade',     name: 'Jade',     hue: 150 },
-  { key: 'mint',     name: 'Mint',     hue: 155, lShift: 12 },
-  { key: 'teal',     name: 'Teal',     hue: 172 },
-  { key: 'cyan',     name: 'Cyan',     hue: 188 },
-  { key: 'sky',      name: 'Sky',      hue: 205 },
-  { key: 'azure',    name: 'Azure',    hue: 215 },
-  { key: 'blue',     name: 'Blue',     hue: 220 },
-  { key: 'indigo',   name: 'Indigo',   hue: 245, lShift: -10 },
-  { key: 'violet',   name: 'Violet',   hue: 260 },
-  { key: 'purple',   name: 'Purple',   hue: 275 },
-  { key: 'magenta',  name: 'Magenta',  hue: 305 },
-  { key: 'rose',     name: 'Rose',     hue: 345, lShift: 8 },
-  { key: 'pink',     name: 'Pink',     hue: 330 },
-  { key: 'brown',    name: 'Brown',    hue: 25,  brown: true },
-  { key: 'tan',      name: 'Tan',      hue: 32,  lShift: 18 },
-  { key: 'black',    name: 'Black',                black: true },
-  { key: 'gray',     name: 'Gray',                 gray: true },
+  { key: 'red',      name: '红色',      hue: 0   },
+  { key: 'crimson',  name: '深红',  hue: 348, lShift: -8 },
+  { key: 'coral',    name: '珊瑚红',    hue: 12  },
+  { key: 'salmon',   name: '三文鱼色',   hue: 8,   lShift: 10 },
+  { key: 'orange',   name: '橙色',   hue: 28  },
+  { key: 'peach',    name: '桃色',    hue: 22,  lShift: 12 },
+  { key: 'amber',    name: '琥珀色',    hue: 42  },
+  { key: 'gold',     name: '金色',     hue: 46,  lShift: -5 },
+  { key: 'yellow',   name: '黄色',   hue: 54  },
+  { key: 'olive',    name: '橄榄绿',    hue: 65,  lShift: -15 },
+  { key: 'lime',     name: '青柠绿',     hue: 80  },
+  { key: 'green',    name: '绿色',    hue: 130 },
+  { key: 'forest',   name: '森林绿',   hue: 140, lShift: -18 },
+  { key: 'jade',     name: '翡翠绿',     hue: 150 },
+  { key: 'mint',     name: '薄荷绿',     hue: 155, lShift: 12 },
+  { key: 'teal',     name: '蓝绿色',     hue: 172 },
+  { key: 'cyan',     name: '青色',     hue: 188 },
+  { key: 'sky',      name: '天蓝',      hue: 205 },
+  { key: 'azure',    name: '湛蓝',    hue: 215 },
+  { key: 'blue',     name: '蓝色',     hue: 220 },
+  { key: 'indigo',   name: '靛蓝',   hue: 245, lShift: -10 },
+  { key: 'violet',   name: '紫罗兰',   hue: 260 },
+  { key: 'purple',   name: '紫色',   hue: 275 },
+  { key: 'magenta',  name: '品红',  hue: 305 },
+  { key: 'rose',     name: '玫瑰红',     hue: 345, lShift: 8 },
+  { key: 'pink',     name: '粉色',     hue: 330 },
+  { key: 'brown',    name: '棕色',    hue: 25,  brown: true },
+  { key: 'tan',      name: '浅棕',      hue: 32,  lShift: 18 },
+  { key: 'black',    name: '黑色',                black: true },
+  { key: 'gray',     name: '灰色',                 gray: true },
 ];
 const SAT_LEVELS = [15, 32, 49, 66, 83, 100]; // % saturation, L=50%
 const DEFAULT_SAT_INDEX = 3; // start mid-saturated
@@ -3855,7 +3867,7 @@ function setupLightsElement(el) {
   el.querySelector('.lights-hint-label')?.remove();
   const hint = document.createElement('div');
   hint.className = 'lights-hint-label';
-  hint.textContent = 'Tap to change light!';
+  hint.textContent = '点一点，换个光线！';
   el.appendChild(hint);
   // Remove hint after first tap
   const removeHint = () => { hint.remove(); el.removeEventListener('pointerdown', removeHint); };
@@ -4438,45 +4450,45 @@ function setupAnimatePhase() {
 
   // --- UI helpers ---
   // Put round indicators into the topbar instruction area
-  const roundLabels = ['Demo', '🆓 1', '🆓 2', '🆓 3'];
+  const roundLabels = ['示范', '🆓 1', '🆓 2', '🆓 3'];
 
   // Per-session "energy magic" narrative — adapts to event
   const SESSION_THEMES = {
     school: [
-      { intro: '✨ Charge the magic! (1/3)', desc: 'Wake up the classroom!',      complete: '⚡ Lights coming on!' },
-      { intro: '🎒 Add more energy! (2/3)', desc: 'Friends are arriving!',        complete: '🎵 Almost ready!' },
-      { intro: '🏫 Final burst! (3/3)',     desc: 'Morning circle time!',         complete: '🎉 Off to school!' },
+      { intro: '✨ 充满魔法能量！(1/3)', desc: '唤醒教室！',      complete: '⚡ 灯亮起来啦！' },
+      { intro: '🎒 再加点能量！(2/3)', desc: '朋友们来啦！',        complete: '🎵 快准备好啦！' },
+      { intro: '🏫 最后冲刺！(3/3)',     desc: '早上围圈时间！',         complete: '🎉 出发去学校！' },
     ],
     grocery: [
-      { intro: '✨ Charge the magic! (1/3)', desc: 'Wake up the store!',          complete: '⚡ Lights flickering on!' },
-      { intro: '🛒 Add more energy! (2/3)', desc: 'Carts are rolling!',           complete: '🎵 Aisles coming alive!' },
-      { intro: '🥦 Final burst! (3/3)',     desc: 'Time to shop!',                complete: '🎉 Off to the store!' },
+      { intro: '✨ 充满魔法能量！(1/3)', desc: '唤醒超市！',          complete: '⚡ 灯光闪起来啦！' },
+      { intro: '🛒 再加点能量！(2/3)', desc: '购物车动起来啦！',           complete: '🎵 货架热闹起来啦！' },
+      { intro: '🥦 最后冲刺！(3/3)',     desc: '该去买东西啦！',                complete: '🎉 出发去超市！' },
     ],
     dining: [
-      { intro: '✨ Charge the magic! (1/3)', desc: 'Wake up the restaurant!',     complete: '⚡ Lights are on!' },
-      { intro: '🍽️ Add more energy! (2/3)', desc: 'Tables setting themselves!',   complete: '🎵 Food on its way!' },
-      { intro: '🍝 Final burst! (3/3)',     desc: 'Time to eat!',                 complete: '🎉 Off to dinner!' },
+      { intro: '✨ 充满魔法能量！(1/3)', desc: '唤醒餐厅！',     complete: '⚡ 灯亮啦！' },
+      { intro: '🍽️ 再加点能量！(2/3)', desc: '桌子自己摆好啦！',   complete: '🎵 饭菜马上就来！' },
+      { intro: '🍝 最后冲刺！(3/3)',     desc: '开饭啦！',                 complete: '🎉 出发去吃饭！' },
     ],
     dental: [
-      { intro: '✨ Charge the magic! (1/3)', desc: 'Wake up the clinic!',         complete: '⚡ Lights are on!' },
-      { intro: '🦷 Add more energy! (2/3)', desc: 'The big chair is ready!',      complete: '🎵 Almost your turn!' },
-      { intro: '🪥 Final burst! (3/3)',     desc: 'Time for a check-up!',         complete: '🎉 Off to the dentist!' },
+      { intro: '✨ 充满魔法能量！(1/3)', desc: '唤醒诊所！',         complete: '⚡ 灯亮啦！' },
+      { intro: '🦷 再加点能量！(2/3)', desc: '大椅子准备好啦！',      complete: '🎵 快轮到你啦！' },
+      { intro: '🪥 最后冲刺！(3/3)',     desc: '该检查牙齿啦！',         complete: '🎉 出发去看牙医！' },
     ],
     // legacy
     birthday: [
-      { intro: '✨ Charge the magic! (1/3)', desc: 'Wake up the party!',     complete: '⚡ Sparks flying!' },
-      { intro: '🎈 Add more energy! (2/3)', desc: 'Decorations coming alive!', complete: '🎵 Magic is brewing!' },
-      { intro: '🎂 Final burst! (3/3)',     desc: 'Light the candles!',       complete: '🎉 Off to your party!' },
+      { intro: '✨ 充满魔法能量！(1/3)', desc: '唤醒派对！',     complete: '⚡ 火花飞起来！' },
+      { intro: '🎈 再加点能量！(2/3)', desc: '装饰活起来啦！', complete: '🎵 魔法在酝酿！' },
+      { intro: '🎂 最后冲刺！(3/3)',     desc: '点亮蜡烛！',       complete: '🎉 出发去派对！' },
     ],
     playground: [
-      { intro: '✨ Charge the magic! (1/3)', desc: 'Wake up the playground!',   complete: '⚡ Friends arriving!' },
-      { intro: '🛝 Add more energy! (2/3)', desc: 'Swings and slides start moving!', complete: '🎵 Almost there!' },
-      { intro: '🌳 Final burst! (3/3)',     desc: 'Time to play!',              complete: '🎉 Off we go!' },
+      { intro: '✨ 充满魔法能量！(1/3)', desc: '唤醒游乐场！',   complete: '⚡ 朋友们来啦！' },
+      { intro: '🛝 再加点能量！(2/3)', desc: '秋千和滑梯动起来啦！', complete: '🎵 快到啦！' },
+      { intro: '🌳 最后冲刺！(3/3)',     desc: '玩耍时间！',              complete: '🎉 出发啦！' },
     ],
     _default: [
-      { intro: '✨ Charge the magic! (1/3)', desc: 'Wake up your scene!',      complete: '⚡ Magic flowing!' },
-      { intro: '🌟 Keep going! (2/3)',       desc: 'Your drawing is coming alive!', complete: '🎵 Nearly there!' },
-      { intro: '🚀 Final burst! (3/3)',      desc: 'Bring it to life!',         complete: '🎉 Ready to fly!' },
+      { intro: '✨ 充满魔法能量！(1/3)', desc: '唤醒你的场景！',      complete: '⚡ 魔法流动起来！' },
+      { intro: '🌟 继续加油！(2/3)',       desc: '你的画活起来啦！', complete: '🎵 快好啦！' },
+      { intro: '🚀 最后冲刺！(3/3)',      desc: '让它活起来！',         complete: '🎉 准备起飞！' },
     ],
   };
   function getTheme(idx) {
@@ -4790,7 +4802,7 @@ function setupAnimatePhase() {
   function runCountdown(callback, briefHint) {
     drumEnabled = false;
     // Per Yue 2026-05-07: only "Go!" — drop brief hint + "3/2/1" (too many words too fast)
-    showCountdown('Go!', callback);
+    showCountdown('开始！', callback);
   }
 
   // --- Round 0: Intro ---
@@ -4799,7 +4811,7 @@ function setupAnimatePhase() {
     hands.style.display = '';
     hands.classList.remove('tapped');
     if (taikoTrack) taikoTrack.classList.remove('visible');
-    instructionEl.textContent = 'Watch and learn!';
+    instructionEl.textContent = '先看一看！';
     drumEnabled = false;
 
     let introBeats = 0;
@@ -4926,7 +4938,7 @@ function setupAnimatePhase() {
     fastEnded = false;
     setRound(FAST_ROUND);
     if (taikoTrack) taikoTrack.classList.remove('visible');
-    instructionEl.textContent = '🐇 Fast, fast, fast!';
+    instructionEl.textContent = '🐇 快快快！';
     runCountdown(() => {
       drumEnabled = true;
       fastIdleTimer = setTimeout(endFastRound, FAST_IDLE_MS);
@@ -4947,7 +4959,7 @@ function setupAnimatePhase() {
   // way pooling every tap from all 3 rounds into one list would.
   function finishDrum() {
     clearAllTimers();
-    instructionEl.textContent = 'Great job!';
+    instructionEl.textContent = '真棒！';
 
     state.drumData = drumData;
 
@@ -5492,7 +5504,7 @@ function showSaveStatus(ok) {
   }
   dot.classList.toggle('ok', ok);
   dot.classList.toggle('fail', !ok);
-  dot.title = ok ? 'saved to server' : 'server save FAILED — on-device backup only';
+  dot.title = ok ? '已保存到服务器' : '服务器保存失败——仅有本机备份';
 }
 
 function exportData(stage = 'unknown') {
@@ -5560,7 +5572,7 @@ document.addEventListener('visibilitychange', () => {
 // ============================================================
 function runProcessing() {
   const stageNames = ['create', 'color', 'sound', 'drum'];
-  const stageLabels = ['🎨 Create', '🖍️ Color', '🎵 Sound', '🥁 Rhythm'];
+  const stageLabels = ['🎨 创作', '🖍️ 涂色', '🎵 声音', '🥁 节奏'];
   const observationEl = document.getElementById('ai-observation');
   const summaryEl = document.getElementById('ai-summary');
   const stepsContainer = document.getElementById('processing-steps');
@@ -5769,7 +5781,7 @@ function computeBaselinesFromPreferences(prefs) {
   if (!prefs) return;
   const lightB = prefs.visual.lightBrightness;
   const brightnessBase = (typeof lightB === 'number')
-    ? (normalizeLightBrightness(lightB) ?? 0.5)
+    ? (lightBrightnessToChannel(lightB) ?? 0.5)
     : (prefs.visual.score ?? 0.5);
   const saturationBase = (typeof prefs.visual.avgSaturation === 'number')
     ? prefs.visual.avgSaturation
@@ -6980,6 +6992,21 @@ function pickWrapupQuestion(eventType) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+// Readiness/done panels stay in the layout while pending (see .wrapup-pending),
+// so showing one never shifts the buttons above it.
+const WRAPUP_TAP_GUARD_MS = 400;
+function setWrapupPanelShown(id, shown) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('wrapup-pending', !shown);
+  el.classList.remove('wrapup-in');
+  if (shown) {
+    void el.offsetWidth; // restart the slide-up animation
+    el.classList.add('wrapup-in');
+    el.dataset.shownAt = String(Date.now());
+  }
+}
+
 function initWrapupScreen() {
   // If we're returning from a deliberate rewatch, keep the pick state so the
   // child doesn't lose their choice. Otherwise this is a fresh entry — reset.
@@ -7000,8 +7027,8 @@ function initWrapupScreen() {
     document.querySelectorAll('.readiness-card').forEach(c => {
       c.classList.remove('selected', 'dimmed');
     });
-    document.getElementById('readiness-panel').classList.add('hidden');
-    document.getElementById('wrapup-done').classList.add('hidden');
+    setWrapupPanelShown('readiness-panel', false);
+    setWrapupPanelShown('wrapup-done', false);
   }
 
   // Render the current question (title + 3 option cards). Order is preserved as
@@ -7035,15 +7062,13 @@ function initWrapupScreen() {
       });
       card.classList.add('selected');
       cards.forEach(c => { if (c !== card) c.classList.add('dimmed'); });
-      setTimeout(() => {
-        document.getElementById('readiness-panel').classList.remove('hidden');
-      }, 500);
+      setTimeout(() => setWrapupPanelShown('readiness-panel', true), 500);
     };
   });
 
-  // Single shared "See what happens" button. Plays only the canonical-next clip
-  // (about one scene worth, ~6 s), then auto-returns to wrap-up with cards locked
-  // and the readiness panel + "Try another" exit shown.
+  // Single shared "See what happens" button, inside the done panel — only
+  // reachable after readiness is answered. Plays only the canonical-next clip
+  // (about one scene worth, ~6 s), then auto-returns to wrap-up with cards locked.
   const revealBtn = document.getElementById('wrapup-reveal');
   if (revealBtn) {
     revealBtn.onclick = () => {
@@ -7082,19 +7107,16 @@ function initWrapupScreen() {
     };
   }
 
-  // After a reveal, lock the option cards (no more picking on THIS question),
-  // re-title the readiness prompt, slide readiness in. "Try another question"
-  // lives inside the done panel below, so it only appears after readiness is picked.
+  // After a reveal, readiness was already answered (order is pick -> readiness
+  // -> reveal): lock the option cards, keep readiness + done visible with the
+  // child's picks, and drop the reveal button since it's been watched.
   if (state.wrapupRevealed) {
     cards.forEach(c => c.classList.add('locked'));
     revealBtn?.classList.add('hidden');
-    const readinessTitle = document.getElementById('readiness-title');
-    if (readinessTitle) readinessTitle.textContent = 'You saw what happens. How do you feel?';
-    document.getElementById('readiness-panel').classList.remove('hidden');
+    setWrapupPanelShown('readiness-panel', true);
+    setWrapupPanelShown('wrapup-done', true);
   } else {
     revealBtn?.classList.remove('hidden');
-    const readinessTitle = document.getElementById('readiness-title');
-    if (readinessTitle) readinessTitle.textContent = 'How are you feeling?';
   }
 
   const tryAnotherBtn = document.getElementById('wrapup-try-another');
@@ -7114,19 +7136,20 @@ function initWrapupScreen() {
   document.querySelectorAll('.readiness-card').forEach(card => {
     card.onclick = () => {
       if (state.wrapupFeeling) return;
+      // Ignore taps right as the panel appears — they were aimed at whatever
+      // was on screen a moment before, not at a feeling.
+      const shownAt = Number(document.getElementById('readiness-panel').dataset.shownAt || 0);
+      if (Date.now() - shownAt < WRAPUP_TAP_GUARD_MS) return;
       const feeling = card.dataset.feeling;
       state.wrapupFeeling = feeling;
-      // afterReveal distinguishes the two prompt variants ("How are you
-      // feeling?" vs "You saw what happens. How do you feel?") — same 3
-      // options either way, but the question the child is answering differs.
+      // afterReveal is always false now that the reveal comes after readiness;
+      // kept so older sessions (reveal-first allowed) stay distinguishable.
       logEvent('wrapup_readiness_pick', { feeling, afterReveal: !!state.wrapupRevealed });
       card.classList.add('selected');
       document.querySelectorAll('.readiness-card').forEach(c => {
         if (c !== card) c.classList.add('dimmed');
       });
-      setTimeout(() => {
-        document.getElementById('wrapup-done').classList.remove('hidden');
-      }, 500);
+      setTimeout(() => setWrapupPanelShown('wrapup-done', true), 500);
       // The only other export point (stage2) fires at video-end, which is
       // BEFORE the child ever reaches wrapup — without this, the strategy/
       // readiness answers above would only reach session_data/ by accident,

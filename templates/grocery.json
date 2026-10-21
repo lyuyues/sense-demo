@@ -1,6 +1,6 @@
 {
   "id": "grocery",
-  "name": "Grocery Store",
+  "name": "去超市",
   "icon": "🛒",
   "backgroundImage": "assets/grocery_bg.png",
   "background": {
@@ -14,14 +14,14 @@
     ]
   },
   "elements": [
-    {"type": "friend",  "id": "grocery_cashier",  "asset": "assets/grocery_cashier.png",  "label": "Cashier", "dimension": "spatial"},
-    {"type": "friend",  "id": "grocery_shopper",  "asset": "assets/grocery_shopper.png",  "label": "Shopper", "dimension": "spatial"},
-    {"type": "balloon", "id": "grocery_cart",     "asset": "assets/grocery_cart.png",     "label": "Cart",     "dimension": "decoration"},
-    {"type": "present", "id": "grocery_milk",     "asset": "assets/grocery_milk.png",     "label": "Milk",     "dimension": "decoration"},
-    {"type": "cake",    "id": "grocery_bread",    "asset": "assets/grocery_bread.png",    "label": "Bread",    "dimension": "decoration"},
-    {"type": "lights",  "id": "grocery_receipt",  "asset": "assets/grocery_receipt.png",  "label": "Receipt",  "dimension": "decoration"},
-    {"type": "present", "id": "grocery_apple",    "asset": "assets/grocery_apple.png",    "label": "Apple",    "dimension": "decoration"},
-    {"type": "cake",    "id": "grocery_broccoli", "asset": "assets/grocery_broccoli.png", "label": "Broccoli", "dimension": "decoration"}
+    {"type": "friend",  "id": "grocery_cashier",  "asset": "assets/grocery_cashier.png",  "label": "收银员", "dimension": "spatial"},
+    {"type": "friend",  "id": "grocery_shopper",  "asset": "assets/grocery_shopper.png",  "label": "顾客", "dimension": "spatial"},
+    {"type": "balloon", "id": "grocery_cart",     "asset": "assets/grocery_cart.png",     "label": "购物车",     "dimension": "decoration"},
+    {"type": "present", "id": "grocery_milk",     "asset": "assets/grocery_milk.png",     "label": "牛奶",     "dimension": "decoration"},
+    {"type": "cake",    "id": "grocery_bread",    "asset": "assets/grocery_bread.png",    "label": "面包",    "dimension": "decoration"},
+    {"type": "lights",  "id": "grocery_receipt",  "asset": "assets/grocery_receipt.png",  "label": "小票",  "dimension": "decoration"},
+    {"type": "present", "id": "grocery_apple",    "asset": "assets/grocery_apple.png",    "label": "苹果",    "dimension": "decoration"},
+    {"type": "cake",    "id": "grocery_broccoli", "asset": "assets/grocery_broccoli.png", "label": "西兰花", "dimension": "decoration"}
   ],
   "animations": {
     "friend":  ["wave"],
