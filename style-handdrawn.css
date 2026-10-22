@@ -2003,3 +2003,11 @@ body {
   filter: drop-shadow(3px 3px 0 var(--hd-ink));
 }
 .staff-element.dragging { filter: none; }
+
+/* Reward picker: preview of the generated (or fallback) item beside its status */
+.reward-status {
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+}
+.reward-status-img {
+  width: 64px; height: 64px; object-fit: contain;
+}

@@ -217,6 +217,19 @@ async function generateRewardItem(text) {
   return { src: data.image, label: text, source: 'generated' };
 }
 
+// Show the resolved item next to the status text, so the caregiver sees what
+// was drawn before the child ever earns one (it is otherwise first visible at
+// the first award). Built with DOM nodes — the label is free caregiver text.
+function showRewardStatus(status, src, message) {
+  if (!status) return;
+  status.textContent = '';
+  const img = document.createElement('img');
+  img.className = 'reward-status-img';
+  img.src = src;
+  img.alt = '';
+  status.append(img, message);
+}
+
 // Sets state.rewardReady to a promise that ALWAYS resolves to a usable item —
 // never rejects, so no award path has to handle failure. Fire-and-forget: the
 // caller does not await, letting generation run through the photo/event screens.
@@ -230,14 +243,14 @@ function setRewardItem({ preset, text }) {
     if (status) status.textContent = `正在画「${text}」…`;
     state.rewardReady = generateRewardItem(text)
       .then(item => {
-        if (status) status.textContent = `「${text}」画好啦！`;
+        showRewardStatus(status, item.src, `「${text}」画好啦！`);
         return item;
       })
       .catch(err => {
         // Offline / on Pages / model failure — degrade to the default star so a
         // collectible always flies and the bar never shows a hole.
         console.warn('Reward generation failed, falling back to default:', err);
-        if (status) status.textContent = `没画出来——先用星星代替吧。`;
+        showRewardStatus(status, DEFAULT_REWARD.src, `没画出来——先用星星代替吧。`);
         return { ...DEFAULT_REWARD, source: 'fallback' };
       });
   }
