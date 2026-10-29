@@ -53,6 +53,7 @@
     .backup-btn {
       margin-top: 1.6rem; width: 100%; padding: 0.7rem; font-size: 0.9rem;
       border: 1.5px dashed #c9a24a; border-radius: 12px; background: #fffdf6; color: #6b5a2e;
+      display: block; text-align: center; text-decoration: none;
     }
     .backup-status { font-size: 0.8rem; color: #888; margin-top: 0.4rem; min-height: 1em; }
   </style>
@@ -90,11 +91,9 @@
       4. 调好后点 <b>确认设置</b> 保存，视频会回到开头给孩子看
     </div>
 
-    <button class="backup-btn" onclick="exportLocalBackups()">导出本机备份数据</button>
-    <div id="backup-status" class="backup-status"></div>
+    <a class="backup-btn" href="export.html">数据导出（研究者）→</a>
     <a class="back-link" href="index.html">← 回到正式 SENSE 流程</a>
   </div>
-  <script src="backup-export.js"></script>
   <script>
     // Carry the participant ID into the video page so baseline records pair
     // with the same family's SENSE records. Blocks navigation until filled.

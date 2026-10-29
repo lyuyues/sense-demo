@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <title>SENSE 数据导出（研究者）</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+      background: #fafaf8; color: #2c2c2c;
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh; padding: 3rem 1.5rem;
+    }
+    .wrap { width: 100%; max-width: 560px; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.4rem; }
+    .subtitle { font-size: 0.9rem; color: #777; margin-bottom: 1.4rem; line-height: 1.5; }
+    .summary {
+      background: #fff; border: 1.5px solid #e2e2de; border-radius: 14px;
+      padding: 1rem 1.2rem; margin-bottom: 1.2rem; font-size: 0.95rem; line-height: 1.7;
+    }
+    .summary.bad { background: #fdf1f0; border-color: #e8b4ae; }
+    .summary.good { background: #f0f7f1; border-color: #b5d6bd; }
+    .summary b { font-size: 1.05rem; }
+    .btn {
+      width: 100%; padding: 0.8rem; font-size: 1rem; font-weight: 600;
+      border-radius: 12px; margin-bottom: 0.7rem; border: 1.5px solid #c9a24a;
+      background: #fffdf6; color: #6b5a2e;
+    }
+    .btn.primary { background: #c9a24a; color: #fff; }
+    .btn:disabled { opacity: 0.5; }
+    .status { font-size: 0.85rem; color: #888; min-height: 1.2em; margin-bottom: 1.4rem; }
+    .section-label {
+      font-size: 0.75rem; color: #999; letter-spacing: 0.5px;
+      margin: 0.6rem 0; font-weight: 600;
+    }
+    .kid {
+      background: #fff; border: 1.5px solid #e2e2de; border-radius: 14px;
+      padding: 0.8rem 1rem; margin-bottom: 0.8rem;
+    }
+    .kid-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
+    .kid-head b { font-size: 1.05rem; }
+    .kid-head button {
+      font-size: 0.8rem; padding: 0.35rem 0.7rem; border-radius: 8px;
+      border: 1px solid #ddd; background: #fafaf8; color: #555;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; table-layout: fixed; }
+    td { padding: 0.25rem 0.3rem; border-top: 1px solid #f0f0ec; color: #555; }
+    .ok { color: #3c9d5d; font-weight: 600; }
+    .pending { color: #d9534f; font-weight: 600; }
+    .empty { font-size: 0.9rem; color: #999; text-align: center; padding: 1.5rem 0; }
+    .back-link {
+      display: inline-block; margin-top: 1.6rem; font-size: 0.8rem;
+      color: #bbb; text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>SENSE 数据导出</h1>
+    <p class="subtitle">研究者专用。所有环节（SENSE + 家长设置）结束后再打开。数据本来就会自动上传，这里用来确认都上传了，并在 iPad 上再存一份。</p>
+
+    <div id="summary" class="summary"></div>
+    <button id="btn-upload" class="btn primary">上传还没上传的记录</button>
+    <button id="btn-download-all" class="btn">下载本机全部数据（JSON）</button>
+    <div id="status" class="status"></div>
+
+    <div class="section-label">按参与者</div>
+    <div id="kids"></div>
+
+    <a class="back-link" href="index.html">← 回到开始页</a>
+  </div>
+
+  <script>
+    // Researcher page (2026-10-29): read-only view of the on-device backups that
+    // app.js writes (sense_backup_*) plus its pending list (sense_pending), a manual
+    // re-send, and downloads. Same keys and endpoint as app.js; a re-send overwrites
+    // the same server file, so pressing upload twice is harmless.
+    const BACKUP_PREFIX = 'sense_backup_';
+    const PENDING_KEY = 'sense_pending';
+    const API_BASE = location.hostname.endsWith('github.io') || location.protocol === 'file:'
+      ? ''
+      : location.origin;
+    const STAGE_LABELS = {
+      stage1: '偏好采集完成', stage2: '视频看完', 'video-progress': '视频进行中',
+      wrapup: '结尾问答', skip: '跳过', 'baseline-confirmed': '家长设置确认',
+    };
+    const COND_LABELS = { sense: 'SENSE', baseline: '家长设置' };
+    const $ = (id) => document.getElementById(id);
+
+    function readPending() {
+      try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch (_) { return []; }
+    }
+    function writePending(keys) {
+      try { localStorage.setItem(PENDING_KEY, JSON.stringify(keys)); } catch (_) {}
+    }
+    function loadRecords() {
+      const pending = new Set(readPending());
+      const out = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k || !k.startsWith(BACKUP_PREFIX)) continue;
+        try { out.push({ key: k, pending: pending.has(k), rec: JSON.parse(localStorage.getItem(k)) }); } catch (_) {}
+      }
+      return out.sort((a, b) => (a.rec.sessionId - b.rec.sessionId) ||
+        String(a.rec.exportStage).localeCompare(b.rec.exportStage));
+    }
+
+    function download(filename, records) {
+      const blob = new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+    const today = () => new Date().toISOString().slice(0, 10);
+    const clean = (s) => String(s).replace(/[^A-Za-z0-9_-]/g, '') || 'NO-PID';
+    const fmtTime = (iso) => {
+      const d = new Date(iso);
+      return isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    };
+
+    function render() {
+      const items = loadRecords();
+      const nPending = items.filter(x => x.pending).length;
+      const sum = $('summary');
+      sum.className = 'summary ' + (items.length && !nPending ? 'good' : nPending ? 'bad' : '');
+      if (!items.length) {
+        sum.innerHTML = '这台 iPad 上没有 SENSE 记录。';
+      } else if (!API_BASE) {
+        sum.innerHTML = `本机共 <b>${items.length}</b> 条记录。<br>当前站点不上传数据，请点下面"下载"保存。`;
+      } else if (nPending) {
+        sum.innerHTML = `本机共 <b>${items.length}</b> 条记录，<span class="pending">还有 ${nPending} 条没上传</span>。<br>连上网后点"上传"，全部变绿再关页面。`;
+      } else {
+        sum.innerHTML = `本机共 <b>${items.length}</b> 条记录，<span class="ok">全部已上传</span> ✓`;
+      }
+      $('btn-upload').style.display = API_BASE ? '' : 'none';
+      $('btn-upload').disabled = !nPending;
+      $('btn-download-all').disabled = !items.length;
+
+      const byKid = new Map();
+      for (const x of items) {
+        const pid = x.rec.participantId || 'NO-PID';
+        if (!byKid.has(pid)) byKid.set(pid, []);
+        byKid.get(pid).push(x);
+      }
+      const box = $('kids');
+      box.innerHTML = '';
+      if (!byKid.size) { box.innerHTML = '<div class="empty">暂无记录</div>'; return; }
+      // Most recent participant first — usually the family that just finished.
+      const kids = [...byKid.entries()].sort((a, b) =>
+        Math.max(...b[1].map(x => x.rec.sessionId || 0)) - Math.max(...a[1].map(x => x.rec.sessionId || 0)));
+      for (const [pid, list] of kids) {
+        const div = document.createElement('div');
+        div.className = 'kid';
+        const rows = list.map(x => `<tr>
+            <td>${COND_LABELS[x.rec.condition] || x.rec.condition || '—'}</td>
+            <td>${STAGE_LABELS[x.rec.exportStage] || x.rec.exportStage || '—'}</td>
+            <td>${fmtTime(x.rec.timestamp)}</td>
+            <td class="${x.pending ? 'pending' : 'ok'}">${x.pending ? '未上传' : '已上传'}</td>
+          </tr>`).join('');
+        div.innerHTML = `<div class="kid-head"><b></b><button>只下载这个孩子</button></div><table>${rows}</table>`;
+        div.querySelector('b').textContent = pid;  // participant IDs are typed in — never as HTML
+        div.querySelector('button').addEventListener('click', () => {
+          download(`sense-${clean(pid)}-${today()}.json`, list.map(x => x.rec));
+          $('status').textContent = `已下载 ${pid} 的 ${list.length} 条记录（在"文件"App → 下载）`;
+        });
+        box.appendChild(div);
+      }
+    }
+
+    async function uploadPending() {
+      const btn = $('btn-upload');
+      btn.disabled = true;
+      let sent = 0, failed = false;
+      for (const key of readPending()) {
+        let rec = null;
+        try { rec = JSON.parse(localStorage.getItem(key)); } catch (_) {}
+        if (!rec) { writePending(readPending().filter(k => k !== key)); continue; }
+        $('status').textContent = `正在上传 ${sent + 1}…`;
+        let ok = false;
+        try {
+          const r = await fetch(API_BASE + '/api/save-session', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec),
+          });
+          ok = r.ok;
+        } catch (_) {}
+        if (!ok) { failed = true; break; }
+        writePending(readPending().filter(k => k !== key));
+        sent++;
+      }
+      $('status').textContent = failed
+        ? `已上传 ${sent} 条，其余失败——检查网络后再点一次，或先点"下载"在 iPad 上存一份`
+        : `已上传 ${sent} 条`;
+      render();
+    }
+
+    $('btn-upload').addEventListener('click', uploadPending);
+    $('btn-download-all').addEventListener('click', () => {
+      const items = loadRecords();
+      download(`sense-all-${today()}.json`, items.map(x => x.rec));
+      $('status').textContent = `已下载全部 ${items.length} 条记录（在"文件"App → 下载）`;
+    });
+    render();
+  </script>
+</body>
+</html>
