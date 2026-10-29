@@ -5556,16 +5556,74 @@ function buildExportPayload(stage) {
 // This is the safety net when the laptop/Wi-Fi drops mid-session; researchers
 // pull it out with the "导出本机备份" button on baseline.html / dev.html.
 const BACKUP_PREFIX = 'sense_backup_';
+// Backup keys the server hasn't confirmed yet. Re-sent every 30 s and whenever the
+// network comes back (the iPad is in China, the server in Canada), so a dropped
+// connection loses nothing as long as the page is reopened once online. Same
+// approach as VideoASD's save.js. The server writes one file per
+// (pid, condition, session, stage), so a re-send just overwrites that file.
+const PENDING_KEY = 'sense_pending';
+const RETRY_MS = 30000;
+const backupKey = (data) => `${BACKUP_PREFIX}${data.participantId}_${data.sessionId}_${data.exportStage}`;
+function readPending() {
+  try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch (_) { return []; }
+}
+function writePending(keys) {
+  try { localStorage.setItem(PENDING_KEY, JSON.stringify(keys)); } catch (_) {}
+}
+
 function backupLocally(data) {
+  const key = backupKey(data);
   try {
-    localStorage.setItem(
-      `${BACKUP_PREFIX}${data.participantId}_${data.sessionId}_${data.exportStage}`,
-      JSON.stringify(data));
+    localStorage.setItem(key, JSON.stringify(data));
   } catch (e) { console.warn('Local backup failed:', e); }
+  // A newer snapshot under the same key re-arms it until the server confirms.
+  const pending = readPending();
+  if (!pending.includes(key)) { pending.push(key); writePending(pending); }
+  return key;
+}
+
+// Only if no newer snapshot replaced this one while the POST was in flight.
+function markSynced(key, timestamp) {
+  let stored = null;
+  try { stored = JSON.parse(localStorage.getItem(key)); } catch (_) {}
+  if (stored && stored.timestamp !== timestamp) return;
+  writePending(readPending().filter(k => k !== key));
+}
+
+function postRecord(data) {
+  return fetch(API_BASE + '/api/save-session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then(r => r.ok)
+    .catch(e => { console.warn('Session save failed:', e); return false; });
+}
+
+let retrying = false;
+async function retryPending() {
+  if (!API_BASE || retrying) return;
+  retrying = true;
+  try {
+    for (const key of readPending()) {
+      let rec = null;
+      try { rec = JSON.parse(localStorage.getItem(key)); } catch (_) {}
+      if (!rec) { writePending(readPending().filter(k => k !== key)); continue; }
+      const ok = await postRecord(rec);
+      if (ok) markSynced(key, rec.timestamp);
+      showSaveStatus(ok);
+      if (!ok) break;  // still offline — try again next tick
+    }
+  } finally { retrying = false; }
+}
+if (API_BASE) {
+  setInterval(retryPending, RETRY_MS);
+  addEventListener('online', retryPending);
+  setTimeout(retryPending, 2000);  // anything left over from a previous visit
 }
 
 // Tiny corner dot so the researcher can see whether the server is receiving
-// data (green) or not (red — data is only in the on-device backup).
+// data (green) or not (red + count — those records are only on the device
+// until a retry gets through).
 function showSaveStatus(ok) {
   let dot = document.getElementById('save-status-dot');
   if (!dot) {
@@ -5573,26 +5631,29 @@ function showSaveStatus(ok) {
     dot.id = 'save-status-dot';
     document.body.appendChild(dot);
   }
+  const n = readPending().length;
+  ok = ok && n === 0;
   dot.classList.toggle('ok', ok);
   dot.classList.toggle('fail', !ok);
-  dot.title = ok ? '已保存到服务器' : '服务器保存失败——仅有本机备份';
+  if (n) dot.dataset.pending = n; else delete dot.dataset.pending;
+  dot.title = ok ? '已保存到服务器'
+    : API_BASE ? `服务器还没收到 ${n} 条——本机有备份，联网后自动补传`
+    : '此站点不上传——仅有本机备份';
 }
 
 function exportData(stage = 'unknown') {
   const data = buildExportPayload(stage);
-  backupLocally(data);
+  const key = backupLocally(data);
 
   // Persist to the server so a real study session survives the tab closing —
   // this is the actual data-collection path. The client-side download below
   // is a dev-only convenience for local inspection, not how study data leaves
   // the device.
   if (API_BASE) {
-    fetch(API_BASE + '/api/save-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    }).then(r => showSaveStatus(r.ok))
-      .catch(e => { console.warn('Session save failed:', e); showSaveStatus(false); });
+    postRecord(data).then(ok => {
+      if (ok) markSynced(key, data.timestamp);
+      showSaveStatus(ok);
+    });
   } else {
     showSaveStatus(false);
   }
@@ -5625,7 +5686,8 @@ function exportData(stage = 'unknown') {
 // iPad backgrounded/killed). visibilitychange is far more reliable than
 // beforeunload on iOS Safari — the latter barely fires at all on mobile.
 // sendBeacon (not fetch) because fetch can get cancelled once the page starts
-// tearing down; sendBeacon is purpose-built to survive that.
+// tearing down; sendBeacon is purpose-built to survive that. Delivery can't be
+// confirmed, so the record stays pending and retryPending() re-sends it later.
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && state.phase === 'video') {
     const data = buildExportPayload('video-progress');

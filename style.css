@@ -2674,3 +2674,7 @@ html, body {
 }
 #save-status-dot.ok { background: #3c9d5d; }
 #save-status-dot.fail { background: #d9534f; }
+#save-status-dot[data-pending]::after {
+  content: attr(data-pending); position: absolute; left: 12px; bottom: -3px;
+  font-size: 10px; line-height: 1; color: #d9534f;
+}
