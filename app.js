@@ -352,40 +352,78 @@ function rewardAudioCtx() {
   }
 }
 
-// Ascending major arpeggio — "you got one".
+// Shared short reverb tail so the mallet notes sit in a room instead of
+// sounding like bare oscillators. Built once from decaying noise.
+function rewardReverb(ctx) {
+  if (state.rewardReverb && state.rewardReverb.context === ctx) return state.rewardReverb;
+  const len = Math.floor(ctx.sampleRate * 0.9);
+  const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  }
+  const conv = ctx.createConvolver();
+  conv.buffer = ir;
+  const wet = ctx.createGain();
+  wet.gain.value = 0.25;
+  conv.connect(wet); wet.connect(ctx.destination);
+  state.rewardReverb = conv;
+  return conv;
+}
+
+// One soft wooden-mallet note (marimba/kalimba-like): a sine fundamental plus a
+// quickly-fading inharmonic overtone (~3.9x, marimba's first partial) and a tiny
+// filtered-noise "knock" for the mallet hit, all through a gentle lowpass.
+function playMalletNote(ctx, freq, start, peak) {
+  const out = ctx.createBiquadFilter();
+  out.type = 'lowpass';
+  out.frequency.value = 2800;
+  out.connect(ctx.destination);
+  out.connect(rewardReverb(ctx));
+
+  [[1, 1, 0.9], [3.93, 0.22, 0.12]].forEach(([ratio, amp, decay]) => {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq * ratio;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, start);
+    g.gain.linearRampToValueAtTime(peak * amp, start + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0005, start + decay);
+    osc.connect(g); g.connect(out);
+    osc.start(start); osc.stop(start + decay + 0.05);
+  });
+
+  const noise = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.03), ctx.sampleRate);
+  const nd = noise.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = (Math.random() * 2 - 1) * (1 - i / nd.length);
+  const src = ctx.createBufferSource();
+  src.buffer = noise;
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = freq * 2;
+  bp.Q.value = 1.2;
+  const ng = ctx.createGain();
+  ng.gain.value = peak * 0.35;
+  src.connect(bp); bp.connect(ng); ng.connect(out);
+  src.start(start);
+}
+
+// Ascending major arpeggio on a soft mallet — "you got one". Lower register
+// (G4 C5 E5 G5) and wooden timbre so it reads warm rather than electronic.
 function playRewardChime() {
   const ctx = rewardAudioCtx();
   if (!ctx) return;
   const t = ctx.currentTime;
-  [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {   // C5 E5 G5 C6
-    const start = t + i * 0.085;
-    const osc = ctx.createOscillator();
-    osc.type = i === 3 ? 'triangle' : 'sine';
-    osc.frequency.value = freq;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0, start);
-    g.gain.linearRampToValueAtTime(0.09, start + 0.015);
-    g.gain.exponentialRampToValueAtTime(0.001, start + 0.42);
-    osc.connect(g); g.connect(ctx.destination);
-    osc.start(start); osc.stop(start + 0.45);
+  [392.0, 523.25, 659.25, 783.99].forEach((freq, i) => {
+    playMalletNote(ctx, freq, t + i * 0.1, i === 3 ? 0.16 : 0.12);
   });
 }
 
-// Soft rising tick as the collectible drops into its slot.
+// Soft wooden tock as the collectible drops into its slot.
 function playRewardLand() {
   const ctx = rewardAudioCtx();
   if (!ctx) return;
-  const t = ctx.currentTime;
-  const osc = ctx.createOscillator();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(880, t);
-  osc.frequency.exponentialRampToValueAtTime(1320, t + 0.09);
-  const g = ctx.createGain();
-  g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(0.07, t + 0.01);
-  g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-  osc.connect(g); g.connect(ctx.destination);
-  osc.start(t); osc.stop(t + 0.25);
+  playMalletNote(ctx, 1046.5, ctx.currentTime, 0.08);   // C6
 }
 
 function spawnRewardSparkles(host, count) {
@@ -723,6 +761,7 @@ function devSkipToWrapup() {
   if (!btn) return;
   const HOLD_MS = 700;
   let holdTimer = null;
+  let hintEl = null, hintTimer = null;
 
   function triggerSkip() {
     logEvent('caregiver_skip_to_video', { fromSubPhase: state.canvasSubPhase });
@@ -736,7 +775,11 @@ function devSkipToWrapup() {
   function startHold(e) {
     e.preventDefault();
     if (holdTimer) return;
+    // Capture the pointer so a finger drifting a few px off this small button
+    // doesn't fire pointerleave and silently cancel the hold.
+    try { btn.setPointerCapture(e.pointerId); } catch (_) {}
     btn.classList.add('holding');
+    if (hintEl) hintEl.classList.remove('visible');
     holdTimer = setTimeout(() => {
       holdTimer = null;
       btn.classList.remove('holding');
@@ -744,18 +787,37 @@ function devSkipToWrapup() {
     }, HOLD_MS);
   }
 
+  // Released before HOLD_MS: nothing happens, so tell the caregiver why. The
+  // bubble lives on <body> (position: fixed) because the top bar scrolls with
+  // overflow-x and would clip it.
+  function showHoldHint() {
+    if (!hintEl) {
+      hintEl = document.createElement('div');
+      hintEl.className = 'skip-hold-hint';
+      hintEl.textContent = '按住跳到视频';
+      document.body.appendChild(hintEl);
+    }
+    const r = btn.getBoundingClientRect();
+    hintEl.style.top = `${r.bottom + 6}px`;
+    hintEl.style.left = `${r.left + r.width / 2}px`;
+    hintEl.classList.add('visible');
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => hintEl.classList.remove('visible'), 1500);
+  }
+
   function cancelHold() {
     if (holdTimer) {
       clearTimeout(holdTimer);
       holdTimer = null;
+      showHoldHint();
     }
     btn.classList.remove('holding');
   }
 
   btn.addEventListener('pointerdown', startHold);
   btn.addEventListener('pointerup', cancelHold);
-  btn.addEventListener('pointerleave', cancelHold);
   btn.addEventListener('pointercancel', cancelHold);
+  btn.addEventListener('contextmenu', e => e.preventDefault());
 })();
 
 // ============================================================
@@ -886,6 +948,44 @@ const API_BASE = location.hostname.endsWith('github.io') || location.protocol ==
   ? ''
   : location.origin;
 
+// Crayon-avatar conversion for the child photo. Any failure — network down,
+// request hanging past the timeout, server error, or nobody in the photo (the
+// server rejects a near-empty cutout) — drops back to the default avatar
+// instead of leaving the raw camera photo on the canvas. Returns true if the
+// photo was converted.
+const AVATAR_CONVERT_TIMEOUT_MS = 20000;
+async function convertChildAvatar() {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), AVATAR_CONVERT_TIMEOUT_MS);
+  try {
+    const resp = await fetch(API_BASE + '/api/convert-avatar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: state.childPhoto }),
+      signal: ctrl.signal,
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.image) throw new Error(data.error || `HTTP ${resp.status}`);
+    state.childPhoto = data.image;
+    // Pre-generate the "Color me!" lineart in the background so it's ready by
+    // the time the child reaches the Color stage. Doesn't block the UI.
+    state._lineartPromise = generateLineartViaApi(state.childPhoto)
+      .then(url => { state.childAvatarLineart = url; return url; })
+      .catch(e => { console.warn('Pre-generate lineart failed:', e); return null; });
+    return true;
+  } catch (e) {
+    console.warn('Avatar conversion failed, using default avatar:', e);
+    logEvent('avatar_convert_failed', { reason: e.name === 'AbortError' ? 'timeout' : String(e.message || e) });
+    state.childPhoto = null;
+    document.querySelectorAll('#screen-photo .photo-prompt')
+      .forEach(p => { p.textContent = '没拍到你，用默认小人啦'; });
+    await new Promise(r => setTimeout(r, 1500));   // let the caregiver read it
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // True only when the page was reached via a ?dev=<action> link (see dev.html
 // and the dispatcher at the bottom of this file). Used to gate the
 // auto-download in exportData() — a normal Start-button session shouldn't
@@ -901,26 +1001,7 @@ document.getElementById('btn-photo-next').addEventListener('click', async () => 
   btn.disabled = true;
 
   // Convert child photo to crayon avatar
-  if (state.childPhoto && API_BASE) {
-    try {
-      const resp = await fetch(API_BASE + '/api/convert-avatar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: state.childPhoto }),
-      });
-      const data = await resp.json();
-      if (data.image) state.childPhoto = data.image;
-    } catch (e) {
-      console.warn('Avatar conversion failed, using original photo:', e);
-    }
-    // Pre-generate the "Color me!" lineart in the background so it's ready by
-    // the time the child reaches the Color stage. Doesn't block the UI.
-    if (state.childPhoto && !state.childPhoto.includes('test_avatar')) {
-      state._lineartPromise = generateLineartViaApi(state.childPhoto)
-        .then(url => { state.childAvatarLineart = url; return url; })
-        .catch(e => { console.warn('Pre-generate lineart failed:', e); return null; });
-    }
-  }
+  if (state.childPhoto && API_BASE) await convertChildAvatar();
 
   // Convert scene photo to crayon background
   if (state.scenePhoto && API_BASE) {
@@ -949,24 +1030,8 @@ document.getElementById('btn-photo-skip').addEventListener('click', async () => 
   if (state.childPhoto && API_BASE) {
     const btn = document.getElementById('btn-photo-skip');
     btn.textContent = '转换中…';
-    try {
-      const resp = await fetch(API_BASE + '/api/convert-avatar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: state.childPhoto }),
-      });
-      const data = await resp.json();
-      if (data.image) state.childPhoto = data.image;
-    } catch (e) {
-      console.warn('Avatar conversion failed:', e);
-    }
+    await convertChildAvatar();
     btn.textContent = '跳过';
-    // Pre-generate the lineart in the background (non-blocking)
-    if (state.childPhoto && !state.childPhoto.includes('test_avatar')) {
-      state._lineartPromise = generateLineartViaApi(state.childPhoto)
-        .then(url => { state.childAvatarLineart = url; return url; })
-        .catch(e => { console.warn('Pre-generate lineart failed:', e); return null; });
-    }
   }
 
   goToPhase('event');

@@ -206,7 +206,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._deny(403, 'forbidden')
             return
         if self.path == '/api/convert-avatar':
-            self._handle_convert(AVATAR_PROMPT, remove_bg=True)
+            self._handle_convert(AVATAR_PROMPT, remove_bg=True, min_coverage=0.05)
         elif self.path == '/api/convert-background':
             self._handle_convert(BACKGROUND_PROMPT, remove_bg=False)
         elif self.path == '/api/generate-lineart':
@@ -222,7 +222,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
-    def _handle_convert(self, prompt, remove_bg):
+    def _handle_convert(self, prompt, remove_bg, min_coverage=0.0):
         try:
             length = int(self.headers['Content-Length'])
             body = json.loads(self.rfile.read(length))
@@ -256,6 +256,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             result_img = Image.open(io.BytesIO(result_data))
             if remove_bg:
                 result_img = remove(result_img)
+                # No person in the photo -> background removal leaves an
+                # (almost) empty cutout. Fail so the client uses the default avatar.
+                if min_coverage:
+                    hist = result_img.convert('RGBA').getchannel('A').histogram()
+                    coverage = sum(hist[33:]) / (result_img.width * result_img.height)
+                    if coverage < min_coverage:
+                        raise Exception(f"Cutout nearly empty ({coverage:.1%}), no person detected")
             result_img.thumbnail((300, 300), Image.LANCZOS)
 
             out_buf = io.BytesIO()

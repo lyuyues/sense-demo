@@ -332,8 +332,15 @@ html, body {
    in app.js (HOLD_MS), not just low visual salience — a curious tap/brush
    releases before the hold completes and does nothing. */
 .btn-skip-video-caregiver {
+  position: relative;
   margin-left: 10px;
-  background: none; border: none; padding: 4px 6px;
+  width: 42px; height: 42px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none;
+  /* The parent .canvas-topbar-scroll is pan-x, so without this the iPad starts
+     a horizontal scroll on the slightest finger drift, fires pointercancel and
+     kills the press-and-hold before it completes. */
+  touch-action: none; -webkit-touch-callout: none; flex-shrink: 0;
   font-size: 19px; line-height: 1;
   opacity: 0.6; filter: grayscale(0.6);
   cursor: pointer; align-self: center;
@@ -341,18 +348,37 @@ html, body {
   transition: opacity 0.15s, filter 0.15s;
 }
 .btn-skip-video-caregiver:hover,
-.btn-skip-video-caregiver:active { opacity: 0.9; filter: grayscale(0); }
+.btn-skip-video-caregiver:active,
+.btn-skip-video-caregiver.holding { opacity: 0.9; filter: grayscale(0); }
 
-/* Hold-in-progress feedback: an expanding, fading ring — must last exactly
-   HOLD_MS (700ms) from app.js's setupSkipToVideoHold() so the ring finishing
-   its animation lines up with the skip actually triggering. */
-.btn-skip-video-caregiver.holding {
-  animation: skipHoldRing 0.7s linear forwards;
+/* Hold-in-progress feedback: a ring that fills clockwise — must last exactly
+   HOLD_MS (700ms) from app.js's setupSkipToVideoHold() so the ring closing
+   lines up with the skip actually triggering. */
+@property --skip-p { syntax: '<number>'; inherits: false; initial-value: 0; }
+.btn-skip-video-caregiver::after {
+  content: ''; position: absolute; inset: 1px; border-radius: 50%;
+  pointer-events: none; opacity: 0;
+  background: conic-gradient(#2c2c2c calc(var(--skip-p) * 1turn), transparent 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
 }
-@keyframes skipHoldRing {
-  from { box-shadow: 0 0 0 0 rgba(44, 44, 44, 0.35); }
-  to   { box-shadow: 0 0 0 14px rgba(44, 44, 44, 0); }
+.btn-skip-video-caregiver.holding::after {
+  opacity: 1;
+  animation: skipHoldProgress 0.7s linear forwards;
 }
+@keyframes skipHoldProgress {
+  from { --skip-p: 0; }
+  to   { --skip-p: 1; }
+}
+
+/* "Press and hold" bubble shown when the skip button is only tapped. */
+.skip-hold-hint {
+  position: fixed; z-index: 1000; transform: translateX(-50%);
+  padding: 4px 10px; border-radius: 8px;
+  background: #2c2c2c; color: #fff; font-size: 14px; white-space: nowrap;
+  pointer-events: none; opacity: 0; transition: opacity 0.15s;
+}
+.skip-hold-hint.visible { opacity: 1; }
 
 /* --- Canvas container --- */
 .canvas-container {
