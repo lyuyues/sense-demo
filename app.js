@@ -2860,12 +2860,12 @@ function startStudioLayer(soundType) {
     // The studio plays the same three sounds in every scene (Yue 2026-10-31) —
     // it elicits how loud/high the child likes each *kind* of sound, so it
     // shouldn't preview the scene video's dialogue. Music = the Demucs music
-    // stem of the birthday video (instrumental only); voice = generic chatter
-    // with no scene lines; SFX = pure birdsong (assets/sfx_birds.mp3, 40s
+    // stem of the birthday video (instrumental only); voice = Mandarin everyday
+    // chat unrelated to the scenes (gen_voice_ambient_zh.py); SFX = pure birdsong (assets/sfx_birds.mp3, 40s
     // seamless loop; source and licence in README — no voices, no melody).
     const STUDIO_AUDIO = {
       bgm: 'assets/studio_music.m4a',
-      voice: 'assets/voice_ambient.mp3',
+      voice: 'assets/voice_ambient_zh.mp3',
       sfx: 'assets/sfx_birds.mp3',
     };
     const file = STUDIO_AUDIO[soundType];
