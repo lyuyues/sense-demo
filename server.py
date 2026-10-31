@@ -8,6 +8,9 @@ import base64
 import io
 import os
 import time
+import hashlib
+import posixpath
+import re
 
 from google import genai
 from google.genai import types
@@ -100,6 +103,62 @@ EVENT_CONTEXTS = {
 }
 
 
+# --- Offline package (2026-10-31, same design as VideoASD) ---
+# offline.js downloads every file listed here into the iPad's Cache Storage and sw.js
+# serves the study from it, so a slow or dropped connection (iPad in China, server in
+# Canada) never stalls a page, a video or an audio stem. Built from disk on each
+# request, so it always matches what is deployed; `version` hashes every file's sha,
+# so any changed byte shows up as "有新版本 · 更新".
+OFFLINE_PAGES = ('index.html', 'baseline.html', 'export.html',
+                 'style.css', 'style-handdrawn.css', 'app.js', 'backup-export.js', 'offline.js')
+OFFLINE_DIRS = ('templates/', 'assets/fonts/')          # taken whole
+OFFLINE_SCAN = ('assets', 'video')                       # only files some page/script/template names
+OFFLINE_SKIP = ('.DS_Store', '.md', '.py', '.txt')
+# Birthday scene (54 MB): not one of the China study's 3 fixed scenes (dental/grocery/
+# dining). Still referenced as the fallback video, so it streams from the server if used.
+OFFLINE_EXCLUDE = {'video/birthday_party.mp4', 'video/bgm.wav', 'video/drums.wav', 'video/vocals.wav'}
+_sha_cache = {}   # path -> ((size, mtime_ns), sha)
+
+
+def _file_sha(path):
+    st = os.stat(path)
+    sig = (st.st_size, st.st_mtime_ns)
+    hit = _sha_cache.get(path)
+    if hit and hit[0] == sig:
+        return hit[1], st.st_size
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        while chunk := f.read(1 << 20):
+            h.update(chunk)
+    _sha_cache[path] = (sig, h.hexdigest())
+    return _sha_cache[path][1], st.st_size
+
+
+def offline_manifest():
+    rel = lambda p: os.path.relpath(p, DIR).replace(os.sep, '/')
+    rels, loose = set(OFFLINE_PAGES), []
+    for top in OFFLINE_DIRS + OFFLINE_SCAN:
+        for root, dirs, files in os.walk(os.path.join(DIR, top.rstrip('/'))):
+            dirs[:] = [d for d in dirs if not d.startswith(('.', '_'))]
+            for n in files:
+                r = rel(os.path.join(root, n))
+                (rels.add if r.startswith(OFFLINE_DIRS) else loose.append)(r)
+    rels = {r for r in rels if not r.endswith(OFFLINE_SKIP) and os.path.isfile(os.path.join(DIR, r))}
+    text = ''.join(open(os.path.join(DIR, r), encoding='utf-8', errors='ignore').read()
+                   for r in rels if r.endswith(('.html', '.js', '.css', '.json')))
+    # Whole name only: 'bgm.wav' must not ride along on 'dental_bgm.wav'.
+    rels |= {r for r in loose if not r.endswith(OFFLINE_SKIP)
+             and re.search(r'(?<![\w-])' + re.escape(posixpath.basename(r)), text)}
+    rels -= OFFLINE_EXCLUDE
+    files = []
+    for r in sorted(rels):
+        sha, size = _file_sha(os.path.join(DIR, r))
+        files.append({'url': r, 'sha': sha, 'size': size})
+    version = hashlib.sha256(''.join(f['url'] + f['sha'] for f in files).encode()).hexdigest()[:12]
+    built = max(os.stat(os.path.join(DIR, f['url'])).st_mtime for f in files)
+    return {'version': version, 'built': time.strftime('%Y-%m-%d %H:%M', time.localtime(built)), 'files': files}
+
+
 # --- Public-deployment guards (home server behind a tunnel) ---
 # STUDY_TOKEN set → every request needs it, either as ?k=<token> (first visit;
 # the server then sets a cookie) or the sense_k cookie. Unset → open, as on a
@@ -152,6 +211,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         if not self._guard_static():
+            return
+        if self.path.split('?', 1)[0] == '/offline-manifest.json':
+            body = json.dumps(offline_manifest()).encode()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(body)))
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            self.wfile.write(body)
             return
         if self.headers.get('Range') and self._serve_range():
             return

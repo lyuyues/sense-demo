@@ -60,6 +60,7 @@
     <h1>SENSE 数据导出</h1>
     <p class="subtitle">研究者专用。所有环节（SENSE + 家长设置）结束后再打开。数据本来就会自动上传，这里用来确认都上传了，并在 iPad 上再存一份。</p>
 
+    <p><span data-offline-status></span></p>
     <div id="summary" class="summary"></div>
     <button id="btn-upload" class="btn primary">上传还没上传的记录</button>
     <button id="btn-download-all" class="btn">下载本机全部数据（JSON）</button>
@@ -204,5 +205,7 @@
     });
     render();
   </script>
+<!-- Offline package for the iPad: status, download, updates (offline.js). -->
+<script type="module" src="offline.js?v=20261031"></script>
 </body>
 </html>

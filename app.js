@@ -5654,6 +5654,8 @@ function buildExportPayload(stage) {
     sessionId: state.sessionStart,
     exportStage: stage,
     timestamp: new Date().toISOString(),
+    // Offline package this run came from (offline.js); 'online' = served live.
+    appVersion: (() => { try { return localStorage.getItem('sense_offline_version') || 'online'; } catch (_) { return 'unknown'; } })(),
     eventType: state.eventType,
     preferences: extractPreferences(),
     placedElements: state.placedElements,

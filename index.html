@@ -7,9 +7,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
   <title>SENSE - 创作你的故事</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:opsz,ital,wght@9..144,0,500;9..144,1,500&family=Patrick+Hand&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+  <meta name="apple-mobile-web-app-title" content="SENSE">
+  <!-- Self-hosted Google Fonts (fetch_fonts.py): Google is blocked in mainland China and a
+       render-blocking stylesheet from it stalled the first screen until it timed out. -->
+  <link rel="stylesheet" href="assets/fonts/fonts.css?v=1">
   <link rel="stylesheet" href="style.css?v=273">
   <link rel="stylesheet" href="style-handdrawn.css?v=42">
 </head>
@@ -32,6 +33,8 @@
       <a href="dev.html" class="welcome-dev-link">开发工具</a>
       <!-- Researcher-only: check uploads + download data once a family is done. -->
       <a href="export.html" class="welcome-dev-link">数据导出（研究者）</a>
+      <!-- Offline package status (offline.js) — researcher-facing, welcome screen only. -->
+      <span data-offline-status></span>
     </div>
   </div>
 
@@ -701,6 +704,8 @@
     </defs>
   </svg>
 
-  <script src="app.js?v=302"></script>
+  <script src="app.js?v=303"></script>
+<!-- Offline package for the iPad: status, download, updates (offline.js). -->
+<script type="module" src="offline.js?v=20261031"></script>
 </body>
 </html>
