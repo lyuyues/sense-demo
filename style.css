@@ -1632,7 +1632,7 @@ html, body {
 .staff-note-hint {
   position: absolute;
   font-family: 'Georgia', 'Times New Roman', serif;
-  color: rgba(60, 45, 30, 0.55);
+  color: rgba(60, 45, 30, 0.28);
   line-height: 1;
   transform: translate(-50%, -50%) rotate(var(--r, 0deg));
   user-select: none;
