@@ -2879,25 +2879,29 @@ function startStudioLayer(soundType) {
       return;
     }
 
-    // Voice/BGM: study scenes use the same Demucs stem the video will play, so
-    // what the child shapes on the staff is what they'll hear in the video.
-    // SFX: pure birdsong (assets/sfx_birds.mp3, 40s seamless loop; source and
-    // licence in README). Yue 2026-10-21: the effects layer must be pure
-    // ambience — no voices, no melody. The old sfx_ambient.mp3 had singing, its
-    // Demucs "other" stem still had melody, and synthesized wind sounded like noise.
-    const LEGACY_STUDIO_AUDIO = {
-      bgm: state.eventType === 'playground' ? 'assets/playground_ambient.mp3' : 'assets/party_ambient.mp3',
+    // The studio plays the same three sounds in every scene (Yue 2026-10-31) —
+    // it elicits how loud/high the child likes each *kind* of sound, so it
+    // shouldn't preview the scene video's dialogue. Music = the Demucs music
+    // stem of the birthday video (instrumental only); voice = generic chatter
+    // with no scene lines; SFX = pure birdsong (assets/sfx_birds.mp3, 40s
+    // seamless loop; source and licence in README — no voices, no melody).
+    const STUDIO_AUDIO = {
+      bgm: 'assets/studio_music.m4a',
       voice: 'assets/voice_ambient.mp3',
+      sfx: 'assets/sfx_birds.mp3',
     };
-    const file = soundType === 'sfx'
-      ? 'assets/sfx_birds.mp3'
-      : STEM_FILES_BY_EVENT[state.eventType]?.[soundType] || LEGACY_STUDIO_AUDIO[soundType];
+    const file = STUDIO_AUDIO[soundType];
     if (file) {
       fetch(file).then(r => r.arrayBuffer()).then(buf => ctx.decodeAudioData(buf)).then(audioBuffer => {
+        // Level-match the three loops so the staff position, not the source
+        // file's own loudness, decides how loud each one is.
+        const norm = ctx.createGain();
+        norm.gain.value = studioLoudnessMakeup(audioBuffer);
+        norm.connect(layer.gain);
         const src = ctx.createBufferSource();
         src.buffer = audioBuffer;
         src.loop = true;
-        src.connect(layer.gain);
+        src.connect(norm);
         src.start();
         layer.source = src;
       });
@@ -2905,6 +2909,20 @@ function startStudioLayer(soundType) {
 
     studioLayers[soundType] = layer;
   });
+}
+
+// Gain that brings a loop's RMS to a common level (-20 dBFS), clamped so a
+// near-silent file can't be blown up into noise.
+const STUDIO_TARGET_RMS = 0.1;
+function studioLoudnessMakeup(audioBuffer) {
+  let sum = 0, n = 0;
+  for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+    const d = audioBuffer.getChannelData(ch);
+    for (let i = 0; i < d.length; i += 8) { sum += d[i] * d[i]; n++; }
+  }
+  const rms = Math.sqrt(sum / Math.max(1, n));
+  if (!rms) return 1;
+  return Math.max(0.25, Math.min(8, STUDIO_TARGET_RMS / rms));
 }
 
 function updateStudioLayer(soundType, el, staffWidth, staffHeight) {
