@@ -2665,25 +2665,23 @@ function spawnStaffElement(snd, startEvent) {
   // and a child doesn't have to tease them apart by tapping. Offsets depend on
   // placement order, not sound type, so no type gets a systematic starting
   // volume. Vertical (pitch) stays centered.
-  const rect = staffArea.getBoundingClientRect();
-  const NOTE = 60, GAP = 90;
-  const centerX = rect.width / 2 - NOTE / 2;
-  const y = rect.height / 2 - NOTE / 2;
+  const b = staffBounds();
+  const GAP = 90;
+  const centerX = (b.left + b.right) / 2;
   const taken = [...staffElements.querySelectorAll('.staff-element')]
     .filter(o => o !== el)
-    .map(o => parseFloat(o.style.left) || 0);
-  let x = centerX;
+    .map(o => parseFloat(o.dataset.cx) || 0);
+  let cx = centerX;
   for (let k = 0; k <= 8; k++) {
     const step = Math.ceil(k / 2) * GAP * (k % 2 ? -1 : 1);
-    const cand = Math.max(0, Math.min(rect.width - NOTE, centerX + step));
-    if (taken.every(tx => Math.abs(tx - cand) >= GAP * 0.8)) { x = cand; break; }
+    const cand = Math.max(b.left, Math.min(b.right, centerX + step));
+    if (taken.every(tx => Math.abs(tx - cand) >= GAP * 0.8)) { cx = cand; break; }
   }
-  el.style.left = x + 'px';
-  el.style.top = y + 'px';
+  const placed = placeStaffNote(el, cx, (b.top + b.bottom) / 2);
 
   // Start continuous audio layer
   startStudioLayer(snd.type);
-  updateStudioLayer(snd.type, el, rect.width, rect.height);
+  updateStudioLayer(snd.type, placed.pitchPct, placed.volPct);
 
   // Game feedback: bounce + note particles
   el.classList.add('staff-bounce');
@@ -2701,8 +2699,8 @@ function spawnStaffElement(snd, startEvent) {
   // landed" from a deliberate drag (which overwrites this, last-per-type wins).
   logEvent('staff_element_set', {
     type: snd.type,
-    pitch: Math.round((1 - y / rect.height) * 100),
-    volume: Math.round(x / rect.width * 100),
+    pitch: Math.round(placed.pitchPct * 100),
+    volume: Math.round(placed.volPct * 100),
     path: [],
     durationMs: 0,
     initial: true,
@@ -2722,46 +2720,38 @@ function makeStaffDraggable(el, snd) {
     e.preventDefault();
     e.stopPropagation();
     dragging = true;
+    // Grab offset from the note's centre, so it doesn't jump under the finger.
     const rect = el.getBoundingClientRect();
-    offsetX = e.clientX - rect.left;
-    offsetY = e.clientY - rect.top;
+    offsetX = e.clientX - (rect.left + rect.width / 2);
+    offsetY = e.clientY - (rect.top + rect.height / 2);
     el.classList.add('dragging');
     el.setPointerCapture(e.pointerId);
 
-    const staffArea = document.getElementById('staff-area');
-    const sRect = staffArea.getBoundingClientRect();
-    const x0 = parseFloat(el.style.left) || 0;
-    const y0 = parseFloat(el.style.top) || 0;
+    const v0 = staffValues(parseFloat(el.dataset.cx), parseFloat(el.dataset.cy), staffBounds());
     dragStartTime = Date.now();
     lastSampleTime = dragStartTime;
     path = [{
-      pitch: Math.round((1 - y0 / sRect.height) * 100),
-      volume: Math.round(x0 / sRect.width * 100),
+      pitch: Math.round(v0.pitchPct * 100),
+      volume: Math.round(v0.volPct * 100),
       timestamp: dragStartTime,
     }];
   });
 
   el.addEventListener('pointermove', (e) => {
     if (!dragging) return;
-    const staffArea = document.getElementById('staff-area');
-    const sRect = staffArea.getBoundingClientRect();
-    const newX = e.clientX - sRect.left - offsetX;
-    const newY = e.clientY - sRect.top - offsetY;
+    const eRect = document.getElementById('staff-elements').getBoundingClientRect();
+    const placed = placeStaffNote(el,
+      e.clientX - eRect.left - offsetX,
+      e.clientY - eRect.top - offsetY);
 
-    // Clamp within staff area
-    const clampedX = Math.max(0, Math.min(sRect.width - 60, newX));
-    const clampedY = Math.max(0, Math.min(sRect.height - 60, newY));
-    el.style.left = clampedX + 'px';
-    el.style.top = clampedY + 'px';
-
-    // Live pitch + volume + size update
-    updateStudioLayer(snd.type, el, sRect.width, sRect.height);
+    // Live pitch + volume update
+    updateStudioLayer(snd.type, placed.pitchPct, placed.volPct);
 
     const now = Date.now();
     if (now - lastSampleTime >= 100) {
       path.push({
-        pitch: Math.round((1 - clampedY / sRect.height) * 100),
-        volume: Math.round(clampedX / sRect.width * 100),
+        pitch: Math.round(placed.pitchPct * 100),
+        volume: Math.round(placed.volPct * 100),
         timestamp: now,
       });
       lastSampleTime = now;
@@ -2802,21 +2792,10 @@ function makeStaffDraggable(el, snd) {
       return;
     }
 
-    // Snap to nearest staff line
-    const lines = staffArea.querySelectorAll('.staff-line');
-    const elTop = parseFloat(el.style.top) + 30;
-    let closestLine = null;
-    let closestDist = Infinity;
-    lines.forEach(line => {
-      const lineY = line.offsetTop + 1;
-      const dist = Math.abs(elTop - lineY);
-      if (dist < closestDist) { closestDist = dist; closestLine = line; }
-    });
-    if (closestLine && closestDist < 40) {
-      el.style.top = (closestLine.offsetTop - 29) + 'px';
-    }
-
-    updateStudioLayer(snd.type, el, sRect.width, sRect.height);
+    // No snap-to-line: the note is already confined to the five-line band,
+    // so snapping would quantise pitch to 5 levels instead of a continuous value.
+    const fin = staffValues(parseFloat(el.dataset.cx), parseFloat(el.dataset.cy), staffBounds());
+    updateStudioLayer(snd.type, fin.pitchPct, fin.volPct);
 
     // Snap feedback: bounce + particles
     el.classList.add('staff-bounce');
@@ -2824,14 +2803,11 @@ function makeStaffDraggable(el, snd) {
     spawnNoteParticles(el);
 
     // Idle dance: element sways gently based on pitch
-    const pitchPct = 1 - parseFloat(el.style.top) / sRect.height;
-    const speed = 1.5 - pitchPct * 0.8; // high pitch = faster sway
+    const speed = 1.5 - fin.pitchPct * 0.8; // high pitch = faster sway
     el.style.animation = `staffSway ${speed}s ease-in-out infinite`;
 
-    const finalX = parseFloat(el.style.left);
-    const finalY = parseFloat(el.style.top);
-    const finalPitch = Math.round((1 - finalY / sRect.height) * 100);
-    const finalVolume = Math.round(finalX / sRect.width * 100);
+    const finalPitch = Math.round(fin.pitchPct * 100);
+    const finalVolume = Math.round(fin.volPct * 100);
     const now = Date.now();
     path.push({ pitch: finalPitch, volume: finalVolume, timestamp: now });
     logEvent('staff_element_set', {
@@ -2846,6 +2822,7 @@ function makeStaffDraggable(el, snd) {
 
 // --- Continuous audio layers for sound studio ---
 const studioLayers = {};
+const studioTargets = {};   // last {pitchPct, volPct} per sound type
 
 function startStudioLayer(soundType) {
   if (studioLayers[soundType]) return;
@@ -2857,7 +2834,8 @@ function startStudioLayer(soundType) {
     const layer = { gain: null, source: null };
 
     layer.gain = ctx.createGain();
-    layer.gain.gain.value = 0.1;
+    const target = studioTargets[soundType];
+    layer.gain.gain.value = target ? studioVolume(target.volPct) : 0.1;
     layer.gain.connect(ctx.destination);
 
     // Check if this is a custom sound with base64 audio
@@ -2901,6 +2879,8 @@ function startStudioLayer(soundType) {
         const src = ctx.createBufferSource();
         src.buffer = audioBuffer;
         src.loop = true;
+        const t = studioTargets[soundType];
+        if (t) src.detune.value = (t.pitchPct - 0.5) * 600;
         src.connect(norm);
         src.start();
         layer.source = src;
@@ -2925,30 +2905,62 @@ function studioLoudnessMakeup(audioBuffer) {
   return Math.max(0.25, Math.min(8, STUDIO_TARGET_RMS / rms));
 }
 
-function updateStudioLayer(soundType, el, staffWidth, staffHeight) {
-  const x = parseFloat(el.style.left) || 0;
-  const y = parseFloat(el.style.top) || 0;
+// Notes are positioned by their centre (dataset.cx/cy, in #staff-elements
+// coords) so the volume-driven size change doesn't shift them. The centre is
+// confined to the five-line band vertically and inset by half the largest note
+// size horizontally, so a note can never be dragged off-screen. Pitch spans
+// bottom line (0) → top line (1); volume spans the inset width.
+const NOTE_MIN = 40, NOTE_MAX = 90;
+function staffBounds() {
+  const w = document.getElementById('staff-elements').clientWidth;
+  const lines = document.querySelectorAll('#staff-area .staff-line');
+  // .staff-line and #staff-elements share #staff-area as offset parent, top 0.
+  const top = lines[0].offsetTop + 1;
+  const bottom = lines[lines.length - 1].offsetTop + 1;
+  return { left: NOTE_MAX / 2, right: Math.max(NOTE_MAX / 2 + 1, w - NOTE_MAX / 2), top, bottom };
+}
+
+function staffValues(cx, cy, b) {
+  return {
+    pitchPct: Math.max(0, Math.min(1, 1 - (cy - b.top) / ((b.bottom - b.top) || 1))),
+    volPct: Math.max(0, Math.min(1, (cx - b.left) / (b.right - b.left))),
+  };
+}
+
+function placeStaffNote(el, cx, cy) {
+  const b = staffBounds();
+  cx = Math.max(b.left, Math.min(b.right, cx));
+  cy = Math.max(b.top, Math.min(b.bottom, cy));
+  const v = staffValues(cx, cy, b);
+  // Scale icon: NOTE_MIN (left/quiet) to NOTE_MAX (right/loud)
+  const size = NOTE_MIN + v.volPct * (NOTE_MAX - NOTE_MIN);
+  el.dataset.cx = cx;
+  el.dataset.cy = cy;
+  el.style.width = size + 'px';
+  el.style.height = size + 'px';
+  el.style.left = (cx - size / 2) + 'px';
+  el.style.top = (cy - size / 2) + 'px';
+  return v;
+}
+
+function updateStudioLayer(soundType, pitchPct, volPct) {
+  // Remembered so a layer whose audio is still loading starts at this setting.
+  studioTargets[soundType] = { pitchPct, volPct };
 
   // Y position → pitch: top = high, bottom = low
   // Small range (±300 cents = quarter tone) so speed change is barely noticeable
-  const pitchPct = 1 - Math.max(0, Math.min(1, y / staffHeight));
   if (studioLayers[soundType] && studioLayers[soundType].source) {
     const cents = (pitchPct - 0.5) * 600;
     studioLayers[soundType].source.detune.setTargetAtTime(cents, state.audioCtx.currentTime, 0.05);
   }
 
-  // X position → volume + icon size: right = loud/big, left = quiet/small
-  const volPct = Math.max(0, Math.min(1, x / staffWidth));
-  const volume = 0.02 + volPct * 0.25;
+  // X position → volume: right = loud, left = quiet
   if (studioLayers[soundType] && studioLayers[soundType].gain) {
-    studioLayers[soundType].gain.gain.setTargetAtTime(volume, state.audioCtx.currentTime, 0.05);
+    studioLayers[soundType].gain.gain.setTargetAtTime(studioVolume(volPct), state.audioCtx.currentTime, 0.05);
   }
-
-  // Scale icon: 40px (left) to 90px (right)
-  const size = 40 + volPct * 50;
-  el.style.width = size + 'px';
-  el.style.height = size + 'px';
 }
+
+function studioVolume(volPct) { return 0.02 + volPct * 0.25; }
 
 function stopAllStudioLayers() {
   Object.keys(studioLayers).forEach(key => {
