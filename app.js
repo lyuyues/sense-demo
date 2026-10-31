@@ -7047,6 +7047,18 @@ function formatTime(s) {
 // Caregiver-guided closing beat: child picks a strategy for the
 // upcoming social moment, optionally rewatches a video segment,
 // then self-reports readiness. Logs both choices.
+
+// Readiness question v2 (Yue 2026-10-31): asks whether the child now knows what
+// will happen at the place — the predictability that anticipatory priming is
+// meant to build — instead of v1's "你准备好了吗？" (nervous/ok/ready), which
+// had no clear referent in the lab. Answers: not_yet / a_little / know.
+const READINESS_QUESTION_VERSION = 'v2_predictability';
+const READINESS_TITLES = {
+  dental: '你知道去看牙医会发生什么了吗？',
+  grocery: '你知道去超市会发生什么了吗？',
+  dining: '你知道去餐厅吃饭会发生什么了吗？',
+  default: '你知道接下来会发生什么了吗？',
+};
 // ============================================================
 // Wrap-up question pool, per event. Each question:
 //   • anchors at a universal procedure beat (canonical next step transfers to real life)
@@ -7286,6 +7298,8 @@ function initWrapupScreen() {
     document.querySelectorAll('.readiness-card').forEach(c => {
       c.classList.remove('selected', 'dimmed');
     });
+    document.getElementById('readiness-title').textContent =
+      READINESS_TITLES[state.eventType] || READINESS_TITLES.default;
     setWrapupPanelShown('readiness-panel', false);
     setWrapupPanelShown('wrapup-done', false);
   }
@@ -7403,7 +7417,9 @@ function initWrapupScreen() {
       state.wrapupFeeling = feeling;
       // afterReveal is always false now that the reveal comes after readiness;
       // kept so older sessions (reveal-first allowed) stay distinguishable.
-      logEvent('wrapup_readiness_pick', { feeling, afterReveal: !!state.wrapupRevealed });
+      logEvent('wrapup_readiness_pick', {
+        feeling, afterReveal: !!state.wrapupRevealed, question: READINESS_QUESTION_VERSION,
+      });
       card.classList.add('selected');
       document.querySelectorAll('.readiness-card').forEach(c => {
         if (c !== card) c.classList.add('dimmed');

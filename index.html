@@ -626,19 +626,23 @@
            .wrapup-pending, so revealing them never moves the buttons above —
            a tap aimed at the old position used to land on a readiness card. -->
       <div class="readiness-panel wrapup-pending" id="readiness-panel">
-        <h2 class="readiness-title" id="readiness-title">你准备好了吗？</h2>
+        <!-- Title is set per scene in app.js (READINESS_TITLES). Asks whether the
+             child knows what will happen there — not "are you ready?", which
+             had no clear referent in the lab. New answer keys (not
+             nervous/ok/ready) so the two question versions never mix. -->
+        <h2 class="readiness-title" id="readiness-title">你知道接下来会发生什么了吗？</h2>
         <div class="readiness-grid">
-          <button class="readiness-card" data-feeling="nervous">
-            <span class="readiness-emoji">&#128543;</span>
-            <span class="readiness-name">有点紧张</span>
+          <button class="readiness-card" data-feeling="not_yet">
+            <span class="readiness-emoji">&#129300;</span>
+            <span class="readiness-name">还不太知道</span>
           </button>
-          <button class="readiness-card" data-feeling="ok">
+          <button class="readiness-card" data-feeling="a_little">
             <span class="readiness-emoji">&#128578;</span>
-            <span class="readiness-name">还好</span>
+            <span class="readiness-name">知道一点</span>
           </button>
-          <button class="readiness-card" data-feeling="ready">
+          <button class="readiness-card" data-feeling="know">
             <span class="readiness-emoji">&#128512;</span>
-            <span class="readiness-name">准备好了！</span>
+            <span class="readiness-name">都知道了！</span>
           </button>
         </div>
       </div>
@@ -650,7 +654,7 @@
            shared button, no scoring on the child's pick). Two exits: restart
            the whole flow, or draw a fresh question from the pool. -->
       <div class="wrapup-done wrapup-pending" id="wrapup-done">
-        <p class="wrapup-done-message">都准备好啦，到时候见！</p>
+        <p class="wrapup-done-message">谢谢你告诉我！到时候见！</p>
         <button id="wrapup-reveal" class="wrapup-reveal" title="看看接下来会发生什么">
           &#127909; 看看会发生什么
         </button>
@@ -693,6 +697,6 @@
     </defs>
   </svg>
 
-  <script src="app.js?v=298"></script>
+  <script src="app.js?v=299"></script>
 </body>
 </html>
