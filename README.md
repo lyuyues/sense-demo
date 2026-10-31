@@ -100,3 +100,18 @@ Sound-studio "音效" (SFX) layer — `assets/sfx_birds.mp3`, a 40 s seamless lo
 **Creative Commons Attribution-ShareAlike 4.0**:
 https://commons.wikimedia.org/wiki/File:Bourne_Woods_2020-04-26_0815a.mp3
 Used for all scenes; the layer must be pure ambience (no voices, no melody).
+
+Reward item sounds — `assets/rewards/sfx/`, played right after the reward chime.
+Each is trimmed, faded and peak-limited below the chime (≤ −14 dBFS); horns are
+also low-passed at 3.5 kHz so they don't startle.
+- `cat.mp3` — "2015-11-24.νιαούρισμα.Νιάου.noise reduced" by Tsester, CC0:
+  https://commons.wikimedia.org/wiki/File:2015-11-24.%CE%BD%CE%B9%CE%B1%CE%BF%CF%8D%CF%81%CE%B9%CF%83%CE%BC%CE%B1.%CE%9D%CE%B9%CE%AC%CE%BF%CF%85.noise_reduced.flac
+- `train.mp3` — **"JP-Train horn"** by **JIRCTRAINZ**, licensed under
+  **Creative Commons Attribution-ShareAlike 4.0** (low-passed, faded):
+  https://commons.wikimedia.org/wiki/File:JP-Train_horn.wav
+- `car.mp3` — "Car Horn" by 15HPanska_Ruttner_Jan, CC0 (two honks cut closer together):
+  https://commons.wikimedia.org/wiki/File:Car_Horn.wav
+- `dinosaur.mp3` / `space.mp3` / `numbers.mp3` / `letters.mp3` — spoken cues
+  ("嗷呜～", "三、二、一，出发！", "七！", "A.") generated with Gemini TTS
+  (`gen_reward_tts.py`, voice Leda). Star and caregiver-generated items have no
+  item sound.
