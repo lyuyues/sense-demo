@@ -40,7 +40,7 @@ STAGE_PRIORITY = {"wrapup": 4, "stage2": 3, "video-progress": 2, "skip": 1, "sta
 def load_sessions(session_dir: Path) -> list[dict]:
     """Return one JSON record per sessionId — the most complete stage available."""
     best: dict[str, dict] = {}
-    for path in sorted(session_dir.glob("sense-session-*.json")):
+    for path in sorted(session_dir.glob("sense-*.json")):
         record = json.loads(path.read_text())
         sid = str(record.get("sessionId", path.stem))
         stage = record.get("exportStage", "unknown")
@@ -63,6 +63,8 @@ def build_summary_df(sessions: list[dict]) -> pd.DataFrame:
 
         row = {
             "session_id": s.get("sessionId"),
+            "participant_id": s.get("participantId"),
+            "condition": s.get("condition"),
             "event_type": s.get("eventType"),
             "timestamp": s.get("timestamp"),
             "completed_video": s.get("exportStage") in ("stage2", "wrapup"),

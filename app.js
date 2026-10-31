@@ -7449,6 +7449,33 @@ function initWrapupScreen() {
       try { window.location.reload(); } catch (_) { goToPhase('welcome'); }
     };
   }
+
+  // Researcher export: long press (EXPORT_HOLD_MS) on the corner icon opens
+  // export.html. Releasing / sliding off early cancels; a plain tap does nothing.
+  const exportBtn = document.getElementById('wrapup-export');
+  if (exportBtn) {
+    const EXPORT_HOLD_MS = 1000;
+    let holdTimer = null;
+    const cancelHold = () => {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+      exportBtn.classList.remove('holding');
+    };
+    exportBtn.onpointerdown = (e) => {
+      e.preventDefault();
+      cancelHold();
+      exportBtn.classList.add('holding');
+      holdTimer = setTimeout(() => {
+        cancelHold();
+        logEvent('wrapup_export_open');
+        window.location.href = 'export.html';
+      }, EXPORT_HOLD_MS);
+    };
+    exportBtn.onpointerup = cancelHold;
+    exportBtn.onpointerleave = cancelHold;
+    exportBtn.onpointercancel = cancelHold;
+    exportBtn.oncontextmenu = (e) => e.preventDefault();  // iOS long-press menu
+  }
 }
 
 initRewardPicker();

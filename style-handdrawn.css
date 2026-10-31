@@ -2011,3 +2011,33 @@ body {
 .reward-status-img {
   width: 64px; height: 64px; object-fit: contain;
 }
+
+/* Researcher export entry on the wrap-up screen: small, faint corner icon.
+   Needs a ~1 s long press (app.js initWrapupScreen); the ring fills while held. */
+.wrapup-export {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+  background: transparent;
+  border: 1.5px dashed var(--hd-ink);
+  border-radius: 50%;
+  opacity: 0.3;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition: opacity 200ms, transform 200ms;
+  z-index: 5;
+}
+.wrapup-export.holding {
+  opacity: 0.85;
+  transform: scale(1.15);
+  border-style: solid;
+  transition: opacity 1s linear, transform 1s linear;
+}

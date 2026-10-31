@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:opsz,ital,wght@9..144,0,500;9..144,1,500&family=Patrick+Hand&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=273">
-  <link rel="stylesheet" href="style-handdrawn.css?v=40">
+  <link rel="stylesheet" href="style-handdrawn.css?v=41">
 </head>
 <body>
 
@@ -666,6 +666,10 @@
         </div>
       </div>
     </div>
+    <!-- Researcher-only: small corner icon, opens export.html after a ~1 s long
+         press (a tap does nothing), so a child tapping around can't leave. -->
+    <button id="wrapup-export" class="wrapup-export" type="button"
+            title="长按进入数据导出（研究者）" aria-label="长按进入数据导出（研究者）">&#128190;</button>
   </div>
 
   <!-- Touch crayon cursor (iPad) -->
@@ -697,6 +701,6 @@
     </defs>
   </svg>
 
-  <script src="app.js?v=300"></script>
+  <script src="app.js?v=301"></script>
 </body>
 </html>
