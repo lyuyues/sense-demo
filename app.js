@@ -7451,7 +7451,7 @@ function initWrapupScreen() {
   }
 
   // Researcher export: long press (EXPORT_HOLD_MS) on the corner icon opens
-  // export.html. Releasing / sliding off early cancels; a plain tap does nothing.
+  // export.html. Releasing early cancels; a plain tap shows a "长按 1 秒" hint.
   const exportBtn = document.getElementById('wrapup-export');
   if (exportBtn) {
     const EXPORT_HOLD_MS = 1000;
@@ -7464,6 +7464,8 @@ function initWrapupScreen() {
     exportBtn.onpointerdown = (e) => {
       e.preventDefault();
       cancelHold();
+      // Keep the hold alive if the finger drifts a little (same fix as the ⏭ button).
+      try { exportBtn.setPointerCapture(e.pointerId); } catch (_) {}
       exportBtn.classList.add('holding');
       holdTimer = setTimeout(() => {
         cancelHold();
@@ -7471,8 +7473,15 @@ function initWrapupScreen() {
         window.location.href = 'export.html';
       }, EXPORT_HOLD_MS);
     };
-    exportBtn.onpointerup = cancelHold;
-    exportBtn.onpointerleave = cancelHold;
+    // A short tap gives a quiet hint instead of silence, so the researcher knows to hold.
+    exportBtn.onpointerup = () => {
+      const wasHolding = holdTimer !== null;
+      cancelHold();
+      if (!wasHolding) return;
+      exportBtn.dataset.hint = '长按 1 秒';
+      clearTimeout(exportBtn._hintTimer);
+      exportBtn._hintTimer = setTimeout(() => { delete exportBtn.dataset.hint; }, 1500);
+    };
     exportBtn.onpointercancel = cancelHold;
     exportBtn.oncontextmenu = (e) => e.preventDefault();  // iOS long-press menu
   }
