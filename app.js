@@ -611,6 +611,7 @@ function goToPhase(phase) {
   // caregiver skip both jump straight to goToPhase()), so the last sub-phase
   // needs its time recorded here too.
   if (state.phase === 'canvas') {
+    stopAllStudioLayers();
     state.subPhaseDurations[state.canvasSubPhase] =
       (state.subPhaseDurations[state.canvasSubPhase] || 0) + (now - state.subPhaseStartTime);
   }
@@ -2813,11 +2814,7 @@ function makeStaffDraggable(el, snd) {
     if (inTrash || outsideStaff) {
       el.remove();
       // Stop this sound layer
-      if (studioLayers[snd.type]) {
-        if (studioLayers[snd.type].source) { try { studioLayers[snd.type].source.stop(); } catch(e) {} }
-        if (studioLayers[snd.type].gain) { studioLayers[snd.type].gain.disconnect(); }
-        delete studioLayers[snd.type];
-      }
+      stopStudioLayer(snd.type);
       refreshSoundPaletteState();
       logEvent('staff_element_removed', { type: snd.type });
       return;
@@ -2861,8 +2858,15 @@ function startStudioLayer(soundType) {
     state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
   const ctx = state.audioCtx;
+  // Register the layer synchronously. resume() + fetch + decode are async; if the
+  // child switches stage before they finish, stopStudioLayer() marks the layer
+  // stopped and every async step below bails out, so a late-decoding loop can't
+  // start playing after the studio is gone (bug 2026-10-31: sound kept playing
+  // on other stages).
+  const layer = { gain: null, source: null, stopped: false };
+  studioLayers[soundType] = layer;
   ctx.resume().then(() => {
-    const layer = { gain: null, source: null };
+    if (layer.stopped) return;
 
     layer.gain = ctx.createGain();
     const target = studioTargets[soundType];
@@ -2877,6 +2881,7 @@ function startStudioLayer(soundType) {
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
       ctx.decodeAudioData(bytes.buffer).then(audioBuffer => {
+        if (layer.stopped) return;
         const src = ctx.createBufferSource();
         src.buffer = audioBuffer;
         src.loop = true;
@@ -2884,7 +2889,6 @@ function startStudioLayer(soundType) {
         src.start();
         layer.source = src;
       });
-      studioLayers[soundType] = layer;
       return;
     }
 
@@ -2902,6 +2906,7 @@ function startStudioLayer(soundType) {
     const file = STUDIO_AUDIO[soundType];
     if (file) {
       fetch(file).then(r => r.arrayBuffer()).then(buf => ctx.decodeAudioData(buf)).then(audioBuffer => {
+        if (layer.stopped) return;
         // Level-match the three loops so the staff position, not the source
         // file's own loudness, decides how loud each one is.
         const norm = ctx.createGain();
@@ -2917,8 +2922,6 @@ function startStudioLayer(soundType) {
         layer.source = src;
       });
     }
-
-    studioLayers[soundType] = layer;
   });
 }
 
@@ -2993,13 +2996,17 @@ function updateStudioLayer(soundType, pitchPct, volPct) {
 
 function studioVolume(volPct) { return 0.02 + volPct * 0.25; }
 
+function stopStudioLayer(key) {
+  const layer = studioLayers[key];
+  if (!layer) return;
+  layer.stopped = true;
+  if (layer.source) { try { layer.source.stop(); } catch(e) {} }
+  if (layer.gain) { try { layer.gain.disconnect(); } catch(e) {} }
+  delete studioLayers[key];
+}
+
 function stopAllStudioLayers() {
-  Object.keys(studioLayers).forEach(key => {
-    const layer = studioLayers[key];
-    if (layer.source) { try { layer.source.stop(); } catch(e) {} }
-    if (layer.gain) { layer.gain.disconnect(); }
-    delete studioLayers[key];
-  });
+  Object.keys(studioLayers).forEach(stopStudioLayer);
 }
 
 // --- Note particles for sound studio feedback ---
