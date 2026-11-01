@@ -3362,60 +3362,49 @@ function updatePlacedElement(el) {
 // ============================================================
 // COLORING
 // ============================================================
+// Crayon brush, shared by live drawing and redrawColorStrokes (so strokes look the same
+// after a redraw, e.g. undo or re-entering the color stage). 2026-11-01 (Yue): thicker and
+// denser. Band = brushSize (1/2/4) x CRAYON_PX_PER_SIZE canvas px; was x3 with 3 hairlines.
+// The logged stroke.width stays the brushSize, so data is comparable with earlier sessions.
+const CRAYON_PX_PER_SIZE = 6;
+function drawCrayonSegment(ctx, x0, y0, x1, y1, color, size) {
+  const dist = Math.hypot(x1 - x0, y1 - y0);
+  if (dist < 1) return;
+  const angle = Math.atan2(y1 - y0, x1 - x0);
+  const perpX = Math.sin(angle);
+  const perpY = -Math.cos(angle);
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineCap = 'round';
+  // Many overlapping offset lines across the band -> dense waxy fill
+  const lines = Math.max(6, Math.round(size * 0.9));
+  for (let i = 0; i < lines; i++) {
+    const offset = (Math.random() - 0.5) * size;
+    const j = () => (Math.random() - 0.5) * 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x0 + perpX * offset + j(), y0 + perpY * offset + j());
+    ctx.lineTo(x1 + perpX * offset + j(), y1 + perpY * offset + j());
+    ctx.lineWidth = 1.5 + Math.random() * 2;
+    ctx.globalAlpha = 0.22 + Math.random() * 0.28;
+    ctx.stroke();
+  }
+  // Grain particles along the segment
+  const grainCount = Math.floor(dist * size * 0.1);
+  for (let i = 0; i < grainCount; i++) {
+    const t = Math.random();
+    ctx.beginPath();
+    ctx.arc(x0 + (x1 - x0) * t + (Math.random() - 0.5) * size,
+            y0 + (y1 - y0) * t + (Math.random() - 0.5) * size,
+            Math.random() * 1.5 + 0.5, 0, Math.PI * 2);
+    ctx.globalAlpha = 0.1 + Math.random() * 0.15;
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1.0;
+}
+
 function initColoring() {
   const canvas = document.getElementById('color-canvas');
   const ctx = canvas.getContext('2d');
-
-  // Crayon brush: draw textured strokes
-  function drawCrayonSegment(ctx, x0, y0, x1, y1, color, size) {
-    const dist = Math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2);
-    if (dist < 1) return;
-
-    const angle = Math.atan2(y1 - y0, x1 - x0);
-    const perpX = Math.sin(angle);
-    const perpY = -Math.cos(angle);
-
-    // Multiple offset lines for rough crayon texture
-    const strokes = Math.max(3, Math.floor(size / 2));
-    for (let i = 0; i < strokes; i++) {
-      const offset = (Math.random() - 0.5) * size * 0.8;
-      const jitterX1 = (Math.random() - 0.5) * 1.5;
-      const jitterY1 = (Math.random() - 0.5) * 1.5;
-      const jitterX2 = (Math.random() - 0.5) * 1.5;
-      const jitterY2 = (Math.random() - 0.5) * 1.5;
-
-      ctx.beginPath();
-      ctx.moveTo(
-        x0 + perpX * offset + jitterX1,
-        y0 + perpY * offset + jitterY1
-      );
-      ctx.lineTo(
-        x1 + perpX * offset + jitterX2,
-        y1 + perpY * offset + jitterY2
-      );
-      ctx.strokeStyle = color;
-      ctx.lineWidth = Math.random() * 1.5 + 0.5;
-      ctx.globalAlpha = 0.15 + Math.random() * 0.25;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-    }
-
-    // Scatter grain particles along the segment
-    const grainCount = Math.floor(dist * size * 0.05);
-    for (let i = 0; i < grainCount; i++) {
-      const t = Math.random();
-      const gx = x0 + (x1 - x0) * t + (Math.random() - 0.5) * size;
-      const gy = y0 + (y1 - y0) * t + (Math.random() - 0.5) * size;
-      const gr = Math.random() * 1.2 + 0.3;
-      ctx.beginPath();
-      ctx.arc(gx, gy, gr, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.08 + Math.random() * 0.15;
-      ctx.fill();
-    }
-
-    ctx.globalAlpha = 1.0;
-  }
 
   let lastCrayonX = 0, lastCrayonY = 0;
   let activePointerId = null;
@@ -3465,7 +3454,7 @@ function initColoring() {
       ctx.globalCompositeOperation = 'destination-out';
       ctx.beginPath();
       ctx.moveTo(x, y);
-      ctx.lineWidth = state.brushSize * 4;
+      ctx.lineWidth = state.brushSize * CRAYON_PX_PER_SIZE;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
     } else {
@@ -3484,7 +3473,7 @@ function initColoring() {
       ctx.lineTo(x, y);
       ctx.stroke();
     } else {
-      drawCrayonSegment(ctx, lastCrayonX, lastCrayonY, x, y, state.selectedColor, state.brushSize * 3);
+      drawCrayonSegment(ctx, lastCrayonX, lastCrayonY, x, y, state.selectedColor, state.brushSize * CRAYON_PX_PER_SIZE);
       lastCrayonX = x;
       lastCrayonY = y;
     }
@@ -3541,33 +3530,14 @@ function redrawColorStrokes() {
       for (let i = 1; i < stroke.points.length; i++) {
         ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
       }
-      ctx.lineWidth = stroke.width * 4;
+      ctx.lineWidth = stroke.width * CRAYON_PX_PER_SIZE;
       ctx.lineCap = 'round';
       ctx.stroke();
     } else {
       ctx.globalCompositeOperation = 'source-over';
-      // Rebuild crayon texture — simplified for redraw performance
       for (let i = 1; i < stroke.points.length; i++) {
-        const p0 = stroke.points[i - 1];
-        const p1 = stroke.points[i];
-        const dist = Math.sqrt((p1.x - p0.x) ** 2 + (p1.y - p0.y) ** 2);
-        if (dist < 1) continue;
-        const angle = Math.atan2(p1.y - p0.y, p1.x - p0.x);
-        const perpX = Math.sin(angle);
-        const perpY = -Math.cos(angle);
-        const size = stroke.width * 3;
-        const strokes = Math.max(2, Math.floor(size / 3));
-        for (let s = 0; s < strokes; s++) {
-          const off = (Math.random() - 0.5) * size * 0.8;
-          ctx.beginPath();
-          ctx.moveTo(p0.x + perpX * off, p0.y + perpY * off);
-          ctx.lineTo(p1.x + perpX * off, p1.y + perpY * off);
-          ctx.strokeStyle = stroke.color;
-          ctx.lineWidth = Math.random() * 1.5 + 0.5;
-          ctx.globalAlpha = 0.15 + Math.random() * 0.2;
-          ctx.lineCap = 'round';
-          ctx.stroke();
-        }
+        const p0 = stroke.points[i - 1], p1 = stroke.points[i];
+        drawCrayonSegment(ctx, p0.x, p0.y, p1.x, p1.y, stroke.color, stroke.width * CRAYON_PX_PER_SIZE);
       }
       ctx.globalAlpha = 1.0;
     }

@@ -513,8 +513,13 @@ body {
   font-size: 0 !important;
   padding: 0 12px !important;
   color: var(--hd-ink-muted) !important;
+  gap: 6px;
 }
-.btn-tool svg { display: none !important; }
+/* Icon + label (Yue 2026-11-01: the icons had been hidden, text only). The SVG strokes use
+   currentColor, so they follow the muted / tomato label colour. */
+.btn-tool svg { display: block !important; width: 26px !important; height: 26px !important; order: -1; flex: none; }
+.btn-tool:hover { color: var(--hd-ink) !important; }
+.btn-tool.active { color: var(--hd-tomato) !important; }
 .btn-tool::before {
   font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   font-size: 17px;
