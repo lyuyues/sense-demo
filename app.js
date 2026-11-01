@@ -2719,7 +2719,7 @@ function spawnStaffElement(snd, startEvent) {
   // placement order, not sound type, so no type gets a systematic starting
   // volume. Vertical (pitch) stays centered.
   const b = staffBounds();
-  const GAP = 135;   // = NOTE_MAX, so neighbouring notes don't overlap
+  const GAP = 170;   // = NOTE_MAX, so neighbouring notes don't overlap
   const centerX = (b.left + b.right) / 2;
   const taken = [...staffElements.querySelectorAll('.staff-element')]
     .filter(o => o !== el)
@@ -2965,8 +2965,9 @@ function studioLoudnessMakeup(audioBuffer) {
 // confined to the five-line band vertically and inset by half the largest note
 // size horizontally, so a note can never be dragged off-screen. Pitch spans
 // bottom line (0) → top line (1); volume spans the inset width.
-// x1.5 (Yue 2026-11-01): bigger notes so small hands can grab and drag them.
-const NOTE_MIN = 60, NOTE_MAX = 135;
+// Bigger notes so small hands can grab and drag them (Yue 2026-11-01): the glyph is
+// 120px, clearly larger than the grey hint notes (36-68px); hit box 110-170 by volume.
+const NOTE_MIN = 110, NOTE_MAX = 170;
 function staffBounds() {
   const w = document.getElementById('staff-elements').clientWidth;
   const lines = document.querySelectorAll('#staff-area .staff-line');
