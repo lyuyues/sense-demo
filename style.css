@@ -1720,7 +1720,8 @@ html, body {
 .trash-zone {
   position: absolute; right: 16px; top: 50%;
   transform: translateY(-50%);
-  width: 44px; height: 44px;
+  /* Fallback ≈ a sound card; setupSoundStudio() sets the exact card size inline. */
+  width: 62px; height: 80px;
   display: flex; align-items: center; justify-content: center;
   font-size: 24px; color: #ccc;
   border: 2px dashed #ddd; border-radius: 12px;

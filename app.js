@@ -2559,6 +2559,16 @@ function setupSoundStudio() {
 
     palette.appendChild(item);
   });
+  // Trash takes the same footprint as a sound card (cards are content-sized, so
+  // measure one after layout; the palette may still be hidden on the first frame).
+  const sizeTrashToCard = () => {
+    const card = palette.querySelector('.sound-palette-item');
+    if (!card || !card.offsetWidth) return false;
+    trash.style.width = card.offsetWidth + 'px';
+    trash.style.height = card.offsetHeight + 'px';
+    return true;
+  };
+  requestAnimationFrame(() => { if (!sizeTrashToCard()) setTimeout(sizeTrashToCard, 300); });
 
   // Add "+" button for custom sound
   if (API_BASE) {
