@@ -748,18 +748,27 @@ body {
 .trash-zone {
   border: 2.5px dashed var(--hd-ink-faint) !important;
   border-radius: var(--hd-r-brush) !important;
-  background: var(--hd-paper-card) !important;
+  /* Match a .sound-palette-item card: 44px icon at the top (2.5 border + 6 padding),
+     13px label underneath. Same hand-drawn bin image as the Create-stage trash. */
+  background-color: var(--hd-paper-card) !important;
+  background-image: url("assets/icons-hd/trash.png") !important;
+  background-repeat: no-repeat !important;
+  background-position: center 6px !important;
+  background-size: 44px 44px !important;
   box-shadow: var(--hd-shadow-sm);
   color: var(--hd-ink-faint) !important;
   font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
-  font-size: 26px !important;       /* show 🗑 emoji */
+  font-size: 0 !important;          /* hide the 🗑 text node; icon is the background */
   flex-direction: column;
+  justify-content: flex-end !important;
+  padding-bottom: 6px;
   line-height: 1;
 }
 .trash-zone::after {
   content: "垃圾桶";
   display: block;
-  font-size: 12px;
+  white-space: nowrap;
+  font-size: 13px;
   font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   color: var(--hd-ink-faint);
   margin-top: 2px;
@@ -767,7 +776,7 @@ body {
 .trash-zone.active {
   color: var(--hd-tomato) !important;
   border-color: var(--hd-tomato) !important;
-  background: rgba(236,107,74,0.08) !important;
+  background-color: rgba(236,107,74,0.08) !important;
 }
 .trash-zone.active::after { color: var(--hd-tomato); content: "松手！"; }
 
