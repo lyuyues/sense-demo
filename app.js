@@ -1342,6 +1342,23 @@ function setCanvasSubPhase(subPhase) {
     (state.subPhaseDurations[state.canvasSubPhase] || 0) + (now - state.subPhaseStartTime);
   state.subPhaseStartTime = now;
 
+  // Leaving the color stage: screenshot + bake strokes NOW, while .color-stage-active
+  // still holds the avatar at the centered 1.6x pose the strokes were drawn on.
+  // (Doing this after the class toggle below measured the avatar at its small placed
+  // bbox, so the strokes stayed on the global canvas, offset from the avatar.)
+  const prevSubPhase = state.canvasSubPhase;
+  if (prevSubPhase === 'color' && subPhase !== 'color') {
+    state.stageScreenshots.color = captureStageScreenshot();
+    triggerStageAI('color');
+    mergeColorOntoAllElements();
+  }
+  // Re-entering the color stage: un-bake. Strokes go back on the global canvas at the
+  // same 1.6x pose, so undo still works and the next merge keeps the earlier strokes.
+  if (subPhase === 'color' && prevSubPhase !== 'color' && state.colorStrokes.length) {
+    document.querySelectorAll('.element-color-overlay').forEach(o => o.remove());
+    redrawColorStrokes();
+  }
+
   state.canvasSubPhase = subPhase;
   logEvent('sub_phase_change', { subPhase });
 
@@ -1357,9 +1374,8 @@ function setCanvasSubPhase(subPhase) {
   if (ccForShrink) {
     ccForShrink.classList.toggle('light-stage-shrink', subPhase === 'light');
     // Color phase: center + scale up avatar so the child has a big surface to color on,
-    // dim the rest. mergeColorOntoElement runs while this class is still active so the
-    // strokes get baked into the avatar's overlay canvas at the scaled bbox — they then
-    // render correctly when the class is removed and the avatar returns to placed size.
+    // dim the rest. The leave-color merge above runs before this toggle, so strokes are
+    // baked into the avatar's overlay at the scaled bbox and shrink with it afterwards.
     ccForShrink.classList.toggle('color-stage-active', subPhase === 'color');
   }
 
@@ -1411,14 +1427,7 @@ function setCanvasSubPhase(subPhase) {
         state.stageScreenshots.elements = captureStageScreenshot();
         triggerStageAI('create');
       } else if (leaving === 'color') {
-        state.stageScreenshots.color = captureStageScreenshot();
-        triggerStageAI('color');
-        // Bake color strokes into per-element overlay canvases so coloring
-        // travels with the avatar / placed elements (and doesn't stay glued
-        // to the global color-canvas after the user moves things).
-        if (typeof mergeColorOntoAllElements === 'function') {
-          mergeColorOntoAllElements();
-        }
+        // Screenshot + merge already done at the top (before the class toggle).
       } else if (leaving === 'light') {
         state.stageScreenshots.light = captureStageScreenshot();
         triggerStageAI('light');
