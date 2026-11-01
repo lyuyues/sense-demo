@@ -465,7 +465,7 @@ html, body {
 .canvas-container.light-stage-shrink[data-light-event="dining"] #bg-canvas,
 .canvas-container.light-stage-shrink[data-light-event="dining"] #color-canvas,
 .canvas-container.light-stage-shrink[data-light-event="dining"] #element-layer {
-  transform: translate(4%, 18%) scale(0.62);
+  transform: translate(7%, 21%) scale(0.56);
 }
 
 /* --- Element palette --- */
