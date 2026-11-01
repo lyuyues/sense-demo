@@ -3302,6 +3302,10 @@ function visibleInsets(el) {
   return { l: f(l), t: f(t), r: f(r), b: f(b) };
 }
 
+function pointInRect(ev, r) {
+  return ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+}
+
 function startDrag(el, e, onMoveCallback) {
   const isAvatar = el.id === 'avatar-main' || el.dataset.type === 'avatar';
   const rect = el.getBoundingClientRect();
@@ -3346,8 +3350,7 @@ function startDrag(el, e, onMoveCallback) {
     const trash = document.getElementById('palette-trash');
     if (trash && !isAvatar) {
       const tRect = trash.getBoundingClientRect();
-      const near = me.clientY > tRect.top - 20 && me.clientX > tRect.left - 20;
-      trash.classList.toggle('active', near);
+      trash.classList.toggle('active', pointInRect(me, tRect));
     }
   };
 
@@ -3362,7 +3365,9 @@ function startDrag(el, e, onMoveCallback) {
     if (trash) trash.classList.remove('active');
     if (trash && !isAvatar) {
       const tRect = trash.getBoundingClientRect();
-      if (ue.clientY > tRect.top - 20 && ue.clientX > tRect.left - 20) {
+      // Only when released inside the bin itself — the old 'right of / below its
+      // top-left corner, +20px slack' test also caught drags into the canvas corner.
+      if (pointInRect(ue, tRect)) {
         // Delete element
         if (el.dataset.type === 'music') stopAmbientLoop();
         el.remove();
