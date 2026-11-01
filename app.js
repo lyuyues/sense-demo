@@ -3243,6 +3243,16 @@ function showDeleteButton(el) {
   setTimeout(() => { if (btn.parentElement) btn.remove(); }, 3000);
 }
 
+// Keep a dragged item fully inside the element layer. The layer sits above the
+// bottom palette (flex sibling, overflow hidden), so without this an item dragged
+// low slid under the menu bar and was clipped. Trash detection uses the pointer,
+// not the item, so dragging to the trash still works.
+function clampToLayer(el, x, y, cRect) {
+  const maxX = Math.max(0, cRect.width - el.offsetWidth);
+  const maxY = Math.max(0, cRect.height - el.offsetHeight);
+  return [Math.min(Math.max(x, 0), maxX), Math.min(Math.max(y, 0), maxY)];
+}
+
 function startDrag(el, e, onMoveCallback) {
   const rect = el.getBoundingClientRect();
   const offsetX = e.clientX - rect.left;
@@ -3271,8 +3281,8 @@ function startDrag(el, e, onMoveCallback) {
     if (onMoveCallback) onMoveCallback();
     const container = document.getElementById('element-layer');
     const cRect = container.getBoundingClientRect();
-    const x = me.clientX - cRect.left - offsetX;
-    const y = me.clientY - cRect.top - offsetY;
+    const [x, y] = clampToLayer(el, me.clientX - cRect.left - offsetX,
+      me.clientY - cRect.top - offsetY, cRect);
     el.style.left = x + 'px';
     el.style.top = y + 'px';
 
@@ -3312,6 +3322,14 @@ function startDrag(el, e, onMoveCallback) {
         return;
       }
     }
+
+    // A tap with no move (or a fresh item from the palette released at once)
+    // never ran onMove — clamp here too so nothing is left under the palette.
+    const layerRect = document.getElementById('element-layer').getBoundingClientRect();
+    const [cx, cy] = clampToLayer(el, parseFloat(el.style.left) || 0,
+      parseFloat(el.style.top) || 0, layerRect);
+    el.style.left = cx + 'px';
+    el.style.top = cy + 'px';
 
     updatePlacedElement(el);
     const finalX = parseInt(el.style.left);
