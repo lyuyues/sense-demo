@@ -490,10 +490,9 @@
               <button class="settings-reset" data-channel="sfx" title="恢复到基线值">&#8634;</button>
             </div>
             <!-- Bucket channels — slider snaps to 3 positions for visual consistency -->
-            <!-- spatial/prep unlocked 2026-09-22: video file doesn't switch per distance/pacing yet
-                 (single file per scene, see initVideoPlayer), but the caregiver's chosen value still
-                 needs to be interactive + captured (Baseline condition data). Whether/how to also make
-                 the video reflect these is a separate discussion — not blocking this unlock. -->
+            <!-- spatial/prep unlocked 2026-09-22. Since 2026-10-31 spatial switches the video file
+                 (see SPATIAL_VIDEO_VARIANTS in app.js) — dental + dining 'close' only for now; 'far' and
+                 grocery play the base (mid) file, the chosen value is still captured. -->
             <div class="settings-row settings-row-bucket" data-channel="spatial">
               <span class="settings-name">空间距离（空间）<span class="settings-note hidden">按孩子平时的习惯选</span></span>
               <div class="settings-track-wrap">
@@ -704,7 +703,7 @@
     </defs>
   </svg>
 
-  <script src="app.js?v=310"></script>
+  <script src="app.js?v=311"></script>
 <!-- Offline package for the iPad: status, download, updates (offline.js). -->
 <script type="module" src="offline.js?v=20261031"></script>
 </body>

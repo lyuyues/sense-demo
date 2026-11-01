@@ -5967,6 +5967,48 @@ const VIDEO_BY_EVENT = {
   dining:  'video/dining.mp4',
 };
 const DEFAULT_VIDEO = 'video/birthday_party.mp4';
+// Spatial (social-distance) variants. The base file is 'mid'. Each variant differs only
+// in the social-greeting stretch (dental 0–8 s, dining 8–24 s): the picture is scaled
+// up (close: 1.3× dental, 1.25× dining; in dental the child's head keeps its original
+// size) and eased back to 1× during camera motion; everything else is the base video.
+// Same frame count as the base file, so the 3 audio stems and the % temporal markers
+// stay aligned. Buckets without a variant play the base file.
+// 'far' is temporarily mapped to the base (mid) file: the zoom-out builds
+// (video/dental_far.mp4, video/dining_far.mp4) still have unstable margins during
+// the camera turn. Re-add `far:` entries once a stable build is approved.
+const SPATIAL_VIDEO_VARIANTS = {
+  dental: { close: 'video/dental_near.mp4' },
+  dining: { close: 'video/dining_near.mp4' },
+};
+const VIDEO_CACHE_BUST = '?v=3';
+function videoFileFor(eventType, spatialBucket) {
+  const variant = SPATIAL_VIDEO_VARIANTS[eventType]?.[spatialBucket];
+  return (variant || VIDEO_BY_EVENT[eventType] || DEFAULT_VIDEO) + VIDEO_CACHE_BUST;
+}
+// Swap the <video> file when the effective spatial bucket changes (difficulty level or
+// caregiver override). Keeps the playhead; if it was playing, pause (stops stems) and
+// resume after the new file is ready (the `play` event re-kicks stems at currentTime).
+function syncSpatialVideo() {
+  const video = document.getElementById('sense-video');
+  const source = video?.querySelector('source');
+  if (!source) return;
+  const bucket = getEffectiveChannelValue('spatial');
+  const want = videoFileFor(state.eventType, bucket);
+  if (source.getAttribute('src') === want) return;
+  const t = video.currentTime || 0;
+  const wasPlaying = !video.paused && !video.ended;
+  if (wasPlaying) video.pause();
+  source.setAttribute('src', want);
+  video.load();
+  if (t > 0 || wasPlaying) {
+    video.addEventListener('loadedmetadata', () => {
+      try { video.currentTime = t; } catch (_) {}
+      if (wasPlaying) video.play().catch(() => {});
+    }, { once: true });
+  }
+  logEvent('spatial_video_selected', { bucket, file: want, at: t });
+  console.log('[spatial] video →', want, '(bucket=' + bucket + ')');
+}
 // Events with 3-stem (voice/bgm/sfx) audio. Unknown events fall back to the
 // embedded-audio path in setupVideoAudioChain.
 const EVENT_HAS_STEMS = { birthday: true, dental: true, grocery: true, dining: true };
@@ -6412,18 +6454,12 @@ function initVideoPlayer() {
 
   const video = document.getElementById('sense-video');
 
-  // Select priming video by scenario (dental / grocery / dining). Each event has its
-  // own full Veo render; spatial-perspective variants are not yet generated, so the
-  // spatial score is logged for analysis but does not switch files.
+  // Select priming video by scenario + effective spatial bucket (close / mid / far).
+  // See SPATIAL_VIDEO_VARIANTS; difficulty / caregiver changes re-run syncSpatialVideo().
   const spatialScore = videoPreferences.spatial.score;
-  let videoFile = VIDEO_BY_EVENT[state.eventType] || DEFAULT_VIDEO;
-  videoFile += '?v=1';  // cache-bust when video content is updated
-  const source = video.querySelector('source');
-  if (source && source.src !== videoFile) {
-    source.src = videoFile;
-    video.load();
-  }
-  console.log('Video selected:', videoFile, '(spatial score:', spatialScore.toFixed(2) + ')');
+  syncSpatialVideo();
+  console.log('Video selected:', video.querySelector('source')?.getAttribute('src'),
+    '(spatial score:', spatialScore.toFixed(2) + ', bucket:', getEffectiveChannelValue('spatial') + ')');
   const playPause = document.getElementById('vc-play-pause');
   const timeDisplay = document.getElementById('timeline-time');
   const progressFill = document.getElementById('timeline-progress');
@@ -6756,6 +6792,9 @@ function applyVideoPreferences() {
       catch (_) { stemGains[k].gain.value = g; }
     });
   }
+
+  // --- Spatial: swap to the close / mid / far file if the effective bucket changed ---
+  syncSpatialVideo();
 
   // playbackRate stays native — preparation interval is realized as pause-at-marker,
   // not playback speed. See triggerTemporalFreeze().
@@ -7136,13 +7175,16 @@ const WRAPUP_QUESTIONS = {
       revealSegment: 0.15,
     },
     {
+      // 2026-10-31: reveal moved 0.35 → 0.27. grocery.mp4 (61.7s): cereal box taken off
+      // the shelf ~18–19s, into the basket ~20–22s; 0.35 (21.6s) started after it, so
+      // the clip showed only walking. Label made concrete to match the picture.
       anchor: '在货架中间走的时候',
       options: [
-        { label: '把东西放进篮子', emoji: '🥫', canonical: true },
+        { label: '拿一盒麦片放进篮子', emoji: '🥣', canonical: true },
         { label: '跳到下一排货架', emoji: '🦶' },
         { label: '数一数灯', emoji: '💡' },
       ],
-      revealSegment: 0.35,
+      revealSegment: 0.27,
     },
     {
       anchor: '走到收银台的时候',
@@ -7194,7 +7236,7 @@ const WRAPUP_QUESTIONS = {
         { label: '去玩玩具', emoji: '🧩' },
         { label: '看一会儿电视', emoji: '📺' },
       ],
-      revealSegment: 0.35,
+      revealSegment: 0.23,
     },
     {
       anchor: '亮亮的灯转下来的时候',
@@ -7241,7 +7283,7 @@ const WRAPUP_QUESTIONS = {
         { label: '先坐下', emoji: '🪑' },
         { label: '数一数图片', emoji: '🔢' },
       ],
-      revealSegment: 0.23,
+      revealSegment: 0.35,
     },
     {
       anchor: '在收银台',
