@@ -224,6 +224,16 @@ body {
 .drum-area {
   filter: drop-shadow(4px 5px 0 rgba(44, 36, 24, 0.55)) drop-shadow(0 0 1px rgba(44, 36, 24, 0.4));
 }
+/* Per-hit jolt of the whole drum (app.js strikeDrum) — the visible "vibration" feedback. */
+.drum-area.jolt { animation: hdDrumJolt 160ms ease-out; }
+@keyframes hdDrumJolt {
+  0%   { transform: translate(0, 0); }
+  15%  { transform: translate(-5px, 4px); }
+  35%  { transform: translate(5px, -3px); }
+  55%  { transform: translate(-3px, 2px); }
+  75%  { transform: translate(2px, -1px); }
+  100% { transform: translate(0, 0); }
+}
 /* Drum = 3 layers (body + 2 sticks, split from drum.png 2026-10-17).
    Idle bob lives on the wrapper so body and sticks sway together. */
 .drum-stack {

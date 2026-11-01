@@ -3303,6 +3303,7 @@ function visibleInsets(el) {
 }
 
 function startDrag(el, e, onMoveCallback) {
+  const isAvatar = el.id === 'avatar-main' || el.dataset.type === 'avatar';
   const rect = el.getBoundingClientRect();
   const offsetX = e.clientX - rect.left;
   const offsetY = e.clientY - rect.top;
@@ -3341,9 +3342,9 @@ function startDrag(el, e, onMoveCallback) {
       lastSampleTime = now;
     }
 
-    // Highlight trash if near
+    // Highlight trash if near (never for the avatar — it can't be trashed)
     const trash = document.getElementById('palette-trash');
-    if (trash) {
+    if (trash && !isAvatar) {
       const tRect = trash.getBoundingClientRect();
       const near = me.clientY > tRect.top - 20 && me.clientX > tRect.left - 20;
       trash.classList.toggle('active', near);
@@ -3355,10 +3356,11 @@ function startDrag(el, e, onMoveCallback) {
     el.removeEventListener('pointermove', onMove);
     el.removeEventListener('pointerup', onUp);
 
-    // Check if dropped on trash
+    // Check if dropped on trash. The avatar (protagonist) is never deletable —
+    // dropping it there just clamps it back into the canvas below.
     const trash = document.getElementById('palette-trash');
-    if (trash) {
-      trash.classList.remove('active');
+    if (trash) trash.classList.remove('active');
+    if (trash && !isAvatar) {
       const tRect = trash.getBoundingClientRect();
       if (ue.clientY > tRect.top - 20 && ue.clientX > tRect.left - 20) {
         // Delete element
@@ -4559,6 +4561,12 @@ function setupAnimatePhase() {
     nextStick = 1 - nextStick;
     restartAnim(stick, 'strike', 320);   // hdStickStrikeL/R duration
     restartAnim(drumImg, 'hit', 240);    // hdDrumTremble duration
+    // Shake feedback on every hit (Yue 2026-11-01): the whole drum jolts (hdDrumJolt), and
+    // devices with a vibration motor buzz briefly. iPad has no vibration hardware and Safari
+    // has no Vibration API, so on the iPad the jolt is the shake. Same for every tap, so the
+    // tapping-rate measurement is not shaped by the feedback.
+    restartAnim(document.getElementById('drum-area'), 'jolt', 160);
+    try { navigator.vibrate?.(25); } catch (_) {}
   }
   function restartAnim(el, cls, ms) {
     if (!el) return;
