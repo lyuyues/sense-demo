@@ -77,6 +77,9 @@ body {
 .phase-tab[data-phase="color"]  { background-image: url("assets/icons-hd/crayon.png?v=3"); }
 .phase-tab[data-phase="light"]  { background-image: url("assets/icons-hd/sun.png"); }
 .phase-tab[data-phase="sound"]  { background-image: url("assets/icons-hd/note.png"); }
+/* Note icon 50% bigger (Yue 2026-11-01): note.png has wide transparent margins, so it read
+   smaller than the other tab icons. 38 -> 57 px box, shifted so the note stays centred where it was. */
+.phase-tab[data-phase="sound"]  { background-size: 57px 57px !important; background-position: -3px center !important; }
 .phase-tab[data-phase="rhythm"] { background-image: url("assets/icons-hd/drum.png"); }
 .phase-tab[data-phase="create"]::before { content: "创作"; }
 .phase-tab[data-phase="color"]::before  { content: "涂色"; }
