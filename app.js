@@ -7182,11 +7182,16 @@ const WRAPUP_QUESTIONS = {
       revealSegment: 0.15,
     },
     {
-      anchor: '坐到椅子上以后',
+      // 2026-10-31: was "坐到椅子上以后 → 围上围兜" — none of bib / pillow / hat is
+      // visible in dental.mp4, so it had no right answer. After entering the room the
+      // video shows: dentist appears (~12s) and says "来坐吧", pats the chair (~16s),
+      // view settles into the chair (~18s). Distractors are absent from the room (no
+      // toys, no TV); avoid the sink, which is visible.
+      anchor: '走进诊室以后',
       options: [
-        { label: '围上一块软软的围兜', emoji: '🧣', canonical: true },
-        { label: '拿到一个枕头', emoji: '🛏️' },
-        { label: '戴上一顶帽子', emoji: '🧢' },
+        { label: '坐到椅子上', emoji: '💺', canonical: true },
+        { label: '去玩玩具', emoji: '🧩' },
+        { label: '看一会儿电视', emoji: '📺' },
       ],
       revealSegment: 0.35,
     },
@@ -7235,7 +7240,7 @@ const WRAPUP_QUESTIONS = {
         { label: '先坐下', emoji: '🪑' },
         { label: '数一数图片', emoji: '🔢' },
       ],
-      revealSegment: 0.35,
+      revealSegment: 0.23,
     },
     {
       anchor: '在收银台',

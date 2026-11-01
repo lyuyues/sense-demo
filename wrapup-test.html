@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wrap-up 题目测试</title>
+<link rel="stylesheet" href="assets/fonts/fonts.css?v=1">
+<style>
+  /* Researcher test page for the post-video wrap-up questions (2026-10-31).
+     Questions are read live from app.js (WRAPUP_QUESTIONS), so this page always
+     tests what the study runs. Videos have no audio track: the 3 stems
+     (video/<scene>_{voice,bgm,sfx}.m4a) play alongside, like the real player. */
+  :root {
+    --bg: #faf6ee; --card: #fffdf8; --ink: #3d3428; --muted: #8a7f70;
+    --line: #d8cfc0; --accent: #f59e42; --ok: #15803d; --bad: #b91c1c; --pick: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 -apple-system, "PingFang SC", system-ui, sans-serif; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 22px; margin: 4px 0 2px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 14px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .seg { display: inline-flex; border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { border: 0; background: var(--card); padding: 7px 14px; font: inherit; cursor: pointer; color: var(--ink); }
+  .seg button + button { border-left: 1.5px solid var(--line); }
+  .seg button.on { background: var(--ink); color: #fff; }
+  label.tog { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; color: var(--muted); cursor: pointer; }
+  .qnav { display: flex; gap: 6px; flex-wrap: wrap; }
+  .qnav button { width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid var(--line);
+    background: var(--card); font: 600 15px system-ui; cursor: pointer; color: var(--ink); }
+  .qnav button.on { border-color: var(--accent); background: var(--accent); color: #fff; }
+  .qnav button.done::after { content: '•'; position: relative; top: -14px; left: 1px; color: var(--pick); }
+
+  .stage { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; margin-top: 12px; }
+  @media (max-width: 760px) { .stage { grid-template-columns: 1fr; } }
+  .panel { background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 16px; }
+  .qtitle { font-family: "ZCOOL KuaiLe", "PingFang SC", sans-serif; font-size: 26px; margin: 0 0 14px; line-height: 1.3; }
+  .opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .opt { border: 2px solid var(--line); border-radius: 14px; background: #fff; padding: 14px 6px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 6px; font: inherit; color: var(--ink); min-height: 120px; }
+  .opt .em { font-size: 40px; line-height: 1; }
+  .opt .lb { font-size: 16px; text-align: center; }
+  .opt .pos { font-size: 11px; color: var(--muted); }
+  .opt.picked { border-color: var(--pick); box-shadow: 0 0 0 3px #2563eb33; }
+  .show-answer .opt.canon { border-color: var(--ok); background: #f0fdf4; }
+  .show-answer .opt.canon .lb::after { content: ' ✓'; color: var(--ok); font-weight: 700; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .btn { border: 0; border-radius: 10px; padding: 9px 16px; font: 600 15px system-ui; cursor: pointer;
+    background: var(--ink); color: #fff; }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+  .btn.accent { background: var(--accent); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .verdict { margin-top: 10px; font-size: 15px; min-height: 22px; }
+  .verdict.ok { color: var(--ok); } .verdict.bad { color: var(--bad); }
+
+  video { width: 100%; border-radius: 10px; background: #000; display: block; aspect-ratio: 16/9; }
+  .vmeta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; font-size: 14px; color: var(--muted); }
+  .vmeta b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .vmeta .btn { padding: 5px 10px; font-size: 13px; }
+  .note { font-size: 13px; color: var(--muted); margin-top: 8px; }
+
+  .log { margin-top: 16px; }
+  .log table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .log th, .log td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .log th { color: var(--muted); font-weight: 600; }
+  .log td.ok { color: var(--ok); } .log td.bad { color: var(--bad); }
+  .err { color: var(--bad); padding: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Wrap-up 题目测试</h1>
+  <p class="sub">研究者用。题目直接读自 app.js（WRAPUP_QUESTIONS），跟正式系统一致。选一个答案 → 点"看看会发生什么"播放视频里对应的 6 秒，检查答案是否唯一。</p>
+
+  <div class="bar">
+    <div class="seg" id="scene-seg">
+      <button data-scene="dental" class="on">🦷 牙医</button>
+      <button data-scene="grocery">🛒 超市</button>
+      <button data-scene="dining">🍽️ 餐厅</button>
+    </div>
+    <div class="seg" id="order-seg" title="正式系统按代码顺序显示">
+      <button data-order="code" class="on">代码顺序（正式系统）</button>
+      <button data-order="shuffle">打乱顺序</button>
+    </div>
+    <label class="tog"><input type="checkbox" id="show-answer"> 显示正确答案</label>
+  </div>
+  <div class="qnav" id="qnav"></div>
+
+  <div class="stage">
+    <div class="panel" id="qpanel">
+      <h2 class="qtitle" id="qtitle">加载中…</h2>
+      <div class="opts" id="opts"></div>
+      <div class="actions">
+        <button class="btn accent" id="btn-reveal" disabled>🎥 看看会发生什么</button>
+        <button class="btn ghost" id="btn-prev">← 上一题</button>
+        <button class="btn ghost" id="btn-next">下一题 →</button>
+      </div>
+      <div class="verdict" id="verdict"></div>
+    </div>
+
+    <div class="panel">
+      <video id="video" playsinline preload="auto"></video>
+      <div class="vmeta">
+        片段起点 <b id="seg-start">–</b>
+        <button class="btn ghost" id="seg-minus">−1s</button>
+        <button class="btn ghost" id="seg-plus">+1s</button>
+        长度 <b>6s</b> · 当前 <b id="cur">0.0s</b> / <b id="dur">–</b>
+        <button class="btn ghost" id="btn-full">▶ 看完整视频</button>
+        <button class="btn ghost" id="btn-stop">■ 停</button>
+      </div>
+      <p class="note">片段起点 = 视频长度 × revealSegment（跟正式系统一样）。用 ±1s 试不同起点只影响本页，不改代码；合适的起点记在下面的记录里。</p>
+    </div>
+  </div>
+
+  <div class="panel log">
+    <div class="bar" style="justify-content:space-between;margin:0 0 6px">
+      <b>测试记录</b>
+      <span>
+        <button class="btn ghost" id="btn-copy">复制 JSON</button>
+        <button class="btn ghost" id="btn-clear">清空</button>
+      </span>
+    </div>
+    <table>
+      <thead><tr><th>场景</th><th>#</th><th>题目</th><th>选了</th><th>位置</th><th>是否标准答案</th><th>片段起点</th></tr></thead>
+      <tbody id="log-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(async () => {
+  const SCENES = {
+    dental:  { video: 'video/dental.mp4',  stems: ['dental_voice', 'dental_bgm', 'dental_sfx'] },
+    grocery: { video: 'video/grocery.mp4', stems: ['grocery_voice', 'grocery_bgm', 'grocery_sfx'] },
+    dining:  { video: 'video/dining.mp4',  stems: ['dining_voice', 'dining_bgm', 'dining_sfx'] },
+  };
+  const CLIP_SEC = 6;
+  const $ = (id) => document.getElementById(id);
+
+  // ---- Read WRAPUP_QUESTIONS straight out of app.js so this page can't drift ----
+  let QUESTIONS;
+  try {
+    const src = await (await fetch('app.js?t=' + Date.now())).text();
+    const start = src.indexOf('{', src.indexOf('const WRAPUP_QUESTIONS ='));
+    let depth = 0, end = start;
+    for (; end < src.length; end++) {
+      const c = src[end];
+      if (c === '{') depth++;
+      else if (c === '}' && --depth === 0) break;
+    }
+    QUESTIONS = new Function('return ' + src.slice(start, end + 1))();
+  } catch (e) {
+    $('qpanel').innerHTML = '<p class="err">读取 app.js 里的题目失败：' + e.message + '<br>请通过本地服务器打开（不能直接双击文件）。</p>';
+    return;
+  }
+
+  // ---- State ----
+  let scene = 'dental', qi = 0, order = 'code', offset = {}, picked = {};
+  const log = [];
+  try { Object.assign(log, JSON.parse(localStorage.getItem('wrapup_test_log') || '[]')); } catch (_) {}
+  const saveLog = () => { try { localStorage.setItem('wrapup_test_log', JSON.stringify(log)); } catch (_) {} };
+
+  const video = $('video');
+  const stems = [];
+  let stopTimer = null;
+
+  function loadScene() {
+    const s = SCENES[scene];
+    stopAll();
+    video.src = s.video;
+    video.muted = true;               // mp4s carry no audio; stems below do
+    stems.splice(0).forEach(a => a.pause());
+    s.stems.forEach(n => { const a = new Audio('video/' + n + '.m4a'); a.preload = 'auto'; stems.push(a); });
+  }
+  function stopAll() {
+    clearTimeout(stopTimer); stopTimer = null;
+    video.pause(); stems.forEach(a => a.pause());
+  }
+  function playFrom(t, sec) {
+    stopAll();
+    video.currentTime = t; stems.forEach(a => { a.currentTime = t; });
+    video.play().catch(() => {});
+    stems.forEach(a => a.play().catch(() => {}));
+    if (sec) stopTimer = setTimeout(stopAll, sec * 1000);
+  }
+  // Keep stems on the video's clock if they drift (seek / buffering).
+  setInterval(() => {
+    $('cur').textContent = video.currentTime.toFixed(1) + 's';
+    if (!video.paused) stems.forEach(a => { if (Math.abs(a.currentTime - video.currentTime) > 0.25) a.currentTime = video.currentTime; });
+  }, 250);
+  video.addEventListener('loadedmetadata', () => { $('dur').textContent = video.duration.toFixed(1) + 's'; renderSegStart(); });
+
+  const q = () => QUESTIONS[scene][qi];
+  const key = () => scene + ':' + qi;
+  const segStart = () => {
+    const base = (video.duration || 0) * Math.min(0.98, Math.max(0, q().revealSegment ?? 0.5));
+    return Math.max(0, base + (offset[key()] || 0));
+  };
+  function renderSegStart() {
+    const off = offset[key()] || 0;
+    $('seg-start').textContent = video.duration
+      ? segStart().toFixed(1) + 's' + (off ? `（${off > 0 ? '+' : ''}${off}s）` : '') + ` · revealSegment ${q().revealSegment}`
+      : '–';
+  }
+
+  // ---- Render ----
+  let shownOptions = [];
+  function render() {
+    const pool = QUESTIONS[scene];
+    $('qnav').innerHTML = '';
+    pool.forEach((_, i) => {
+      const b = document.createElement('button');
+      b.textContent = i + 1;
+      b.className = (i === qi ? 'on ' : '') + (picked[scene + ':' + i] ? 'done' : '');
+      b.onclick = () => { qi = i; render(); };
+      $('qnav').appendChild(b);
+    });
+    const cur = q();
+    $('qtitle').textContent = `${cur.anchor}，接下来会发生什么？`;
+    shownOptions = cur.options.map((o, i) => ({ ...o, authored: i }));
+    if (order === 'shuffle') shownOptions.sort(() => Math.random() - 0.5);
+    $('opts').innerHTML = '';
+    shownOptions.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.className = 'opt' + (o.canonical ? ' canon' : '') + (picked[key()]?.label === o.label ? ' picked' : '');
+      b.innerHTML = `<span class="em">${o.emoji}</span><span class="lb">${o.label}</span><span class="pos">位置 ${i + 1}</span>`;
+      b.onclick = () => pick(o, i);
+      $('opts').appendChild(b);
+    });
+    $('btn-reveal').disabled = !picked[key()];
+    $('btn-prev').disabled = qi === 0;
+    $('btn-next').disabled = qi === pool.length - 1;
+    const p = picked[key()];
+    $('verdict').className = 'verdict' + (p && $('show-answer').checked ? (p.canonical ? ' ok' : ' bad') : '');
+    $('verdict').textContent = p ? (($('show-answer').checked ? (p.canonical ? '✓ 选了标准答案' : '✗ 不是标准答案') : '已选：' + p.label)) : '';
+    renderSegStart();
+  }
+
+  function pick(o, pos) {
+    picked[key()] = o;
+    log.push({ at: new Date().toISOString(), scene, q: qi + 1, anchor: q().anchor, picked: o.label,
+               position: pos + 1, order, canonical: !!o.canonical, segStart: +segStart().toFixed(1) });
+    saveLog(); renderLog(); render();
+  }
+
+  function renderLog() {
+    $('log-body').innerHTML = log.slice().reverse().map(r => `<tr>
+      <td>${r.scene}</td><td>${r.q}</td><td>${r.anchor}</td><td>${r.picked}</td>
+      <td>${r.position}${r.order === 'shuffle' ? '（打乱）' : ''}</td>
+      <td class="${r.canonical ? 'ok' : 'bad'}">${r.canonical ? '是' : '否'}</td><td>${r.segStart}s</td></tr>`).join('');
+  }
+
+  // ---- Controls ----
+  document.querySelectorAll('#scene-seg button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#scene-seg button').forEach(x => x.classList.toggle('on', x === b));
+    scene = b.dataset.scene; qi = 0; loadScene(); render();
+  });
+  document.querySelectorAll('#order-seg button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#order-seg button').forEach(x => x.classList.toggle('on', x === b));
+    order = b.dataset.order; render();
+  });
+  $('show-answer').onchange = () => { $('qpanel').classList.toggle('show-answer', $('show-answer').checked); render(); };
+  $('btn-prev').onclick = () => { qi--; stopAll(); render(); };
+  $('btn-next').onclick = () => { qi++; stopAll(); render(); };
+  $('btn-reveal').onclick = () => playFrom(segStart(), CLIP_SEC);
+  $('seg-minus').onclick = () => { offset[key()] = (offset[key()] || 0) - 1; renderSegStart(); };
+  $('seg-plus').onclick = () => { offset[key()] = (offset[key()] || 0) + 1; renderSegStart(); };
+  $('btn-full').onclick = () => playFrom(0, 0);
+  $('btn-stop').onclick = stopAll;
+  $('btn-copy').onclick = async () => {
+    const text = JSON.stringify(log, null, 2);
+    try { await navigator.clipboard.writeText(text); $('btn-copy').textContent = '已复制 ✓'; }
+    catch (_) { prompt('复制下面的内容', text); }
+    setTimeout(() => { $('btn-copy').textContent = '复制 JSON'; }, 1500);
+  };
+  $('btn-clear').onclick = () => { if (confirm('清空测试记录？')) { log.length = 0; picked = {}; saveLog(); renderLog(); render(); } };
+
+  loadScene(); renderLog(); render();
+})();
+</script>
+</body>
+</html>
