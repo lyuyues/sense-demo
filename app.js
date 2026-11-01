@@ -3249,10 +3249,57 @@ function showDeleteButton(el) {
 // bottom palette (flex sibling, overflow hidden), so without this an item dragged
 // low slid under the menu bar and was clipped. Trash detection uses the pointer,
 // not the item, so dragging to the trash still works.
+// Clamps on the image's VISIBLE pixels, not the element box: the PNGs carry different
+// transparent margins (avatar 2% at the bottom, friends 8%, dentist/assistant ~19%), so a
+// box clamp stopped some figures well above the bottom edge (Yue 2026-11-01).
 function clampToLayer(el, x, y, cRect) {
-  const maxX = Math.max(0, cRect.width - el.offsetWidth);
-  const maxY = Math.max(0, cRect.height - el.offsetHeight);
-  return [Math.min(Math.max(x, 0), maxX), Math.min(Math.max(y, 0), maxY)];
+  const W = el.offsetWidth, H = el.offsetHeight;
+  const v = visibleInsets(el);
+  const minX = -v.l * W, maxX = cRect.width - W + v.r * W;
+  const minY = -v.t * H, maxY = cRect.height - H + v.b * H;
+  return [Math.min(Math.max(x, minX), Math.max(minX, maxX)),
+          Math.min(Math.max(y, minY), Math.max(minY, maxY))];
+}
+
+// Transparent margins of an element's <img>, as fractions of the element box
+// (accounts for object-fit contain/cover). Cached per image src; zeros if unknown.
+const _alphaBoxCache = new Map();
+function visibleInsets(el) {
+  const zero = { l: 0, t: 0, r: 0, b: 0 };
+  const img = el.querySelector('img');
+  if (!img || !img.complete || !img.naturalWidth) return zero;
+  let box = _alphaBoxCache.get(img.src);
+  if (!box) {
+    try {
+      const n = 160, c = document.createElement('canvas');
+      c.width = n; c.height = n;
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0, n, n);
+      const d = ctx.getImageData(0, 0, n, n).data;
+      let x0 = n, y0 = n, x1 = -1, y1 = -1;
+      for (let yy = 0; yy < n; yy++) for (let xx = 0; xx < n; xx++) {
+        if (d[(yy * n + xx) * 4 + 3] > 20) {
+          if (xx < x0) x0 = xx; if (xx > x1) x1 = xx;
+          if (yy < y0) y0 = yy; if (yy > y1) y1 = yy;
+        }
+      }
+      box = x1 < 0 ? { l: 0, t: 0, r: 1, b: 1 } : { l: x0 / n, t: y0 / n, r: (x1 + 1) / n, b: (y1 + 1) / n };
+    } catch (_) { box = { l: 0, t: 0, r: 1, b: 1 }; }   // tainted canvas etc.
+    _alphaBoxCache.set(img.src, box);
+  }
+  // Where the image is drawn inside the element box (object-fit)
+  const W = el.offsetWidth, H = el.offsetHeight;
+  const ir = img.naturalWidth / img.naturalHeight;
+  const fit = getComputedStyle(img).objectFit;
+  const scale = fit === 'cover' ? Math.max(W / img.naturalWidth, H / img.naturalHeight)
+              : fit === 'fill' ? null : Math.min(W / img.naturalWidth, H / img.naturalHeight);
+  const dw = scale ? img.naturalWidth * scale : W, dh = scale ? img.naturalHeight * scale : H;
+  const ox = (W - dw) / 2, oy = (H - dh) / 2;
+  if (!W || !H || !ir) return zero;
+  const l = (ox + box.l * dw) / W, t = (oy + box.t * dh) / H;
+  const r = 1 - (ox + box.r * dw) / W, b = 1 - (oy + box.b * dh) / H;
+  const f = (v) => Math.min(Math.max(v, 0), 0.45);
+  return { l: f(l), t: f(t), r: f(r), b: f(b) };
 }
 
 function startDrag(el, e, onMoveCallback) {
