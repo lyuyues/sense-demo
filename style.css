@@ -450,6 +450,24 @@ html, body {
   transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* Per-scene offset of the shrunk scene inside each scene's frame cutout (tuned by Yue 2026-11-01).
+   translate comes before scale, so % is of the full canvas size. +x = right, +y = down. */
+.canvas-container.light-stage-shrink[data-light-event="dental"] #bg-canvas,
+.canvas-container.light-stage-shrink[data-light-event="dental"] #color-canvas,
+.canvas-container.light-stage-shrink[data-light-event="dental"] #element-layer {
+  transform: translate(6%, 0%) scale(0.65);
+}
+.canvas-container.light-stage-shrink[data-light-event="grocery"] #bg-canvas,
+.canvas-container.light-stage-shrink[data-light-event="grocery"] #color-canvas,
+.canvas-container.light-stage-shrink[data-light-event="grocery"] #element-layer {
+  transform: translate(2%, 18%) scale(0.65);
+}
+.canvas-container.light-stage-shrink[data-light-event="dining"] #bg-canvas,
+.canvas-container.light-stage-shrink[data-light-event="dining"] #color-canvas,
+.canvas-container.light-stage-shrink[data-light-event="dining"] #element-layer {
+  transform: translate(4%, 18%) scale(0.65);
+}
+
 /* --- Element palette --- */
 .element-palette {
   display: flex; align-items: center;

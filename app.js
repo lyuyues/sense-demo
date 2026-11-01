@@ -1373,6 +1373,8 @@ function setCanvasSubPhase(subPhase) {
   const ccForShrink = document.getElementById('canvas-container');
   if (ccForShrink) {
     ccForShrink.classList.toggle('light-stage-shrink', subPhase === 'light');
+    // Per-scene offset of the shrunk scene inside the frame cutout (see style.css)
+    ccForShrink.dataset.lightEvent = state.eventType || '';
     // Color phase: center + scale up avatar so the child has a big surface to color on,
     // dim the rest. The leave-color merge above runs before this toggle, so strokes are
     // baked into the avatar's overlay at the scaled bbox and shrink with it afterwards.
