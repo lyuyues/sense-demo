@@ -650,22 +650,31 @@ body {
   background-color: var(--hd-paper-card) !important;
   background-image: url("assets/icons-hd/trash.png") !important;
   background-repeat: no-repeat !important;
-  background-position: center 6px !important;
-  background-size: 36px 36px !important;
+  background-position: center 12px !important;
+  background-size: 48px 48px !important;
   box-shadow: var(--hd-shadow-sm);
   color: var(--hd-ink-faint) !important;
   font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive !important;
   font-size: 0 !important;
-  width: 60px !important; min-width: 60px !important; height: 70px !important;
+  /* Same footprint as a .palette-item card (76 wide; height follows .palette-item
+     in style.css: 100 default, 88 iPad portrait, 72 phone). */
+  width: 76px !important; min-width: 76px !important; height: 100px !important;
   transition: transform 200ms, border-color 180ms, background-color 180ms;
+}
+@media (min-width: 700px) and (max-width: 1100px) and (orientation: portrait) {
+  .palette-trash { height: 88px !important; background-size: 44px 44px !important; background-position: center 10px !important; }
+}
+@media (max-width: 420px) {
+  .palette-trash { height: 72px !important; background-size: 34px 34px !important; background-position: center 8px !important; }
 }
 .palette-trash::before {
   content: "垃圾桶";
   position: absolute;
-  bottom: 4px;
+  bottom: 8px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 11px;
+  white-space: nowrap;
+  font-size: 13px;
   font-family: "Patrick Hand", "ZCOOL KuaiLe", cursive;
   color: var(--hd-ink-faint);
   letter-spacing: 0.02em;
