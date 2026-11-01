@@ -2768,11 +2768,19 @@ function makeStaffDraggable(el, snd) {
   let dragStartTime = 0;
   let path = [];
   let lastSampleTime = 0;
+  let trashHold = null;
+  // Over the bin = finger inside the bin card (+10px slack)
+  const overTrash = (ev, trash) => {
+    if (!trash) return false;
+    const r = trash.getBoundingClientRect();
+    return ev.clientX >= r.left - 10 && ev.clientX <= r.right + 10 && ev.clientY >= r.top - 10 && ev.clientY <= r.bottom + 10;
+  };
 
   el.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     e.stopPropagation();
     dragging = true;
+    trashHold = makeTrashHold(document.getElementById('sound-trash'));
     // Grab offset from the note's centre, so it doesn't jump under the finger.
     const rect = el.getBoundingClientRect();
     offsetX = e.clientX - (rect.left + rect.width / 2);
@@ -2810,29 +2818,20 @@ function makeStaffDraggable(el, snd) {
       lastSampleTime = now;
     }
 
-    // Highlight trash if near bottom
-    const trash = document.getElementById('sound-trash');
-    if (trash) {
-      const tRect = trash.getBoundingClientRect();
-      const near = e.clientY > tRect.top - 30;
-      trash.classList.toggle('active', near);
-    }
+    // Bin fills while the finger is held over it
+    trashHold?.update(overTrash(e, document.getElementById('sound-trash')));
   });
 
   el.addEventListener('pointerup', (e) => {
     dragging = false;
     el.classList.remove('dragging');
 
-    const staffArea = document.getElementById('staff-area');
-    const sRect = staffArea.getBoundingClientRect();
-
-    // If dragged into trash zone or outside staff area, remove it
-    const trash = document.getElementById('sound-trash');
-    if (trash) trash.classList.remove('active');
-    const trashRect = trash ? trash.getBoundingClientRect() : null;
-    const inTrash = trashRect && e.clientY > trashRect.top - 20 && e.clientX > trashRect.left - 20 && e.clientX < trashRect.right + 20;
-    const outsideStaff = e.clientY < sRect.top - 20 || e.clientY > sRect.bottom + 20 || e.clientX < sRect.left - 20 || e.clientX > sRect.right + 20;
-    if (inTrash || outsideStaff) {
+    // Remove only when held over the bin for TRASH_HOLD_MS. (Releasing anywhere outside
+    // the staff used to delete too — removed: the note is clamped to the staff, so the
+    // finger often ends up outside it by accident.)
+    const inTrash = trashHold ? trashHold.release(overTrash(e, document.getElementById('sound-trash'))) : false;
+    trashHold = null;
+    if (inTrash) {
       el.remove();
       // Stop this sound layer
       stopStudioLayer(snd.type);
@@ -3318,6 +3317,29 @@ function pointInRect(ev, r) {
   return ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
 }
 
+// Hold-to-delete (Yue 2026-11-01: items were deleted by accident). A dragged item is only
+// deleted when the finger has stayed over the bin for TRASH_HOLD_MS: the bin fills up while
+// waiting ('active'), then says 松手 ('armed'). Releasing earlier, or moving off the bin,
+// keeps the item. Used by the Create stage (startDrag) and the Sound stage (staff notes).
+const TRASH_HOLD_MS = 1500;
+function makeTrashHold(trash) {
+  let timer = null, armed = false;
+  const reset = () => {
+    clearTimeout(timer); timer = null; armed = false;
+    trash?.classList.remove('active', 'armed');
+  };
+  return {
+    update(over) {
+      if (!trash) return;
+      if (!over) { reset(); return; }
+      if (timer || armed) return;
+      trash.classList.add('active');
+      timer = setTimeout(() => { timer = null; armed = true; trash.classList.add('armed'); }, TRASH_HOLD_MS);
+    },
+    release(over) { const del = armed && over; reset(); return del; },
+  };
+}
+
 function startDrag(el, e, onMoveCallback) {
   const isAvatar = el.id === 'avatar-main' || el.dataset.type === 'avatar';
   const rect = el.getBoundingClientRect();
@@ -3342,6 +3364,7 @@ function startDrag(el, e, onMoveCallback) {
     t: dragStartTime,
   }];
   let lastSampleTime = dragStartTime;
+  const trashHold = isAvatar ? null : makeTrashHold(document.getElementById('palette-trash'));
 
   const onMove = (me) => {
     if (onMoveCallback) onMoveCallback();
@@ -3358,12 +3381,9 @@ function startDrag(el, e, onMoveCallback) {
       lastSampleTime = now;
     }
 
-    // Highlight trash if near (never for the avatar — it can't be trashed)
+    // Bin fills while held over it (never for the avatar — it can't be trashed)
     const trash = document.getElementById('palette-trash');
-    if (trash && !isAvatar) {
-      const tRect = trash.getBoundingClientRect();
-      trash.classList.toggle('active', pointInRect(me, tRect));
-    }
+    if (trash && trashHold) trashHold.update(pointInRect(me, trash.getBoundingClientRect()));
   };
 
   const onUp = (ue) => {
@@ -3375,11 +3395,9 @@ function startDrag(el, e, onMoveCallback) {
     // dropping it there just clamps it back into the canvas below.
     const trash = document.getElementById('palette-trash');
     if (trash) trash.classList.remove('active');
-    if (trash && !isAvatar) {
-      const tRect = trash.getBoundingClientRect();
-      // Only when released inside the bin itself — the old 'right of / below its
-      // top-left corner, +20px slack' test also caught drags into the canvas corner.
-      if (pointInRect(ue, tRect)) {
+    if (trash && trashHold) {
+      // Only when released inside the bin itself AND held there for TRASH_HOLD_MS.
+      if (trashHold.release(pointInRect(ue, trash.getBoundingClientRect()))) {
         // Delete element
         if (el.dataset.type === 'music') stopAmbientLoop();
         el.remove();
