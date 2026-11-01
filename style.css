@@ -670,9 +670,9 @@ html, body {
 .brush-dot {
   display: block; border-radius: 50%; background: #2c2c2c;
 }
-.brush-s { width: 6px; height: 6px; }
+.brush-s { width: 5px; height: 5px; }
 .brush-m { width: 12px; height: 12px; }
-.brush-l { width: 22px; height: 22px; }
+.brush-l { width: 26px; height: 26px; }
 .btn-eraser {
   width: 52px; height: 52px; border-radius: 50%;
   background: transparent; border: 2px solid transparent;
@@ -2230,9 +2230,9 @@ html, body {
   .hue-tile-name { font-size: 0.55rem; }
   .brush-size, .btn-tool, .btn-eraser { width: 46px; height: 46px; }
   .btn-tool svg { width: 22px; height: 22px; }
-  .brush-s { width: 5px; height: 5px; }
+  .brush-s { width: 4px; height: 4px; }
   .brush-m { width: 10px; height: 10px; }
-  .brush-l { width: 18px; height: 18px; }
+  .brush-l { width: 22px; height: 22px; }
   /* Side-by-side (see .photo-main-row) needs room .photo-content doesn't
      have on a narrow phone — fall back to the original stacked layout
      there; only iPad needs to avoid scrolling per Yue's request. */

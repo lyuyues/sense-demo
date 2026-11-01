@@ -3364,9 +3364,11 @@ function updatePlacedElement(el) {
 // ============================================================
 // Crayon brush, shared by live drawing and redrawColorStrokes (so strokes look the same
 // after a redraw, e.g. undo or re-entering the color stage). 2026-11-01 (Yue): thicker and
-// denser. Band = brushSize (1/2/4) x CRAYON_PX_PER_SIZE canvas px; was x3 with 3 hairlines.
+// denser; second pass: bigger step between the 3 sizes, +50% density.
+// Band width per brushSize (1/2/4) in canvas px; was 3/6/12 with 3 hairlines.
 // The logged stroke.width stays the brushSize, so data is comparable with earlier sessions.
-const CRAYON_PX_PER_SIZE = 6;
+const CRAYON_PX = { 1: 10, 2: 24, 4: 48 };
+const crayonPx = (brushSize) => CRAYON_PX[brushSize] || brushSize * 12;
 function drawCrayonSegment(ctx, x0, y0, x1, y1, color, size) {
   const dist = Math.hypot(x1 - x0, y1 - y0);
   if (dist < 1) return;
@@ -3377,7 +3379,7 @@ function drawCrayonSegment(ctx, x0, y0, x1, y1, color, size) {
   ctx.fillStyle = color;
   ctx.lineCap = 'round';
   // Many overlapping offset lines across the band -> dense waxy fill
-  const lines = Math.max(6, Math.round(size * 0.9));
+  const lines = Math.max(9, Math.round(size * 1.35));
   for (let i = 0; i < lines; i++) {
     const offset = (Math.random() - 0.5) * size;
     const j = () => (Math.random() - 0.5) * 1.5;
@@ -3389,7 +3391,7 @@ function drawCrayonSegment(ctx, x0, y0, x1, y1, color, size) {
     ctx.stroke();
   }
   // Grain particles along the segment
-  const grainCount = Math.floor(dist * size * 0.1);
+  const grainCount = Math.floor(dist * size * 0.15);
   for (let i = 0; i < grainCount; i++) {
     const t = Math.random();
     ctx.beginPath();
@@ -3454,7 +3456,7 @@ function initColoring() {
       ctx.globalCompositeOperation = 'destination-out';
       ctx.beginPath();
       ctx.moveTo(x, y);
-      ctx.lineWidth = state.brushSize * CRAYON_PX_PER_SIZE;
+      ctx.lineWidth = crayonPx(state.brushSize);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
     } else {
@@ -3473,7 +3475,7 @@ function initColoring() {
       ctx.lineTo(x, y);
       ctx.stroke();
     } else {
-      drawCrayonSegment(ctx, lastCrayonX, lastCrayonY, x, y, state.selectedColor, state.brushSize * CRAYON_PX_PER_SIZE);
+      drawCrayonSegment(ctx, lastCrayonX, lastCrayonY, x, y, state.selectedColor, crayonPx(state.brushSize));
       lastCrayonX = x;
       lastCrayonY = y;
     }
@@ -3530,14 +3532,14 @@ function redrawColorStrokes() {
       for (let i = 1; i < stroke.points.length; i++) {
         ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
       }
-      ctx.lineWidth = stroke.width * CRAYON_PX_PER_SIZE;
+      ctx.lineWidth = crayonPx(stroke.width);
       ctx.lineCap = 'round';
       ctx.stroke();
     } else {
       ctx.globalCompositeOperation = 'source-over';
       for (let i = 1; i < stroke.points.length; i++) {
         const p0 = stroke.points[i - 1], p1 = stroke.points[i];
-        drawCrayonSegment(ctx, p0.x, p0.y, p1.x, p1.y, stroke.color, stroke.width * CRAYON_PX_PER_SIZE);
+        drawCrayonSegment(ctx, p0.x, p0.y, p1.x, p1.y, stroke.color, crayonPx(stroke.width));
       }
       ctx.globalAlpha = 1.0;
     }
