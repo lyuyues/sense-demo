@@ -11,7 +11,7 @@
   <!-- Self-hosted Google Fonts (fetch_fonts.py): Google is blocked in mainland China and a
        render-blocking stylesheet from it stalled the first screen until it timed out. -->
   <link rel="stylesheet" href="assets/fonts/fonts.css?v=1">
-  <link rel="stylesheet" href="style.css?v=283">
+  <link rel="stylesheet" href="style.css?v=285">
   <link rel="stylesheet" href="style-handdrawn.css?v=48">
 </head>
 <body>
@@ -421,6 +421,7 @@
       <div class="fab-control" id="fab-control">
         <div class="fab-panel hidden" id="fab-panel">
           <div class="settings-panel-title">调节</div>
+          <div class="settings-panel-intro">请根据您对这个孩子的了解，拖动下面的圆点，把画面和声音调到这个孩子看着、听着最舒服的样子。</div>
           <div class="settings-panel-hint">点左下角 ▶ 播放键可以播放画面和声音，边看边调；再点一次暂停。</div>
           <div class="settings-rows" id="settings-rows">
             <!-- Continuous channels -->
@@ -495,7 +496,7 @@
                  (see SPATIAL_VIDEO_VARIANTS in app.js) — dental + dining 'close' only for now; 'far' and
                  grocery play the base (mid) file, the chosen value is still captured. -->
             <div class="settings-row settings-row-bucket" data-channel="spatial">
-              <span class="settings-name">空间距离（空间）<span class="settings-note hidden">按孩子平时的习惯选</span></span>
+              <span class="settings-name">空间距离（空间）</span>
               <div class="settings-track-wrap">
                 <input type="range" class="settings-slider" data-channel="spatial" min="0" max="100" step="50" value="50">
                 <span class="settings-tick settings-tick-p"></span>
@@ -505,8 +506,12 @@
               </div>
               <button class="settings-reset" data-channel="spatial" title="恢复到基线值">&#8634;</button>
             </div>
+            <div class="settings-note settings-criteria hidden">
+              <div class="settings-criteria-tip">这一项看视频不容易看出变化，请按孩子平时的表现选：</div>
+              <div class="settings-criteria-grid"><span><b>近</b>别人靠很近、碰到也不在意，或者自己喜欢贴着人</span><span><b>中</b>和一般孩子差不多</span><span><b>远</b>别人一靠近就退后、躲开，喜欢和人保持距离</span></div>
+            </div>
             <div class="settings-row settings-row-bucket" data-channel="prep">
-              <span class="settings-name">情节节奏（时间）<span class="settings-note hidden">按孩子需要的准备时间选</span></span>
+              <span class="settings-name">情节节奏（时间）</span>
               <div class="settings-track-wrap">
                 <input type="range" class="settings-slider" data-channel="prep" min="0" max="100" step="50" value="50">
                 <span class="settings-tick settings-tick-p"></span>
@@ -515,6 +520,10 @@
                 <div class="settings-bucket-labels"><span>快</span><span>中</span><span>慢</span></div>
               </div>
               <button class="settings-reset" data-channel="prep" title="恢复到基线值">&#8634;</button>
+            </div>
+            <div class="settings-note settings-criteria hidden">
+              <div class="settings-criteria-tip">这一项看视频不容易看出变化，请按孩子平时的表现选：</div>
+              <div class="settings-criteria-grid"><span><b>快</b>换活动、来新的人，马上就能跟上</span><span><b>中</b>和一般孩子差不多</span><span><b>慢</b>每件新的事都需要先停一下、提前说一声才能进入</span></div>
             </div>
           </div>
           <!-- Hidden 2026-09-22: the Protective/Challenge difficulty modal these
