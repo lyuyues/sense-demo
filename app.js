@@ -587,6 +587,13 @@ function awardRewardFor(stageId) {
 // LOGGING
 // ============================================================
 function logEvent(event, data = {}) {
+  // Remember the canvas diagonal while it is laid out; extractPreferences() runs only
+  // after the canvas is hidden (stage1 export, video init) and needs it for spatial.
+  if (state.phase === 'canvas') {
+    const c = document.getElementById('canvas-container');
+    const d = c ? Math.sqrt(c.offsetWidth ** 2 + c.offsetHeight ** 2) : 0;
+    if (d > 0) state.canvasMaxDist = d;
+  }
   state.interactionLog.push({
     timestamp: Date.now(),
     elapsed: Date.now() - state.sessionStart,
@@ -5428,9 +5435,15 @@ function playDrumHit(sessionPhase) {
 function extractPreferences() {
   const avatar = state.placedElements.find(e => e.type === 'avatar');
   const container = document.getElementById('canvas-container');
-  const maxDist = container
+  // The canvas is hidden (offsetWidth 0) when initVideoPlayer() calls this again for
+  // the video phase. Measuring it then gave maxDist 0 → avgDist/0 = Infinity → spatial
+  // score pinned at 1 ("far") for every session (Kid-01/02, 2026-11-01). Cache the size
+  // from the last call where the canvas was laid out and reuse it while hidden.
+  const liveDist = container
     ? Math.sqrt(container.offsetWidth ** 2 + container.offsetHeight ** 2)
-    : 1000;
+    : 0;
+  if (liveDist > 0) state.canvasMaxDist = liveDist;
+  const maxDist = state.canvasMaxDist || liveDist || 1000;
 
   // SPATIAL: average distance of friends/spatial elements from avatar.
   // distancesPx/avgDistancePx are the raw pixel values behind spatialScore —
@@ -5456,6 +5469,14 @@ function extractPreferences() {
   const audioElems = state.placedElements.filter(e => e.dimension === 'auditory');
   let auditoryScore = 0.5;
   let staffPitchAvg = null, staffVolumeAvg = null;
+  // Final volume per stem (voice / bgm / sfx), so each stem's GainNode gets the child's
+  // own setting for that layer instead of the 3-layer average. A stem the child never
+  // placed stays null and falls back to the default in computeBaselinesFromPreferences.
+  const staffVolumeByStem = {};
+  for (const k of ['voice', 'bgm', 'sfx']) {
+    const v = staffByType[k]?.volume;
+    staffVolumeByStem[k] = (typeof v === 'number') ? v / 100 : null;
+  }
   const auditoryLayerCount = staffSettings.length;
   if (auditoryLayerCount > 0) {
     staffPitchAvg = staffSettings.reduce((s, e) => s + (e.pitch ?? 0), 0) / auditoryLayerCount / 100;
@@ -5518,7 +5539,8 @@ function extractPreferences() {
     auditory: {
       score: auditoryScore,
       staffPitch: staffPitchAvg,
-      staffVolume: staffVolumeAvg,
+      staffVolume: staffVolumeAvg,       // 3-layer mean, kept for older analysis scripts
+      staffVolumeByStem,                 // what the stem gains actually use
       layerCount: auditoryLayerCount,
       elementCount: audioElems.length,
     },
@@ -6196,14 +6218,20 @@ function computeBaselinesFromPreferences(prefs) {
   const volBase = (typeof prefs.auditory.staffVolume === 'number')
     ? prefs.auditory.staffVolume
     : (prefs.auditory.score ?? 0.5);
+  // Per-stem final volume; a stem the child didn't place → 0.5 default (not the mean of
+  // the others). Sessions recorded before staffVolumeByStem existed fall back to volBase.
+  const byStem = prefs.auditory.staffVolumeByStem;
+  const stemVol = k => byStem
+    ? (typeof byStem[k] === 'number' ? byStem[k] : 0.5)
+    : volBase;
 
   state.baselinePerChannel = {
     brightness: clamp01(brightnessBase),
     saturation: clamp01(saturationBase),
     pitch:      clamp01(pitchBase),
-    voice:      clamp01(volBase),
-    bgm:        clamp01(volBase),
-    sfx:        clamp01(volBase),
+    voice:      clamp01(stemVol('voice')),
+    bgm:        clamp01(stemVol('bgm')),
+    sfx:        clamp01(stemVol('sfx')),
     spatial:    spatialBucketFromScore(prefs.spatial.score),
     prep:       prepBucketFromSMT(prefs.temporal.smt),
   };
