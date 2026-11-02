@@ -2279,6 +2279,15 @@ html, body {
   margin-bottom: 0.8rem;
   padding-left: 0.1rem;
 }
+.settings-panel-hint {
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #f5d98a;
+  background: rgba(201,162,74,0.14);
+  border-radius: 8px;
+  padding: 0.45rem 0.65rem;
+  margin: -0.3rem 0 0.8rem;
+}
 .settings-rows {
   display: flex; flex-direction: column;
   gap: 0.7rem;
