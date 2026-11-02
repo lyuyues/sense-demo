@@ -6,133 +6,105 @@
   <title>SENSE 儿童感官评定表</title>
   <!-- Teacher-rated sensory reference (paper §Teacher-Rated Sensory Reference;
        content = SENSE/paper/_design_notes/teacher_sensory_scale_v2_20261008.md).
-       Self-contained: system fonts only (Google is blocked in China), no offline.js.
-       Saves through the existing /api/save-session sink as condition "teacherform",
-       then hands off to the slider step (role=teacher, see teacher.html). -->
+       One question per screen. Self-contained: system fonts only (Google is
+       blocked in China), no offline.js. Saves through /api/save-session as
+       condition "teacherform", then hands off to the slider video (role=teacher).
+       Opened with the teacher token (server.py TEACHER_TOKEN). -->
   <style>
     :root {
       --bg: #fafaf8; --card: #fff; --ink: #2c2c2c; --muted: #7a7a74; --line: #e4e2dc;
       --accent: #c9a24a; --accent-ink: #4a3d1c; --accent-soft: #fff8ec; --warn: #d9534f;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
       font-family: -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
       background: var(--bg); color: var(--ink); line-height: 1.6;
-      padding: 1.5rem 16px 4rem;
     }
-    .wrap { max-width: 640px; margin: 0 auto; }
-    h1 { font-size: 1.45rem; margin-bottom: 0.3rem; }
-    .lead { color: var(--muted); font-size: 0.92rem; margin-bottom: 1.2rem; }
-    .card {
-      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
-      padding: 1.1rem 1rem; margin-bottom: 1rem;
-    }
-    .intro { background: var(--accent-soft); border-color: #f0dfb8; color: #5a4a22; font-size: 0.9rem; }
+    .app { max-width: 600px; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; padding: 0 16px; }
+    .top { padding: 0.9rem 0 0.6rem; }
+    .top-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.4rem; }
+    .bar { height: 6px; background: #ebe8e0; border-radius: 3px; overflow: hidden; }
+    .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.25s; }
+    .top.hidden { visibility: hidden; }
+    main { flex: 1; padding: 0.6rem 0 1rem; }
+    .screen { display: none; animation: in 0.2s ease-out; }
+    .screen.active { display: block; }
+    @keyframes in { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+    h1 { font-size: 1.45rem; margin: 0.8rem 0 0.3rem; }
+    .lead { color: var(--muted); font-size: 0.9rem; margin-bottom: 1rem; }
+    .intro { background: var(--accent-soft); border: 1px solid #f0dfb8; border-radius: 14px; padding: 1rem; color: #5a4a22; font-size: 0.92rem; }
     .intro p + p, .intro ul { margin-top: 0.6rem; }
     .intro ul { padding-left: 1.2rem; }
     .intro b { color: var(--accent-ink); }
-    .sense-head { display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.2rem; }
-    .sense-num { color: var(--accent); font-weight: 700; font-size: 1.15rem; }
-    .sense-title { font-size: 1.12rem; font-weight: 700; }
-    .sense-sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.4rem; }
-    .q { padding-top: 0.9rem; margin-top: 0.9rem; border-top: 1px dashed var(--line); }
-    .q:first-of-type { border-top: none; margin-top: 0.4rem; padding-top: 0; }
-    .q-label { font-weight: 600; font-size: 0.97rem; margin-bottom: 0.15rem; }
-    .q-label .req { color: var(--warn); margin-left: 2px; }
-    .q-hint { color: var(--muted); font-size: 0.84rem; margin-bottom: 0.55rem; }
-    .anchors { font-size: 0.84rem; margin: 0.2rem 0 0.6rem; }
-    .anchors div { display: flex; gap: 0.5rem; padding: 0.15rem 0; }
-    .anchors .n {
-      flex: 0 0 1.5rem; height: 1.5rem; border-radius: 50%; background: #f1efe9;
-      text-align: center; font-weight: 700; font-size: 0.8rem; line-height: 1.5rem; margin-top: 0.05rem;
-    }
+    .ctx { display: inline-flex; align-items: baseline; gap: 0.4rem; background: var(--accent-soft); border: 1px solid #f0dfb8;
+      color: var(--accent-ink); border-radius: 999px; padding: 0.15rem 0.75rem; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem; }
+    .ctx small { font-weight: 400; color: #8a7a52; }
+    .q-label { font-weight: 700; font-size: 1.15rem; margin: 0.5rem 0 0.2rem; }
+    .q-hint { color: var(--muted); font-size: 0.88rem; margin-bottom: 0.4rem; }
+    .opt-tag { color: var(--muted); font-size: 0.85rem; font-weight: 400; }
+    .anchors { font-size: 0.9rem; margin: 0.6rem 0 1rem; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0.6rem 0.8rem; }
+    .anchors div { display: flex; gap: 0.6rem; padding: 0.25rem 0; }
+    .anchors .n { flex: 0 0 1.6rem; height: 1.6rem; border-radius: 50%; background: #f1efe9; text-align: center; font-weight: 700; font-size: 0.85rem; line-height: 1.6rem; }
     .scale { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-    .scale-ends { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--muted); margin-top: 0.3rem; }
-    .opts { display: flex; flex-wrap: wrap; gap: 8px; }
-    .opt { position: relative; }
+    .scale-ends { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--muted); margin-top: 0.3rem; }
+    .opts { display: flex; flex-direction: column; gap: 10px; margin-top: 0.8rem; }
+    .opt { position: relative; display: block; }
     .opt input { position: absolute; opacity: 0; pointer-events: none; }
-    .opt span {
-      display: block; min-height: 44px; padding: 0.55rem 0.8rem; border: 1.5px solid var(--line);
-      border-radius: 10px; background: #fff; text-align: center; font-size: 0.92rem; cursor: pointer;
-      user-select: none; -webkit-tap-highlight-color: transparent;
-    }
-    .scale .opt span { padding: 0.55rem 0; font-weight: 700; font-size: 1rem; }
+    .opt span { display: block; min-height: 48px; padding: 0.7rem 1rem; border: 1.5px solid var(--line); border-radius: 12px;
+      background: #fff; font-size: 1rem; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+    .scale .opt span { padding: 0.7rem 0; text-align: center; font-weight: 700; font-size: 1.05rem; }
     .opt input:checked + span { border-color: var(--accent); background: var(--accent); color: #fff; }
     .opt input:focus-visible + span { outline: 3px solid rgba(201,162,74,0.4); }
-    .na { margin-top: 8px; }
-    .na span { font-weight: 400 !important; font-size: 0.86rem !important; text-align: left !important; padding: 0.55rem 0.8rem !important; }
-    input[type=text], textarea {
-      width: 100%; padding: 0.7rem 0.85rem; font-size: 1rem; font-family: inherit;
-      border: 1.5px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink);
-    }
-    textarea { min-height: 6rem; resize: vertical; }
-    .q.missing .q-label { color: var(--warn); }
-    .q.missing .opt span, .q.missing input[type=text] { border-color: var(--warn); }
-    .submit {
-      width: 100%; min-height: 52px; border: none; border-radius: 12px; background: var(--accent);
-      color: #fff; font-size: 1.05rem; font-weight: 700; font-family: inherit; cursor: pointer; margin-top: 0.5rem;
-    }
-    .submit:disabled { opacity: 0.6; }
-    .msg { margin-top: 0.8rem; font-size: 0.9rem; min-height: 1.2em; }
+    .na { margin-top: 12px; }
+    .na span { font-size: 0.92rem; }
+    input[type=text], textarea { width: 100%; padding: 0.8rem 0.9rem; font-size: 1.05rem; font-family: inherit;
+      border: 1.5px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); margin-top: 0.8rem; }
+    textarea { min-height: 8rem; resize: vertical; }
+    .extra { margin-top: 0.4rem; }
+    .extra[hidden] { display: none; }
+    .nav { position: sticky; bottom: 0; background: var(--bg); padding: 0.7rem 0 calc(0.9rem + env(safe-area-inset-bottom)); display: flex; gap: 10px; }
+    .nav button { min-height: 52px; border-radius: 12px; font-size: 1.02rem; font-weight: 700; font-family: inherit; cursor: pointer; }
+    .back { flex: 0 0 34%; background: #fff; border: 1.5px solid var(--line); color: var(--ink); }
+    .next { flex: 1; background: var(--accent); border: none; color: #fff; }
+    .next:disabled { opacity: 0.4; cursor: default; }
+    .back[hidden], .nav[hidden] { display: none; }
+    .msg { font-size: 0.9rem; min-height: 1.2em; margin-top: 0.6rem; }
     .msg.err { color: var(--warn); }
-    .progress {
-      position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 0.4rem 0 0.6rem; margin-bottom: 0.4rem;
-    }
-    .bar { height: 6px; background: #ebe8e0; border-radius: 3px; overflow: hidden; }
-    .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.2s; }
-    .bar-text { font-size: 0.76rem; color: var(--muted); margin-top: 0.2rem; text-align: right; }
-    .done { display: none; }
-    .done.show { display: block; }
-    .done h2 { font-size: 1.25rem; margin-bottom: 0.5rem; }
-    .done ol { padding-left: 1.2rem; font-size: 0.92rem; margin: 0.6rem 0 1rem; }
-    .go {
-      display: block; text-align: center; text-decoration: none; min-height: 52px; line-height: 52px;
-      border-radius: 12px; background: var(--accent); color: #fff; font-weight: 700; font-size: 1.05rem;
-    }
-    .small { font-size: 0.82rem; color: var(--muted); margin-top: 0.8rem; }
+    .done h2 { font-size: 1.3rem; margin: 0.8rem 0 0.5rem; }
+    .done ol { padding-left: 1.2rem; font-size: 0.95rem; margin: 0.6rem 0 1.2rem; }
+    .go { display: block; text-align: center; text-decoration: none; min-height: 52px; line-height: 52px;
+      border-radius: 12px; background: var(--accent); color: #fff; font-weight: 700; font-size: 1.05rem; }
+    .small { font-size: 0.84rem; color: var(--muted); margin-top: 0.9rem; }
   </style>
 </head>
 <body>
-<div class="wrap">
-  <form id="form" novalidate>
-    <h1>儿童感官评定表</h1>
-    <p class="lead">SENSE 研究 · 请孩子的老师填写 · 约 10 分钟 + 调视频 5–10 分钟</p>
-
-    <div class="card intro">
-      <p>老师您好！感谢您参与 SENSE 研究。</p>
-      <p>SENSE 是一个帮学前儿童提前熟悉新场景（如看牙、超市、餐厅）的研究工具。请您根据<b>平时对这个孩子的观察</b>，评一评孩子对 6 种感官刺激的反应。您的评分将作为研究的参照，和其他方式得到的结果做比较。没有对错，按您的印象填写即可。</p>
-      <p>每种刺激有两道主要的 1–7 分题：</p>
-      <ul>
-        <li><b>反应阈值</b>：孩子对这种刺激有多敏感。1 = 很敏感（一点点刺激就有反应），7 = 很不敏感（刺激很强才注意到）。</li>
-        <li><b>应对方式</b>：孩子会不会主动做些什么。1 = 被动（忍着，或者没注意到），7 = 主动（想办法躲开、减少，或者去找、去增加）。如果孩子的反应很普通、看不出明显的应对方式，请选"不适用"。</li>
-      </ul>
-      <p>这两道题分开判断：比如同样是很敏感的孩子，有的会捂耳朵跑开（主动），有的会默默忍着（被动）。</p>
-      <p>填完后还有最后一步：边看一段视频边调画面和声音（约 5–10 分钟）。请不要和孩子家长讨论评分内容。所有信息只用孩子编号记录，仅用于研究。</p>
-    </div>
-
-    <div class="progress"><div class="bar"><i id="bar"></i></div><div class="bar-text" id="bar-text"></div></div>
-
-    <div class="card" id="basic"></div>
-    <div id="senses"></div>
-    <div class="card" id="extra"></div>
-
-    <button class="submit" id="submit" type="submit">提交，进入最后一步</button>
-    <div class="msg" id="msg"></div>
-  </form>
-
-  <div class="card done" id="done">
-    <h2>评定表已提交 ✓</h2>
-    <p>最后一步：边看一段准备视频，边把画面、声音、距离、节奏调到最适合这个孩子的样子。</p>
-    <ol>
-      <li>请<b>打开声音</b>（最好戴耳机）；手机请<b>横屏</b>，用电脑或平板更方便</li>
-      <li>点视频右下角的 ⚙️ 齿轮，打开"调节"面板</li>
-      <li>逐个调 8 个滑块（中间位置 = 一般孩子的默认值），调整会马上反映在视频上，可以边播边调</li>
-      <li>想象这个孩子在看这段视频：调到他/她<b>看着舒服、又能看进去</b>的样子</li>
-      <li>调好后点 <b>确认设置</b>，看到"已保存 ✓"就全部完成了</li>
-    </ol>
-    <a class="go" id="go" href="teacher.html">开始调视频 →</a>
-    <p class="small">如果现在不方便，也可以稍后再打开本页面（同一个手机/电脑），会直接回到这一步。</p>
+<div class="app">
+  <div class="top hidden" id="top">
+    <div class="top-row"><span id="section"></span><span id="count"></span></div>
+    <div class="bar"><i id="bar"></i></div>
   </div>
+  <main>
+    <form id="form" novalidate autocomplete="off"></form>
+    <div class="screen done" id="done">
+      <h2>评定表已提交 ✓</h2>
+      <p>最后一步：边看一段准备视频，边把画面、声音、距离、节奏调到最适合这个孩子的样子。</p>
+      <ol>
+        <li>请<b>打开声音</b>（最好戴耳机）；手机请<b>横屏</b>，用电脑或平板更方便</li>
+        <li>点视频右下角的 ⚙️ 齿轮，打开"调节"面板</li>
+        <li>逐个调 8 个滑块（中间位置 = 一般孩子的默认值），调整会马上反映在视频上，可以边播边调</li>
+        <li>想象这个孩子在看这段视频：调到他/她<b>看着舒服、又能看进去</b>的样子</li>
+        <li>调好后点 <b>确认设置</b>，看到"已保存 ✓"就全部完成了</li>
+      </ol>
+      <a class="go" id="go" href="teacher.html">开始调视频 →</a>
+      <p class="small">如果现在不方便，也可以稍后再打开本页面（同一个手机/电脑），会直接回到这一步。</p>
+    </div>
+  </main>
+  <div class="nav" id="nav">
+    <button type="button" class="back" id="back">上一题</button>
+    <button type="button" class="next" id="next">下一题</button>
+  </div>
+  <div class="msg" id="msg"></div>
 </div>
 
 <script>
@@ -158,7 +130,7 @@ const SENSES = [
     st: ['被动：烦躁、紧张、跟不上，但不做什么（敏感时）；或节奏变化时没什么反应（不敏感时）', '有时主动、有时被动，看情况', '主动：要求停下、离开、捂眼（敏感时）；或主动要求更快、偏爱快速切换的动画和游戏（不敏感时）'] },
 ];
 const BASIC = [
-  { id: 'pid', label: '儿童编号', hint: '研究人员告诉您的编号，例如 P01', type: 'text' },
+  { id: 'pid', label: '孩子姓名', hint: '请填孩子的全名', type: 'text' },
   { id: 'teacher_name', label: '您的姓名', type: 'text' },
   { id: 'teacher_role', label: '您的职务', type: 'choice', opts: ['带班老师', '特教老师', '康复治疗师（OT / 言语 / 行为等）', '其他'] },
   { id: 'teacher_role_other', label: '职务（其他）', type: 'text', optional: true, showIf: ['teacher_role', '其他'] },
@@ -166,7 +138,11 @@ const BASIC = [
   { id: 'weekly_contact', label: '您平时每周和这个孩子相处大约多长时间？', type: 'choice', opts: ['少于 2 小时', '2–5 小时', '5–10 小时', '10 小时以上'] },
 ];
 
-// ---- Rendering --------------------------------------------------------------
+
+// ---- Screens: one question each ---------------------------------------------
+// Each screen: { key (form field name or null), section, html, required, extra }
+// `extra` = an inline follow-up field revealed by one answer (role "其他",
+// stability "会随场合变化"); such answers don't auto-advance.
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const radio = (name, value, label, cls = '') =>
   `<label class="opt ${cls}"><input type="radio" name="${name}" value="${esc(value)}"><span>${esc(label)}</span></label>`;
@@ -174,53 +150,66 @@ const anchors = arr => `<div class="anchors">${[1, 4, 7].map((n, i) => `<div><sp
 const scale = (name, lo, hi) =>
   `<div class="scale">${[1, 2, 3, 4, 5, 6, 7].map(n => radio(name, n, n)).join('')}</div>
    <div class="scale-ends"><span>${lo}</span><span>${hi}</span></div>`;
+const label = (t, optional) => `<div class="q-label">${esc(t)}${optional ? ' <span class="opt-tag">（选填）</span>' : ''}</div>`;
 
-function field(f) {
-  const req = f.optional ? '' : '<span class="req">*</span>';
-  const body = f.type === 'text'
-    ? `<input type="text" name="${f.id}" autocomplete="off"${f.id === 'pid' ? ' autocapitalize="characters"' : ''}>`
-    : `<div class="opts">${f.opts.map(o => radio(f.id, o, o)).join('')}</div>`;
-  return `<div class="q" data-q="${f.id}"${f.optional ? ' data-optional="1"' : ''}${f.showIf ? ` data-showif="${f.showIf.join('=')}" hidden` : ''}>
-    <div class="q-label">${esc(f.label)}${req}</div>${f.hint ? `<div class="q-hint">${esc(f.hint)}</div>` : ''}${body}</div>`;
-}
-document.getElementById('basic').innerHTML =
-  '<div class="sense-head"><span class="sense-title">基本信息</span></div>' + BASIC.map(field).join('');
+const SCREENS = [];
+SCREENS.push({ key: null, intro: true, html: `
+  <h1>儿童感官评定表</h1>
+  <p class="lead">SENSE 研究 · 请孩子的老师填写 · 约 10 分钟 + 调视频 5–10 分钟</p>
+  <div class="intro">
+    <p>老师您好！感谢您参与 SENSE 研究。</p>
+    <p>SENSE 是一个帮学前儿童提前熟悉新场景（如看牙、超市、餐厅）的研究工具。请您根据<b>平时对这个孩子的观察</b>，评一评孩子对 6 种感官刺激的反应。您的评分将作为研究的参照，和其他方式得到的结果做比较。没有对错，按您的印象填写即可。</p>
+    <p>每种刺激有两道主要的 1–7 分题：</p>
+    <ul>
+      <li><b>反应阈值</b>：孩子对这种刺激有多敏感。1 = 很敏感（一点点刺激就有反应），7 = 很不敏感（刺激很强才注意到）。</li>
+      <li><b>应对方式</b>：孩子会不会主动做些什么。1 = 被动（忍着，或者没注意到），7 = 主动（想办法躲开、减少，或者去找、去增加）。如果孩子的反应很普通、看不出明显的应对方式，请选"不适用"。</li>
+    </ul>
+    <p>这两道题分开判断：比如同样是很敏感的孩子，有的会捂耳朵跑开（主动），有的会默默忍着（被动）。</p>
+    <p>填完后还有最后一步：边看一段视频边调画面和声音（约 5–10 分钟）。请不要和孩子家长讨论评分内容。填写的信息仅用于研究，不会公开。</p>
+  </div>` });
 
-document.getElementById('senses').innerHTML = SENSES.map((s, i) => `
-  <div class="card">
-    <div class="sense-head"><span class="sense-num">${'①②③④⑤⑥'[i]}</span><span class="sense-title">${s.title}</span></div>
-    <div class="sense-sub">${s.sub}</div>
-    <div class="q" data-q="${s.id}_threshold">
-      <div class="q-label">反应阈值：孩子对${s.title}有多敏感？<span class="req">*</span></div>
-      ${anchors(s.th)}${scale(`${s.id}_threshold`, '1 很敏感', '7 很不敏感')}
-    </div>
-    <div class="q" data-q="${s.id}_strategy">
-      <div class="q-label">应对方式：孩子会不会主动做些什么？<span class="req">*</span></div>
-      ${anchors(s.st)}${scale(`${s.id}_strategy`, '1 被动', '7 主动')}
-      ${radio(`${s.id}_strategy`, 'NA', '不适用（孩子的反应很普通，看不出明显的应对方式）', 'na')}
-    </div>
-    <div class="q" data-q="${s.id}_confidence">
-      <div class="q-label">您对上面两题判断的把握<span class="req">*</span></div>
-      <div class="opts">${['高', '中', '低'].map(o => radio(`${s.id}_confidence`, o, o)).join('')}</div>
-    </div>
-    <div class="q" data-q="${s.id}_stability">
-      <div class="q-label">这个反应在不同场合是否一样？<span class="req">*</span></div>
-      <div class="opts">${radio(`${s.id}_stability`, 'stable', '基本一样')}${radio(`${s.id}_stability`, 'varies', '会随场合变化')}</div>
-    </div>
-    <div class="q" data-q="${s.id}_stability_note" data-optional="1" data-showif="${s.id}_stability=varies" hidden>
-      <div class="q-label">在什么场合、怎么变化？（选填）</div>
-      <input type="text" name="${s.id}_stability_note" autocomplete="off">
-    </div>
-  </div>`).join('');
+const BASIC_SECTION = '基本信息';
+BASIC.filter(f => !f.showIf).forEach(f => {
+  if (f.type === 'text') {
+    SCREENS.push({ key: f.id, section: BASIC_SECTION, required: !f.optional, html:
+      label(f.label, f.optional) + (f.hint ? `<div class="q-hint">${esc(f.hint)}</div>` : '') +
+      `<input type="text" name="${f.id}">` });
+  } else {
+    const other = BASIC.find(g => g.showIf && g.showIf[0] === f.id);
+    SCREENS.push({ key: f.id, section: BASIC_SECTION, required: true,
+      extra: other ? { when: other.showIf[1], key: other.id } : null, html:
+      label(f.label) + `<div class="opts">${f.opts.map(o => radio(f.id, o, o)).join('')}</div>` +
+      (other ? `<div class="extra" data-extra="${other.id}" hidden><input type="text" name="${other.id}" placeholder="请说明"></div>` : '') });
+  }
+});
 
-document.getElementById('extra').innerHTML = `
-  <div class="q" data-q="comments" data-optional="1">
-    <div class="q-label">还有您觉得重要的其他情况吗？（选填）</div>
-    <textarea name="comments"></textarea>
-  </div>`;
+SENSES.forEach((s, i) => {
+  const ctx = `<div class="ctx">${'①②③④⑤⑥'[i]} ${esc(s.title)} <small>${esc(s.sub)}</small></div>`;
+  const section = `${'①②③④⑤⑥'[i]} ${s.title}`;
+  SCREENS.push({ key: `${s.id}_threshold`, section, required: true, html: ctx +
+    label(`反应阈值：孩子对${s.title}有多敏感？`) + anchors(s.th) + scale(`${s.id}_threshold`, '1 很敏感', '7 很不敏感') });
+  SCREENS.push({ key: `${s.id}_strategy`, section, required: true, html: ctx +
+    label('应对方式：孩子会不会主动做些什么？') + anchors(s.st) + scale(`${s.id}_strategy`, '1 被动', '7 主动') +
+    radio(`${s.id}_strategy`, 'NA', '不适用（孩子的反应很普通，看不出明显的应对方式）', 'na') });
+  SCREENS.push({ key: `${s.id}_confidence`, section, required: true, html: ctx +
+    label(`您对"${s.title}"这两题判断的把握`) +
+    `<div class="opts">${['高', '中', '低'].map(o => radio(`${s.id}_confidence`, o, o)).join('')}</div>` });
+  SCREENS.push({ key: `${s.id}_stability`, section, required: true,
+    extra: { when: 'varies', key: `${s.id}_stability_note` }, html: ctx +
+    label(`孩子对${s.title}的反应，在不同场合是否一样？`) +
+    `<div class="opts">${radio(`${s.id}_stability`, 'stable', '基本一样')}${radio(`${s.id}_stability`, 'varies', '会随场合变化')}</div>` +
+    `<div class="extra" data-extra="${s.id}_stability_note" hidden><input type="text" name="${s.id}_stability_note" placeholder="在什么场合、怎么变化？（选填）"></div>` });
+});
 
-// ---- State: draft autosave, conditional fields, progress -------------------
+SCREENS.push({ key: 'comments', section: '最后', required: false, last: true, html:
+  label('还有您觉得重要的其他情况吗？', true) + '<textarea name="comments"></textarea>' });
+
 const form = document.getElementById('form');
+form.innerHTML = SCREENS.map((sc, i) => `<section class="screen" data-i="${i}">${sc.html}</section>`).join('');
+const screenEls = [...form.querySelectorAll('.screen')];
+const QUESTIONS = SCREENS.filter(sc => sc.key).length;
+
+// ---- State ------------------------------------------------------------------
 const DRAFT = 'sense_teacherform_draft';
 const DONE = 'sense_teacherform_done';
 const ls = {
@@ -228,69 +217,104 @@ const ls = {
   set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (_) {} },
 };
 const values = () => Object.fromEntries(new FormData(form).entries());
-const visibleQs = () => [...form.querySelectorAll('.q')].filter(q => !q.hidden);
-const requiredQs = () => visibleQs().filter(q => !q.dataset.optional);
-const answered = (q, v) => (v[q.dataset.q] || '').trim() !== '';
+const answered = (sc, v = values()) => !sc.required || (v[sc.key] || '').trim() !== '';
+let cur = 0;
 
-function refresh() {
-  const v = values();
-  form.querySelectorAll('[data-showif]').forEach(q => {
-    const [k, want] = q.dataset.showif.split('=');
-    q.hidden = v[k] !== want;
+const $ = id => document.getElementById(id);
+const msg = $('msg');
+function syncExtras(v = values()) {
+  SCREENS.forEach(sc => {
+    if (!sc.extra) return;
+    const el = form.querySelector(`[data-extra="${sc.extra.key}"]`);
+    if (el) el.hidden = v[sc.key] !== sc.extra.when;
   });
-  const req = requiredQs(), done = req.filter(q => answered(q, v)).length;
-  document.getElementById('bar').style.width = (100 * done / req.length) + '%';
-  document.getElementById('bar-text').textContent = `已完成 ${done} / ${req.length}`;
-  form.querySelectorAll('.q.missing').forEach(q => { if (answered(q, v)) q.classList.remove('missing'); });
-  ls.set(DRAFT, JSON.stringify(v));
 }
+function render() {
+  const sc = SCREENS[cur];
+  screenEls.forEach((el, i) => el.classList.toggle('active', i === cur));
+  const qNum = SCREENS.slice(0, cur + 1).filter(s => s.key).length;
+  $('top').classList.toggle('hidden', !!sc.intro);
+  $('section').textContent = sc.section || '';
+  $('count').textContent = sc.key ? `第 ${qNum} / ${QUESTIONS} 题` : '';
+  $('bar').style.width = (100 * (qNum - (sc.key ? 1 : 0)) / QUESTIONS) + '%';
+  $('back').hidden = cur === 0;
+  $('next').textContent = sc.intro ? '开始填写' : sc.last ? '提交，进入最后一步' : '下一题';
+  $('next').disabled = !answered(sc);
+  msg.textContent = ''; msg.className = 'msg';
+  window.scrollTo(0, 0);
+  const t = screenEls[cur].querySelector('input[type=text]:not([data-extra] input), textarea');
+  if (t && !t.value) setTimeout(() => t.focus({ preventScroll: true }), 220);
+}
+const saveDraft = (v = values()) => ls.set(DRAFT, JSON.stringify({ v, cur }));
+function go(i) { cur = Math.max(0, Math.min(SCREENS.length - 1, i)); saveDraft(); render(); }
+
+let advanceTimer = null;
+form.addEventListener('input', e => {
+  const v = values();
+  syncExtras(v);
+  saveDraft(v);
+  const sc = SCREENS[cur];
+  $('next').disabled = !answered(sc, v);
+  // Single-choice answer → move on by itself, unless it opened a follow-up field.
+  if (e.target.type === 'radio' && e.target.name === sc.key) {
+    clearTimeout(advanceTimer);
+    if (sc.extra && v[sc.key] === sc.extra.when) return;
+    advanceTimer = setTimeout(() => { if (SCREENS[cur] === sc && !sc.last) go(cur + 1); }, 280);
+  }
+});
+form.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); if (!$('next').disabled) $('next').click(); }
+});
+$('back').addEventListener('click', () => { clearTimeout(advanceTimer); go(cur - 1); });
+$('next').addEventListener('click', () => {
+  clearTimeout(advanceTimer);
+  if (SCREENS[cur].last) submit(); else go(cur + 1);
+});
+
 function restore() {
   let d; try { d = JSON.parse(ls.get(DRAFT) || 'null'); } catch (_) { d = null; }
-  const q = new URLSearchParams(location.search);
-  d = d || {};
-  if (q.get('pid')) d.pid = q.get('pid');
-  for (const [k, val] of Object.entries(d)) {
+  const urlPid = (new URLSearchParams(location.search).get('pid') || '').trim().replace(/\s+/g, '');
+  // A draft for a different child must not leak into this child's form.
+  if (urlPid && d && d.v && d.v.pid && d.v.pid.replace(/\s+/g, '') !== urlPid) d = null;
+  const v = (d && d.v) || {};
+  if (urlPid) v.pid = urlPid;
+  for (const [k, val] of Object.entries(v)) {
     form.querySelectorAll(`[name="${k}"]`).forEach(el => {
       if (el.type === 'radio') el.checked = el.value === val; else el.value = val;
     });
   }
+  syncExtras();
+  // Resume at the first unanswered question (never past where they were).
+  if (d && d.cur) {
+    const firstGap = SCREENS.findIndex(sc => sc.key && !answered(sc));
+    cur = firstGap === -1 ? d.cur : Math.min(d.cur, firstGap);
+  }
 }
-form.addEventListener('input', refresh);
-form.addEventListener('change', refresh);
 
 // ---- Submit -----------------------------------------------------------------
-const msg = document.getElementById('msg');
 function showDone(pid) {
-  form.style.display = 'none';
-  const done = document.getElementById('done');
-  done.classList.add('show');
-  document.getElementById('go').href =
-    'index.html?dev=video-dental&pid=' + encodeURIComponent(pid) + '&role=teacher&nocache=1';
+  screenEls.forEach(el => el.classList.remove('active'));
+  $('top').classList.add('hidden');
+  $('nav').hidden = true;
+  $('done').classList.add('active');
+  $('go').href = 'index.html?dev=video-dental&pid=' + encodeURIComponent(pid) + '&role=teacher&nocache=1';
   window.scrollTo(0, 0);
 }
 
-form.addEventListener('submit', async e => {
-  e.preventDefault();
+async function submit() {
   const v = values();
-  const missing = requiredQs().filter(q => !answered(q, v));
-  form.querySelectorAll('.q').forEach(q => q.classList.toggle('missing', missing.includes(q)));
-  if (missing.length) {
-    msg.className = 'msg err';
-    msg.textContent = `还有 ${missing.length} 题没填（已标红）`;
-    missing[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-    return;
-  }
-  const pid = v.pid.trim().toUpperCase();
-  // Drop hidden conditional fields so the record only holds what was shown.
+  const gap = SCREENS.findIndex(sc => sc.key && !answered(sc, v));
+  if (gap !== -1) { go(gap); msg.className = 'msg err'; msg.textContent = '这一题还没有填'; return; }
+  const pid = v.pid.trim().replace(/\s+/g, '');
   const answers = {};
-  visibleQs().forEach(q => { const k = q.dataset.q; if (k in v) answers[k] = typeof v[k] === 'string' ? v[k].trim() : v[k]; });
+  for (const [k, val] of Object.entries(v)) answers[k] = typeof val === 'string' ? val.trim() : val;
+  if (answers.teacher_role !== '其他') delete answers.teacher_role_other;
   answers.pid = pid;
   SENSES.forEach(s => {
-    ['threshold', 'strategy'].forEach(k => {
-      const raw = answers[`${s.id}_${k}`];
-      answers[`${s.id}_${k}`] = raw === 'NA' ? null : Number(raw);
-    });
-    answers[`${s.id}_strategy_na`] = v[`${s.id}_strategy`] === 'NA';
+    if (answers[`${s.id}_stability`] !== 'varies') delete answers[`${s.id}_stability_note`];
+    answers[`${s.id}_threshold`] = Number(answers[`${s.id}_threshold`]);
+    answers[`${s.id}_strategy_na`] = answers[`${s.id}_strategy`] === 'NA';
+    answers[`${s.id}_strategy`] = answers[`${s.id}_strategy_na`] ? null : Number(answers[`${s.id}_strategy`]);
   });
   const record = {
     sessionId: String(Date.now()),
@@ -302,7 +326,7 @@ form.addEventListener('submit', async e => {
     userAgent: navigator.userAgent,
     answers,
   };
-  const btn = document.getElementById('submit');
+  const btn = $('next');
   btn.disabled = true; msg.className = 'msg'; msg.textContent = '正在提交…';
   try {
     const r = await fetch('/api/save-session', {
@@ -317,18 +341,17 @@ form.addEventListener('submit', async e => {
     msg.className = 'msg err';
     msg.textContent = '提交没有成功（' + err.message + '），请检查网络后再点一次。您填的内容已保存在本机，不会丢。';
   }
-});
+}
 
-restore();
-refresh();
-// Already submitted on this device → jump straight to the video step, unless
-// ?new=1 (same teacher rating another child).
-// A link for a different child (?pid=P02) also starts a fresh form.
+// ---- Start ------------------------------------------------------------------
+// Already submitted on this device → straight to the video step, unless the
+// link is for another child (?pid=…) or ?new=1.
 const urlQ = new URLSearchParams(location.search);
 const doneFor = ls.get(DONE);
-const urlPid = (urlQ.get('pid') || '').trim().toUpperCase();
+const urlPid = (urlQ.get('pid') || '').trim().replace(/\s+/g, '');
 if (urlQ.get('new') === '1' || (urlPid && urlPid !== doneFor)) ls.set(DONE, null);
-else if (doneFor) showDone(doneFor);
+restore();
+if (ls.get(DONE) && doneFor) showDone(doneFor); else render();
 </script>
 </body>
 </html>

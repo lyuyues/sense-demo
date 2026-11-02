@@ -67,8 +67,8 @@
       <b>建议：</b>用电脑或平板（手机请横屏），请<b>打开声音</b>（最好戴耳机），在安静的地方完成。按您对孩子的了解来调，不用和家长商量。
     </div>
 
-    <div class="section-label">儿童编号（和评定表里填的一样）</div>
-    <input id="pid" class="pid" type="text" placeholder="例如 P01" autocomplete="off" autocapitalize="characters" />
+    <div class="section-label">孩子姓名（和评定表里填的一样）</div>
+    <input id="pid" class="pid" type="text" placeholder="孩子的全名" autocomplete="off" />
     <a id="start" class="event-link" href="index.html">
       <span>开始</span>
       <span class="arrow">→</span>
@@ -96,7 +96,7 @@
     pidEl.value = q.get('pid') || '';
     if (!pidEl.value) { try { pidEl.value = localStorage.getItem('sense_teacher_pid') || ''; } catch (_) {} }
     document.getElementById('start').addEventListener('click', e => {
-      const pid = pidEl.value.trim().toUpperCase();
+      const pid = pidEl.value.trim().replace(/\s+/g, '');
       if (!pid) { e.preventDefault(); pidEl.classList.add('missing'); pidEl.focus(); return; }
       try { localStorage.setItem('sense_teacher_pid', pid); } catch (_) {}
       e.currentTarget.href = 'index.html?dev=video-' + scene + '&pid=' + encodeURIComponent(pid) + '&role=teacher&nocache=1';
