@@ -80,8 +80,8 @@
       <button data-scene="dining">🍽️ 餐厅</button>
     </div>
     <div class="seg" id="order-seg" title="正式系统按代码顺序显示">
-      <button data-order="code" class="on">代码顺序（正式系统）</button>
-      <button data-order="shuffle">打乱顺序</button>
+      <button data-order="code">代码顺序（正确答案在第 1 个）</button>
+      <button data-order="shuffle" class="on">打乱顺序（正式系统）</button>
     </div>
     <label class="tog"><input type="checkbox" id="show-answer"> 显示正确答案</label>
   </div>
@@ -156,7 +156,7 @@
   }
 
   // ---- State ----
-  let scene = 'dental', qi = 0, order = 'code', offset = {}, picked = {};
+  let scene = 'dental', qi = 0, order = 'shuffle', offset = {}, picked = {};
   const log = [];
   try { Object.assign(log, JSON.parse(localStorage.getItem('wrapup_test_log') || '[]')); } catch (_) {}
   const saveLog = () => { try { localStorage.setItem('wrapup_test_log', JSON.stringify(log)); } catch (_) {} };

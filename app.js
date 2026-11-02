@@ -7306,9 +7306,9 @@ const WRAPUP_QUESTIONS = {
   ],
   dental: [
     {
-      anchor: '牙医跟你打招呼的时候',
+      anchor: '护士跟你打招呼的时候',
       options: [
-        { label: '走进去，跟着牙医', emoji: '🚶', canonical: true },
+        { label: '走进去，跟着护士', emoji: '🚶', canonical: true },
         { label: '先坐在等候椅上', emoji: '🪑' },
         { label: '看墙上的画', emoji: '🖼️' },
       ],
@@ -7376,38 +7376,50 @@ const WRAPUP_QUESTIONS = {
       revealSegment: 0.35,
     },
     {
-      anchor: '在收银台',
+      // No payment shown: after ordering the clerk turns away and brings the food on a tray (~34-40 s).
+      anchor: '点完餐之后',
       options: [
-        { label: '付钱买吃的', emoji: '💳', canonical: true },
-        { label: '要一个玩具', emoji: '🧸' },
-        { label: '跟厨师挥挥手', emoji: '👋' },
+        { label: '等店员把吃的拿来', emoji: '⏳', canonical: true },
+        { label: '自己去厨房拿', emoji: '🍳' },
+        { label: '跑出去玩', emoji: '🏃' },
       ],
-      revealSegment: 0.55,
+      revealSegment: 0.49,
     },
     {
-      anchor: '拿好托盘以后',
+      // Video is takeaway: clerk bags the food ~41-45 s, hands it over ~46-50 s.
+      anchor: '店员把吃的装进纸袋以后',
       options: [
-        { label: '端到桌子边坐下', emoji: '🍱', canonical: true },
-        { label: '跟收银员挥挥手', emoji: '👋' },
-        { label: '找一个靠窗的座位', emoji: '🪟' },
+        { label: '双手接过纸袋', emoji: '🛍️', canonical: true },
+        { label: '坐下来等一等', emoji: '🪑' },
+        { label: '再看一次菜单', emoji: '📋' },
       ],
-      revealSegment: 0.72,
+      revealSegment: 0.66,
     },
     {
-      anchor: '坐好以后',
+      // Clerk says "谢谢光临，再见" ~52 s after handing over the bag (voice stem).
+      anchor: '拿到纸袋以后',
       options: [
-        { label: '喝一口，吃一小口', emoji: '🥪', canonical: true },
-        { label: '看看四周', emoji: '👀' },
-        { label: '再等一会儿', emoji: '⏳' },
+        { label: '和店员说再见', emoji: '👋', canonical: true },
+        { label: '店员送你一个玩具', emoji: '🧸' },
+        { label: '店员唱一首歌', emoji: '🎤' },
       ],
-      revealSegment: 0.9,
+      revealSegment: 0.74,
     },
   ],
 };
 
 function pickWrapupQuestion(eventType) {
   const pool = WRAPUP_QUESTIONS[eventType] || WRAPUP_QUESTIONS.birthday;
-  return pool[Math.floor(Math.random() * pool.length)];
+  const q = pool[Math.floor(Math.random() * pool.length)];
+  // Shuffle option order per pick (canonical is authored first) so the right
+  // answer isn't always in position 1. The shuffled copy lives on
+  // state.wrapupQuestion, so a rewatch keeps the same order.
+  const options = q.options.slice();
+  for (let i = options.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [options[i], options[j]] = [options[j], options[i]];
+  }
+  return { ...q, options };
 }
 
 // Readiness/done panels stay in the layout while pending (see .wrapup-pending),
@@ -7451,9 +7463,8 @@ function initWrapupScreen() {
     setWrapupPanelShown('wrapup-done', false);
   }
 
-  // Render the current question (title + 3 option cards). Order is preserved as
-  // listed in the pool so distractors stay in their authored positions; if we
-  // ever want to shuffle option order per session, do it here.
+  // Render the current question (title + 3 option cards), in the shuffled order
+  // chosen by pickWrapupQuestion.
   const q = state.wrapupQuestion || pickWrapupQuestion(state.eventType);
   const titleEl = document.getElementById('wrapup-title');
   if (titleEl) titleEl.textContent = `${q.anchor}，接下来会发生什么？`;
@@ -7478,6 +7489,8 @@ function initWrapupScreen() {
         anchor: q.anchor,
         options: q.options.map(o => o.label),
         picked: opt.label,
+        pickedPosition: i + 1,
+        canonicalPosition: q.options.findIndex(o => o.canonical) + 1,
         canonical: !!opt.canonical,
       });
       card.classList.add('selected');
