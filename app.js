@@ -766,8 +766,11 @@ function devSkipToVideo(eventType) {
   state.eventType = eventType;
   state.dataExported = true; // suppress export-on-processing
   state.isBaselineMode = true;
-  state.condition = 'baseline';
-  logEvent('session_start', { participantId: state.participantId, condition: 'baseline' });
+  // teacher.html sends the child's teacher through the same slider panel
+  // (?role=teacher) — their setting is the study's reference, kept as its own
+  // condition so it never overwrites the caregiver's Baseline record.
+  state.condition = new URLSearchParams(location.search).get('role') === 'teacher' ? 'teacher' : 'baseline';
+  logEvent('session_start', { participantId: state.participantId, condition: state.condition });
   goToPhase('video');
 }
 
@@ -6752,6 +6755,9 @@ function initVideoPlayer() {
     // accumulated during playback. The earlier Stage 1 export (at processing entry)
     // pre-dated the difficulty modal, so this second export is the full-session record.
     try { exportData('stage2'); } catch (e) { console.warn('Stage 2 export failed:', e); }
+    // Teacher reference setting: the wrap-up is the child's activity — just
+    // rewind so the teacher can keep adjusting and rewatching.
+    if (state.condition === 'teacher') { video.currentTime = 0; return; }
     goToPhase('wrapup');
   };
 

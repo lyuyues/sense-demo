@@ -45,6 +45,10 @@ USE_HTTPS=0
 EOF
   chmod 600 "$ENV_FILE"
 fi
+# Narrower token for the teacher form link (server.py TEACHER_TOKEN); added to
+# existing env files too.
+grep -q '^TEACHER_TOKEN=' "$ENV_FILE" || \
+  echo "TEACHER_TOKEN=$(python3 -c 'import secrets; print(secrets.token_urlsafe(12))')" >> "$ENV_FILE"
 TOKEN="$(grep '^STUDY_TOKEN=' "$ENV_FILE" | cut -d= -f2-)"
 mkdir -p "$APP_DIR/session_data" && chmod 700 "$APP_DIR/session_data"
 

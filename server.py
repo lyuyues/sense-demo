@@ -165,23 +165,52 @@ def offline_manifest():
 # trusted LAN. Without this, anyone on the internet could call the Gemini
 # endpoints on our quota or hit save-session.
 STUDY_TOKEN = os.environ.get('STUDY_TOKEN', '')
+# TEACHER_TOKEN (optional, 2026-11-01): a narrower link sent to children's
+# teachers via parents, so the main token never leaves the research team. It
+# opens only the teacher form + the slider-video step, and can only save
+# teacher records — no researcher pages, no Gemini endpoints. Cookie sense_tk.
+TEACHER_TOKEN = os.environ.get('TEACHER_TOKEN', '')
+TEACHER_PAGES = ('/teacher_form.html', '/teacher.html', '/index.html')
+TEACHER_DIRS = ('/assets/', '/video/', '/templates/')
+TEACHER_CONDITIONS = ('teacherform', 'teacher')
 # Never served as static files, token or not: participant data, secrets, code.
 BLOCKED_PREFIXES = ('/session_data', '/.git', '/.env', '/__pycache__', '/deploy')
 BLOCKED_SUFFIXES = ('.pem', '.py', '.env', '.pyc', '.sh', '.service', '.yml', '.yaml')
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
-    def _authorized(self):
+    def _scope(self):
+        """'full' (main token / no token configured), 'teacher', or None."""
         if not STUDY_TOKEN:
-            return True
+            return 'full'
         from urllib.parse import urlsplit, parse_qs
         from http.cookies import SimpleCookie
-        q = parse_qs(urlsplit(self.path).query)
-        if q.get('k', [''])[0] == STUDY_TOKEN:
-            self._set_token_cookie = True
-            return True
+        q = parse_qs(urlsplit(self.path).query).get('k', [''])[0]
         c = SimpleCookie(self.headers.get('Cookie', ''))
-        return 'sense_k' in c and c['sense_k'].value == STUDY_TOKEN
+        if q == STUDY_TOKEN:
+            self._set_token_cookie = True
+            return 'full'
+        if 'sense_k' in c and c['sense_k'].value == STUDY_TOKEN:
+            return 'full'
+        if TEACHER_TOKEN:
+            if q == TEACHER_TOKEN:
+                self._set_teacher_cookie = True
+                return 'teacher'
+            if 'sense_tk' in c and c['sense_tk'].value == TEACHER_TOKEN:
+                return 'teacher'
+        return None
+
+    @staticmethod
+    def _teacher_may_get(path):
+        if path.endswith('/'):
+            return False  # no directory listings
+        if path in TEACHER_PAGES or path.startswith(TEACHER_DIRS):
+            return True
+        # Root-level scripts/styles the video page loads (app.js, style.css, ...).
+        return path.count('/') == 1 and path.endswith(('.js', '.css'))
+
+    def _authorized(self):
+        return self._scope() == 'full'
 
     def _deny(self, code, msg):
         body = msg.encode('utf-8')
@@ -204,7 +233,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if path.startswith(BLOCKED_PREFIXES) or path.endswith(BLOCKED_SUFFIXES) or '/.' in path or '/.' in raw:
             self._deny(404, 'Not found')
             return False
-        if not self._authorized():
+        scope = self._scope()
+        if scope == 'teacher' and self._teacher_may_get(path):
+            return True
+        if scope != 'full':
             self._deny(403, '需要访问口令：请使用研究团队提供的完整链接打开。')
             return False
         return True
@@ -270,7 +302,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             super().do_HEAD()
 
     def do_POST(self):
-        if not self._authorized():
+        scope = self._scope()
+        if scope == 'teacher' and self.path == '/api/save-session':
+            self._handle_save_session(teacher_only=True)
+            return
+        if scope != 'full':
             self._deny(403, 'forbidden')
             return
         if self.path == '/api/convert-avatar':
@@ -540,7 +576,7 @@ Return JSON only:
             self.end_headers()
             self.wfile.write(json.dumps({'error': str(e)}).encode())
 
-    def _handle_save_session(self):
+    def _handle_save_session(self, teacher_only=False):
         # Study data-collection sink: the client POSTs its full session record
         # (elicitation preferences + interactionLog + video playback) here so
         # it survives the tab closing, instead of relying on a manual dev-mode
@@ -557,6 +593,9 @@ Return JSON only:
             stage = body.get('exportStage', 'unknown')
             pid = ''.join(c for c in str(body.get('participantId') or 'NO-PID') if c.isalnum() or c in '-_')
             cond = ''.join(c for c in str(body.get('condition') or 'unknown') if c.isalnum())
+            if teacher_only and cond not in TEACHER_CONDITIONS:
+                self._deny(403, 'forbidden')
+                return
             stage = ''.join(c for c in str(stage) if c.isalnum() or c in '-_')
             fname = f"sense-{pid}-{cond}-{session_id}-{stage}.json"
             path = os.path.join(session_dir, fname)
@@ -585,6 +624,9 @@ Return JSON only:
         if getattr(self, '_set_token_cookie', False):
             self.send_header('Set-Cookie', f'sense_k={STUDY_TOKEN}; Path=/; Max-Age=15552000; SameSite=Lax; HttpOnly')
             self._set_token_cookie = False
+        if getattr(self, '_set_teacher_cookie', False):
+            self.send_header('Set-Cookie', f'sense_tk={TEACHER_TOKEN}; Path=/; Max-Age=15552000; SameSite=Lax; HttpOnly')
+            self._set_teacher_cookie = False
         if not STUDY_TOKEN:
             self.send_header('Access-Control-Allow-Origin', '*')
         # HTML pages aren't versioned like app.js?v=N, so without this the iPad

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SENSE 儿童感官评定表</title>
+  <!-- Teacher-rated sensory reference (paper §Teacher-Rated Sensory Reference;
+       content = SENSE/paper/_design_notes/teacher_sensory_scale_v2_20261008.md).
+       Self-contained: system fonts only (Google is blocked in China), no offline.js.
+       Saves through the existing /api/save-session sink as condition "teacherform",
+       then hands off to the slider step (role=teacher, see teacher.html). -->
+  <style>
+    :root {
+      --bg: #fafaf8; --card: #fff; --ink: #2c2c2c; --muted: #7a7a74; --line: #e4e2dc;
+      --accent: #c9a24a; --accent-ink: #4a3d1c; --accent-soft: #fff8ec; --warn: #d9534f;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+      background: var(--bg); color: var(--ink); line-height: 1.6;
+      padding: 1.5rem 16px 4rem;
+    }
+    .wrap { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 1.45rem; margin-bottom: 0.3rem; }
+    .lead { color: var(--muted); font-size: 0.92rem; margin-bottom: 1.2rem; }
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+      padding: 1.1rem 1rem; margin-bottom: 1rem;
+    }
+    .intro { background: var(--accent-soft); border-color: #f0dfb8; color: #5a4a22; font-size: 0.9rem; }
+    .intro p + p, .intro ul { margin-top: 0.6rem; }
+    .intro ul { padding-left: 1.2rem; }
+    .intro b { color: var(--accent-ink); }
+    .sense-head { display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.2rem; }
+    .sense-num { color: var(--accent); font-weight: 700; font-size: 1.15rem; }
+    .sense-title { font-size: 1.12rem; font-weight: 700; }
+    .sense-sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.4rem; }
+    .q { padding-top: 0.9rem; margin-top: 0.9rem; border-top: 1px dashed var(--line); }
+    .q:first-of-type { border-top: none; margin-top: 0.4rem; padding-top: 0; }
+    .q-label { font-weight: 600; font-size: 0.97rem; margin-bottom: 0.15rem; }
+    .q-label .req { color: var(--warn); margin-left: 2px; }
+    .q-hint { color: var(--muted); font-size: 0.84rem; margin-bottom: 0.55rem; }
+    .anchors { font-size: 0.84rem; margin: 0.2rem 0 0.6rem; }
+    .anchors div { display: flex; gap: 0.5rem; padding: 0.15rem 0; }
+    .anchors .n {
+      flex: 0 0 1.5rem; height: 1.5rem; border-radius: 50%; background: #f1efe9;
+      text-align: center; font-weight: 700; font-size: 0.8rem; line-height: 1.5rem; margin-top: 0.05rem;
+    }
+    .scale { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .scale-ends { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--muted); margin-top: 0.3rem; }
+    .opts { display: flex; flex-wrap: wrap; gap: 8px; }
+    .opt { position: relative; }
+    .opt input { position: absolute; opacity: 0; pointer-events: none; }
+    .opt span {
+      display: block; min-height: 44px; padding: 0.55rem 0.8rem; border: 1.5px solid var(--line);
+      border-radius: 10px; background: #fff; text-align: center; font-size: 0.92rem; cursor: pointer;
+      user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+    .scale .opt span { padding: 0.55rem 0; font-weight: 700; font-size: 1rem; }
+    .opt input:checked + span { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .opt input:focus-visible + span { outline: 3px solid rgba(201,162,74,0.4); }
+    .na { margin-top: 8px; }
+    .na span { font-weight: 400 !important; font-size: 0.86rem !important; text-align: left !important; padding: 0.55rem 0.8rem !important; }
+    input[type=text], textarea {
+      width: 100%; padding: 0.7rem 0.85rem; font-size: 1rem; font-family: inherit;
+      border: 1.5px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink);
+    }
+    textarea { min-height: 6rem; resize: vertical; }
+    .q.missing .q-label { color: var(--warn); }
+    .q.missing .opt span, .q.missing input[type=text] { border-color: var(--warn); }
+    .submit {
+      width: 100%; min-height: 52px; border: none; border-radius: 12px; background: var(--accent);
+      color: #fff; font-size: 1.05rem; font-weight: 700; font-family: inherit; cursor: pointer; margin-top: 0.5rem;
+    }
+    .submit:disabled { opacity: 0.6; }
+    .msg { margin-top: 0.8rem; font-size: 0.9rem; min-height: 1.2em; }
+    .msg.err { color: var(--warn); }
+    .progress {
+      position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 0.4rem 0 0.6rem; margin-bottom: 0.4rem;
+    }
+    .bar { height: 6px; background: #ebe8e0; border-radius: 3px; overflow: hidden; }
+    .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.2s; }
+    .bar-text { font-size: 0.76rem; color: var(--muted); margin-top: 0.2rem; text-align: right; }
+    .done { display: none; }
+    .done.show { display: block; }
+    .done h2 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+    .done ol { padding-left: 1.2rem; font-size: 0.92rem; margin: 0.6rem 0 1rem; }
+    .go {
+      display: block; text-align: center; text-decoration: none; min-height: 52px; line-height: 52px;
+      border-radius: 12px; background: var(--accent); color: #fff; font-weight: 700; font-size: 1.05rem;
+    }
+    .small { font-size: 0.82rem; color: var(--muted); margin-top: 0.8rem; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <form id="form" novalidate>
+    <h1>儿童感官评定表</h1>
+    <p class="lead">SENSE 研究 · 请孩子的老师填写 · 约 10 分钟 + 调视频 5–10 分钟</p>
+
+    <div class="card intro">
+      <p>老师您好！感谢您参与 SENSE 研究。</p>
+      <p>SENSE 是一个帮学前儿童提前熟悉新场景（如看牙、超市、餐厅）的研究工具。请您根据<b>平时对这个孩子的观察</b>，评一评孩子对 6 种感官刺激的反应。您的评分将作为研究的参照，和其他方式得到的结果做比较。没有对错，按您的印象填写即可。</p>
+      <p>每种刺激有两道主要的 1–7 分题：</p>
+      <ul>
+        <li><b>反应阈值</b>：孩子对这种刺激有多敏感。1 = 很敏感（一点点刺激就有反应），7 = 很不敏感（刺激很强才注意到）。</li>
+        <li><b>应对方式</b>：孩子会不会主动做些什么。1 = 被动（忍着，或者没注意到），7 = 主动（想办法躲开、减少，或者去找、去增加）。如果孩子的反应很普通、看不出明显的应对方式，请选"不适用"。</li>
+      </ul>
+      <p>这两道题分开判断：比如同样是很敏感的孩子，有的会捂耳朵跑开（主动），有的会默默忍着（被动）。</p>
+      <p>填完后还有最后一步：边看一段视频边调画面和声音（约 5–10 分钟）。请不要和孩子家长讨论评分内容。所有信息只用孩子编号记录，仅用于研究。</p>
+    </div>
+
+    <div class="progress"><div class="bar"><i id="bar"></i></div><div class="bar-text" id="bar-text"></div></div>
+
+    <div class="card" id="basic"></div>
+    <div id="senses"></div>
+    <div class="card" id="extra"></div>
+
+    <button class="submit" id="submit" type="submit">提交，进入最后一步</button>
+    <div class="msg" id="msg"></div>
+  </form>
+
+  <div class="card done" id="done">
+    <h2>评定表已提交 ✓</h2>
+    <p>最后一步：边看一段准备视频，边把画面、声音、距离、节奏调到最适合这个孩子的样子。</p>
+    <ol>
+      <li>请<b>打开声音</b>（最好戴耳机）；手机请<b>横屏</b>，用电脑或平板更方便</li>
+      <li>点视频右下角的 ⚙️ 齿轮，打开"调节"面板</li>
+      <li>逐个调 8 个滑块（中间位置 = 一般孩子的默认值），调整会马上反映在视频上，可以边播边调</li>
+      <li>想象这个孩子在看这段视频：调到他/她<b>看着舒服、又能看进去</b>的样子</li>
+      <li>调好后点 <b>确认设置</b>，看到"已保存 ✓"就全部完成了</li>
+    </ol>
+    <a class="go" id="go" href="teacher.html">开始调视频 →</a>
+    <p class="small">如果现在不方便，也可以稍后再打开本页面（同一个手机/电脑），会直接回到这一步。</p>
+  </div>
+</div>
+
+<script>
+// ---- Content (v2 scale, plain-language wording for teachers) -------------
+const SENSES = [
+  { id: 'volume', title: '声音大小', sub: '说话声、电视声、突然的大声',
+    th: ['日常音量（说话声、电视声）就会不适或有明显反应', '日常音量没问题；突然的大声会愣一下，很快恢复', '很大的声音才会注意到，叫名字常常没反应'],
+    st: ['被动：不采取行动——默默忍受、烦躁、注意力被打乱（敏感时）；或没注意到声音（不敏感时）', '有时主动、有时被动，看情况', '主动：采取行动改变声音——捂耳、离开、要求关小（敏感时）；或凑近音源、把声音开大、自己制造响声（不敏感时）'] },
+  { id: 'pitch', title: '声音尖细', sub: '口哨、警报、尖叫等高音调的声音',
+    th: ['尖细的高音即使不大声也会明显不适', '各种音调都能接受；很尖的声音偶尔愣一下，很快恢复', '尖锐的高音也不太会注意到'],
+    st: ['被动：听到尖细声音时紧张、烦躁但不做什么（敏感时）；或对尖细声音没有反应（不敏感时）', '有时主动、有时被动，看情况', '主动：捂耳、躲开、让别人停下（敏感时）；或喜欢、反复发出尖叫和高音（不敏感时）'] },
+  { id: 'brightness', title: '光线明暗', sub: '室内灯光、户外日光、突然的强光',
+    th: ['常规室内光或户外日光就会不适', '常规光线没问题；突然的强光会眯一下眼，很快适应', '很强的光也不太在意'],
+    st: ['被动：揉眼、烦躁、难以专注，但不做什么（敏感时）；或对光线变化没反应（不敏感时）', '有时主动、有时被动，看情况', '主动：眯眼、捂眼、背过脸、要求关灯（敏感时）；或盯着灯和反光物看、找亮的地方待（不敏感时）'] },
+  { id: 'saturation', title: '颜色鲜艳程度', sub: '鲜艳、浓烈的颜色或画面',
+    th: ['鲜艳、浓烈的颜色或画面就会让孩子不适', '日常色彩都能接受，没有明显的偏好或回避', '对颜色差异不太注意'],
+    st: ['被动：看久了烦躁、分心，但不做什么（敏感时）；或对颜色没什么反应（不敏感时）', '有时主动、有时被动，看情况', '主动：别开脸、拒绝看、遮住画面（敏感时）；或反复寻找、凝视鲜艳的东西（不敏感时）'] },
+  { id: 'proximity', title: '别人靠近', sub: '别人靠近或碰到孩子的身体',
+    th: ['别人靠近（还没碰到）就会不适', '一般社交距离没问题；陌生人突然靠很近会躲一下', '别人靠近或碰到也很少注意'],
+    st: ['被动：身体僵住、紧张，但不躲开（敏感时）；或对别人靠近没有反应（不敏感时）', '有时主动、有时被动，看情况', '主动：后退、推开、躲开（敏感时）；或主动贴近别人，喜欢挤、抱、贴着（不敏感时）'] },
+  { id: 'pacing', title: '节奏快慢', sub: '说话快、画面切换快、活动推进快',
+    th: ['稍快的节奏就会不适', '一般节奏都能跟上；特别快的时候有点乱，很快调整过来', '节奏很快也不受影响'],
+    st: ['被动：烦躁、紧张、跟不上，但不做什么（敏感时）；或节奏变化时没什么反应（不敏感时）', '有时主动、有时被动，看情况', '主动：要求停下、离开、捂眼（敏感时）；或主动要求更快、偏爱快速切换的动画和游戏（不敏感时）'] },
+];
+const BASIC = [
+  { id: 'pid', label: '儿童编号', hint: '研究人员告诉您的编号，例如 P01', type: 'text' },
+  { id: 'teacher_name', label: '您的姓名', type: 'text' },
+  { id: 'teacher_role', label: '您的职务', type: 'choice', opts: ['带班老师', '特教老师', '康复治疗师（OT / 言语 / 行为等）', '其他'] },
+  { id: 'teacher_role_other', label: '职务（其他）', type: 'text', optional: true, showIf: ['teacher_role', '其他'] },
+  { id: 'known_duration', label: '您认识这个孩子多长时间了？', type: 'choice', opts: ['不到 3 个月', '3–6 个月', '6–12 个月', '1 年以上'] },
+  { id: 'weekly_contact', label: '您平时每周和这个孩子相处大约多长时间？', type: 'choice', opts: ['少于 2 小时', '2–5 小时', '5–10 小时', '10 小时以上'] },
+];
+
+// ---- Rendering --------------------------------------------------------------
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const radio = (name, value, label, cls = '') =>
+  `<label class="opt ${cls}"><input type="radio" name="${name}" value="${esc(value)}"><span>${esc(label)}</span></label>`;
+const anchors = arr => `<div class="anchors">${[1, 4, 7].map((n, i) => `<div><span class="n">${n}</span><span>${esc(arr[i])}</span></div>`).join('')}</div>`;
+const scale = (name, lo, hi) =>
+  `<div class="scale">${[1, 2, 3, 4, 5, 6, 7].map(n => radio(name, n, n)).join('')}</div>
+   <div class="scale-ends"><span>${lo}</span><span>${hi}</span></div>`;
+
+function field(f) {
+  const req = f.optional ? '' : '<span class="req">*</span>';
+  const body = f.type === 'text'
+    ? `<input type="text" name="${f.id}" autocomplete="off"${f.id === 'pid' ? ' autocapitalize="characters"' : ''}>`
+    : `<div class="opts">${f.opts.map(o => radio(f.id, o, o)).join('')}</div>`;
+  return `<div class="q" data-q="${f.id}"${f.optional ? ' data-optional="1"' : ''}${f.showIf ? ` data-showif="${f.showIf.join('=')}" hidden` : ''}>
+    <div class="q-label">${esc(f.label)}${req}</div>${f.hint ? `<div class="q-hint">${esc(f.hint)}</div>` : ''}${body}</div>`;
+}
+document.getElementById('basic').innerHTML =
+  '<div class="sense-head"><span class="sense-title">基本信息</span></div>' + BASIC.map(field).join('');
+
+document.getElementById('senses').innerHTML = SENSES.map((s, i) => `
+  <div class="card">
+    <div class="sense-head"><span class="sense-num">${'①②③④⑤⑥'[i]}</span><span class="sense-title">${s.title}</span></div>
+    <div class="sense-sub">${s.sub}</div>
+    <div class="q" data-q="${s.id}_threshold">
+      <div class="q-label">反应阈值：孩子对${s.title}有多敏感？<span class="req">*</span></div>
+      ${anchors(s.th)}${scale(`${s.id}_threshold`, '1 很敏感', '7 很不敏感')}
+    </div>
+    <div class="q" data-q="${s.id}_strategy">
+      <div class="q-label">应对方式：孩子会不会主动做些什么？<span class="req">*</span></div>
+      ${anchors(s.st)}${scale(`${s.id}_strategy`, '1 被动', '7 主动')}
+      ${radio(`${s.id}_strategy`, 'NA', '不适用（孩子的反应很普通，看不出明显的应对方式）', 'na')}
+    </div>
+    <div class="q" data-q="${s.id}_confidence">
+      <div class="q-label">您对上面两题判断的把握<span class="req">*</span></div>
+      <div class="opts">${['高', '中', '低'].map(o => radio(`${s.id}_confidence`, o, o)).join('')}</div>
+    </div>
+    <div class="q" data-q="${s.id}_stability">
+      <div class="q-label">这个反应在不同场合是否一样？<span class="req">*</span></div>
+      <div class="opts">${radio(`${s.id}_stability`, 'stable', '基本一样')}${radio(`${s.id}_stability`, 'varies', '会随场合变化')}</div>
+    </div>
+    <div class="q" data-q="${s.id}_stability_note" data-optional="1" data-showif="${s.id}_stability=varies" hidden>
+      <div class="q-label">在什么场合、怎么变化？（选填）</div>
+      <input type="text" name="${s.id}_stability_note" autocomplete="off">
+    </div>
+  </div>`).join('');
+
+document.getElementById('extra').innerHTML = `
+  <div class="q" data-q="comments" data-optional="1">
+    <div class="q-label">还有您觉得重要的其他情况吗？（选填）</div>
+    <textarea name="comments"></textarea>
+  </div>`;
+
+// ---- State: draft autosave, conditional fields, progress -------------------
+const form = document.getElementById('form');
+const DRAFT = 'sense_teacherform_draft';
+const DONE = 'sense_teacherform_done';
+const ls = {
+  get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } },
+  set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (_) {} },
+};
+const values = () => Object.fromEntries(new FormData(form).entries());
+const visibleQs = () => [...form.querySelectorAll('.q')].filter(q => !q.hidden);
+const requiredQs = () => visibleQs().filter(q => !q.dataset.optional);
+const answered = (q, v) => (v[q.dataset.q] || '').trim() !== '';
+
+function refresh() {
+  const v = values();
+  form.querySelectorAll('[data-showif]').forEach(q => {
+    const [k, want] = q.dataset.showif.split('=');
+    q.hidden = v[k] !== want;
+  });
+  const req = requiredQs(), done = req.filter(q => answered(q, v)).length;
+  document.getElementById('bar').style.width = (100 * done / req.length) + '%';
+  document.getElementById('bar-text').textContent = `已完成 ${done} / ${req.length}`;
+  form.querySelectorAll('.q.missing').forEach(q => { if (answered(q, v)) q.classList.remove('missing'); });
+  ls.set(DRAFT, JSON.stringify(v));
+}
+function restore() {
+  let d; try { d = JSON.parse(ls.get(DRAFT) || 'null'); } catch (_) { d = null; }
+  const q = new URLSearchParams(location.search);
+  d = d || {};
+  if (q.get('pid')) d.pid = q.get('pid');
+  for (const [k, val] of Object.entries(d)) {
+    form.querySelectorAll(`[name="${k}"]`).forEach(el => {
+      if (el.type === 'radio') el.checked = el.value === val; else el.value = val;
+    });
+  }
+}
+form.addEventListener('input', refresh);
+form.addEventListener('change', refresh);
+
+// ---- Submit -----------------------------------------------------------------
+const msg = document.getElementById('msg');
+function showDone(pid) {
+  form.style.display = 'none';
+  const done = document.getElementById('done');
+  done.classList.add('show');
+  document.getElementById('go').href =
+    'index.html?dev=video-dental&pid=' + encodeURIComponent(pid) + '&role=teacher&nocache=1';
+  window.scrollTo(0, 0);
+}
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const v = values();
+  const missing = requiredQs().filter(q => !answered(q, v));
+  form.querySelectorAll('.q').forEach(q => q.classList.toggle('missing', missing.includes(q)));
+  if (missing.length) {
+    msg.className = 'msg err';
+    msg.textContent = `还有 ${missing.length} 题没填（已标红）`;
+    missing[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  const pid = v.pid.trim().toUpperCase();
+  // Drop hidden conditional fields so the record only holds what was shown.
+  const answers = {};
+  visibleQs().forEach(q => { const k = q.dataset.q; if (k in v) answers[k] = typeof v[k] === 'string' ? v[k].trim() : v[k]; });
+  answers.pid = pid;
+  SENSES.forEach(s => {
+    ['threshold', 'strategy'].forEach(k => {
+      const raw = answers[`${s.id}_${k}`];
+      answers[`${s.id}_${k}`] = raw === 'NA' ? null : Number(raw);
+    });
+    answers[`${s.id}_strategy_na`] = v[`${s.id}_strategy`] === 'NA';
+  });
+  const record = {
+    sessionId: String(Date.now()),
+    participantId: pid,
+    condition: 'teacherform',
+    exportStage: 'form',
+    timestamp: new Date().toISOString(),
+    instrument: 'teacher_sensory_scale_v2_20261008',
+    userAgent: navigator.userAgent,
+    answers,
+  };
+  const btn = document.getElementById('submit');
+  btn.disabled = true; msg.className = 'msg'; msg.textContent = '正在提交…';
+  try {
+    const r = await fetch('/api/save-session', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(record),
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    ls.set(DRAFT, null);
+    ls.set(DONE, pid);
+    showDone(pid);
+  } catch (err) {
+    btn.disabled = false;
+    msg.className = 'msg err';
+    msg.textContent = '提交没有成功（' + err.message + '），请检查网络后再点一次。您填的内容已保存在本机，不会丢。';
+  }
+});
+
+restore();
+refresh();
+// Already submitted on this device → jump straight to the video step, unless
+// ?new=1 (same teacher rating another child).
+// A link for a different child (?pid=P02) also starts a fresh form.
+const urlQ = new URLSearchParams(location.search);
+const doneFor = ls.get(DONE);
+const urlPid = (urlQ.get('pid') || '').trim().toUpperCase();
+if (urlQ.get('new') === '1' || (urlPid && urlPid !== doneFor)) ls.set(DONE, null);
+else if (doneFor) showDone(doneFor);
+</script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <title>SENSE 老师设置</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+      background: #fafaf8; color: #2c2c2c;
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh; padding: 3rem 1.5rem;
+    }
+    .wrap { width: 100%; max-width: 420px; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.4rem; }
+    .subtitle { font-size: 0.9rem; color: #777; margin-bottom: 1.6rem; line-height: 1.5; }
+    .info-box {
+      background: #fff8ec; border: 1px solid #f0dfb8; border-radius: 12px;
+      padding: 0.9rem 1.1rem; font-size: 0.82rem; color: #6b5a2e; line-height: 1.6;
+      margin-bottom: 1.8rem;
+    }
+    .info-box b { color: #4a3d1c; }
+    .section-label {
+      font-size: 0.75rem; color: #999; text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 0.6rem; font-weight: 600;
+    }
+    .event-link {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%; text-align: left;
+      background: #fff; color: #2c2c2c; border: 1.5px solid #e2e2de;
+      border-radius: 14px; padding: 0.9rem 1.2rem; font-size: 1rem;
+      font-weight: 600; text-decoration: none;
+      margin-bottom: 0.7rem;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .event-link:active { background: #f5f5f2; border-color: #c9a24a; }
+    .event-link .arrow { color: #c9a24a; font-size: 1.1rem; }
+    .event-emoji { font-size: 1.3rem; margin-right: 0.6rem; }
+    .steps {
+      margin-top: 2rem; font-size: 0.8rem; color: #888; line-height: 1.9;
+    }
+    .steps b { color: #555; }
+    .back-link {
+      display: inline-block; margin-top: 2.2rem; font-size: 0.8rem;
+      color: #bbb; text-decoration: none;
+    }
+    .pid {
+      width: 100%; padding: 0.75rem 1rem; font-size: 1rem; margin-bottom: 1.4rem;
+      border: 1.5px solid #e2e2de; border-radius: 12px; background: #fff;
+    }
+    .pid.missing { border-color: #d9534f; box-shadow: 0 0 0 3px rgba(217,83,79,0.2); }
+    .backup-btn {
+      margin-top: 1.6rem; width: 100%; padding: 0.7rem; font-size: 0.9rem;
+      border: 1.5px dashed #c9a24a; border-radius: 12px; background: #fffdf6; color: #6b5a2e;
+      display: block; text-align: center; text-decoration: none;
+    }
+    .backup-status { font-size: 0.8rem; color: #888; margin-top: 0.4rem; min-height: 1em; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>SENSE 老师设置</h1>
+    <p class="subtitle">感官评定表的最后一步：边看一段准备视频，边把画面、声音、距离、节奏调到最适合这个孩子的样子。大约 5–10 分钟。</p>
+
+    <div class="info-box">
+      <b>建议：</b>用电脑或平板（手机请横屏），请<b>打开声音</b>（最好戴耳机），在安静的地方完成。按您对孩子的了解来调，不用和家长商量。
+    </div>
+
+    <div class="section-label">儿童编号（和评定表里填的一样）</div>
+    <input id="pid" class="pid" type="text" placeholder="例如 P01" autocomplete="off" autocapitalize="characters" />
+    <a id="start" class="event-link" href="index.html">
+      <span>开始</span>
+      <span class="arrow">→</span>
+    </a>
+
+    <div class="steps">
+      <b>进入视频页面后：</b><br>
+      1. 点右下角的 ⚙️ 齿轮，打开"调节"面板<br>
+      2. 逐个调整滑块：亮度 / 饱和度 / 音调 / 人声音量 / 背景音乐音量 / 音效音量 / 空间距离 / 情节节奏。中间位置 = 一般孩子的默认值<br>
+      3. 调整会马上反映在视频上，可以边播放边反复调<br>
+      4. 想象这个孩子在看这段视频：调到他/她<b>看着舒服、又能看进去</b>的样子<br>
+      5. 调好后点 <b>确认设置</b>，看到"已保存 ✓"就完成了，可以关掉页面
+    </div>
+  </div>
+  <script>
+    // Teacher reference setting (paper §Teacher-Rated Sensory Reference): same
+    // slider panel as the caregiver Baseline, tagged role=teacher so app.js saves
+    // it as condition "teacher". One fixed scene (?scene=grocery|dining to change)
+    // so teachers don't have to choose. nocache=1 keeps the 95 MB iPad offline
+    // package off the teacher's own device.
+    const SCENES = ['dental', 'grocery', 'dining'];
+    const q = new URLSearchParams(location.search);
+    const scene = SCENES.includes(q.get('scene')) ? q.get('scene') : 'dental';
+    const pidEl = document.getElementById('pid');
+    pidEl.value = q.get('pid') || '';
+    if (!pidEl.value) { try { pidEl.value = localStorage.getItem('sense_teacher_pid') || ''; } catch (_) {} }
+    document.getElementById('start').addEventListener('click', e => {
+      const pid = pidEl.value.trim().toUpperCase();
+      if (!pid) { e.preventDefault(); pidEl.classList.add('missing'); pidEl.focus(); return; }
+      try { localStorage.setItem('sense_teacher_pid', pid); } catch (_) {}
+      e.currentTarget.href = 'index.html?dev=video-' + scene + '&pid=' + encodeURIComponent(pid) + '&role=teacher&nocache=1';
+    });
+  </script>
+</body>
+</html>
