@@ -2321,15 +2321,28 @@ function normalizeLightBrightness(b) {
 }
 
 // Light-stage brightness -> video brightness channel, what-you-see-is-what-you-get.
-// applyVideoPreferences renders brightness(0.5 + value), so value = b - 0.5 replays
-// exactly the CSS brightness the child saw on the Light stage (b=1.0 -> 0.5, the
-// channel's neutral). Don't reuse normalizeLightBrightness here: it stretches
-// 0.4–1.15 onto the full 0.5–1.5 video range, which pushed every child's video
-// 0.1–0.35 brighter than what they picked. Only the arc's very ends (b < 0.5)
-// clip, to the video's 0.5 floor.
+// Piecewise-linear so channel 0.5 stays CSS brightness 1.0 (original video — Baseline
+// condition, caregiver slider and difficulty rely on that):
+//   channel 0 .. 0.5 -> video 0.4 .. 1.0   (0.4 = Light-stage minimum)
+//   channel 0.5 .. 1 -> video 1.0 .. 1.5
+// channelToVideoBrightness() is the exact inverse of lightBrightnessToChannel(), so
+// every Light-stage b (0.4–1.15) replays as the brightness the child saw — including
+// the arc's dark ends (b < 0.5) that the old 0.5 video floor clipped (pilot 01,
+// b = 0.43). Don't reuse normalizeLightBrightness here: it stretches 0.4–1.15 onto
+// the whole video range.
+const VIDEO_BRIGHT_MIN = 0.4;
+const VIDEO_BRIGHT_MAX = 1.5;
 function lightBrightnessToChannel(b) {
   if (typeof b !== 'number') return null;
-  return Math.max(0, Math.min(1, b - 0.5));
+  const v = b <= 1
+    ? 0.5 * (b - VIDEO_BRIGHT_MIN) / (1 - VIDEO_BRIGHT_MIN)
+    : 0.5 + 0.5 * (b - 1) / (VIDEO_BRIGHT_MAX - 1);
+  return Math.max(0, Math.min(1, v));
+}
+function channelToVideoBrightness(v) {
+  return v <= 0.5
+    ? VIDEO_BRIGHT_MIN + (v / 0.5) * (1 - VIDEO_BRIGHT_MIN)
+    : 1 + ((v - 0.5) / 0.5) * (VIDEO_BRIGHT_MAX - 1);
 }
 
 // Per-event scene illustrations (Imagen-generated, watercolor + ink, magenta interior chroma-keyed transparent).
@@ -6036,10 +6049,17 @@ let devOverrides = {
 // 3 anchor values from advisor meeting 2026-04-10 (Monier & Droit-Volet 2019;
 // Los & Van den Heuvel 2001).
 const PREP_BUCKETS = { hyper: 0.5, typical: 1.0, hypo: 1.5 };
+// SMT cutoffs (ms) centre the 'typical' bucket on the child norm: children's
+// spontaneous tapping is ~400–500 ms (ages 2–7), slowing to ~600 ms by early
+// adulthood (Drake, Jones & Baruch 2000; McAuley et al. 2006). The old 700/1100
+// cutoffs were adult-scale: both 2026-11 pilot children (SMT 277 / 683 ms) landed
+// in 'hyper', so the channel never varied.
+const PREP_SMT_FAST_MS = 400;   // below → faster than child norm → shortest pause
+const PREP_SMT_SLOW_MS = 600;   // at/above → slower than child norm → longest pause
 function prepBucketFromSMT(smtMs) {
   if (typeof smtMs !== 'number') return 'typical';
-  if (smtMs < 700)  return 'hyper';
-  if (smtMs < 1100) return 'typical';
+  if (smtMs < PREP_SMT_FAST_MS) return 'hyper';
+  if (smtMs < PREP_SMT_SLOW_MS) return 'typical';
   return 'hypo';
 }
 let s2PauseTriggered = false;
@@ -6882,8 +6902,9 @@ function applyVideoPreferences() {
   const brightNorm = getEffectiveChannelValue('brightness');
   const satNorm    = getEffectiveChannelValue('saturation');
 
-  // --- Visual: brightness — direct lerp 0.5 .. 1.5, midpoint 1.0 = CSS identity ---
-  const brightness = 0.5 + brightNorm * 1.0;
+  // --- Visual: brightness — piecewise 0.4 .. 1.0 .. 1.5, channel 0.5 = CSS identity;
+  // inverse of lightBrightnessToChannel so the Light-stage pick replays 1:1. ---
+  const brightness = channelToVideoBrightness(brightNorm);
   // --- Visual: saturation — direct lerp 0.3 .. 1.7, midpoint 1.0 = CSS identity ---
   const saturation = 0.3 + satNorm * 1.4;
   video.style.filter = `brightness(${brightness.toFixed(2)}) saturate(${saturation.toFixed(2)})`;
