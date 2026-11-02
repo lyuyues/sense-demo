@@ -192,8 +192,14 @@ SENSES.forEach((s, i) => {
     label('应对方式：孩子会不会主动做些什么？') + anchors(s.st) + scale(`${s.id}_strategy`, '1 被动', '7 主动') +
     radio(`${s.id}_strategy`, 'NA', '不适用（孩子的反应很普通，看不出明显的应对方式）', 'na') });
   SCREENS.push({ key: `${s.id}_confidence`, section, required: true, html: ctx +
-    label(`您对"${s.title}"这两题判断的把握`) +
-    `<div class="opts">${['高', '中', '低'].map(o => radio(`${s.id}_confidence`, o, o)).join('')}</div>` });
+    label(`您对刚才"${s.title}"两题（敏感程度、应对方式）的判断有多大把握？`) +
+    `<div class="opts">${[
+      ['5', '很有把握'],
+      ['4', '比较有把握'],
+      ['3', '一般'],
+      ['2', '不太有把握'],
+      ['1', '很没有把握'],
+    ].map(([v, t]) => radio(`${s.id}_confidence`, v, t)).join('')}</div>` });
   SCREENS.push({ key: `${s.id}_stability`, section, required: true,
     extra: { when: 'varies', key: `${s.id}_stability_note` }, html: ctx +
     label(`孩子对${s.title}的反应，在不同场合是否一样？`) +
