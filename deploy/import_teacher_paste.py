@@ -37,8 +37,15 @@ def beijing(ts):
         return None
 
 
-def import_one(text, session_dir):
-    body = parse(text)
+def import_text(text, session_dir):
+    """One paste may be a single record or a bundle {form, video} (form first)."""
+    data = parse(text)
+    if data.get('bundle'):
+        return [import_one(r, session_dir) for r in (data.get('form'), data.get('video')) if r]
+    return [import_one(data, session_dir)]
+
+
+def import_one(body, session_dir):
     cond = body.get('condition')
     stage = body.get('exportStage', 'unknown')
     if cond not in ('teacherform', 'teacher'):
@@ -63,8 +70,8 @@ def main():
     for a in args:
         text = sys.stdin.read() if a == '-' else open(a, encoding='utf-8').read()
         try:
-            pid, cond = import_one(text, session_dir)
-            print(f'OK  {a}: {pid} ({"表格" if cond == "teacherform" else "视频设置"})')
+            for pid, cond in import_text(text, session_dir):
+                print(f'OK  {a}: {pid} ({"表格" if cond == "teacherform" else "视频设置"})')
         except Exception as e:
             print(f'ERR {a}: {e}')
 

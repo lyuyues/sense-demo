@@ -368,6 +368,8 @@ async function submit() {
     userAgent: navigator.userAgent,
     answers,
   };
+  // Kept on this device so the video step's Plan B copy can include the form too.
+  ls.set('sense_teacherform_record_' + pid, JSON.stringify(record));
   const btn = $('next');
   btn.disabled = true; msg.className = 'msg'; msg.textContent = '正在提交…';
   try {

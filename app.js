@@ -6687,7 +6687,14 @@ function showTeacherReview() {
       // Plan B: compact record the teacher can paste to the researcher.
       const full = buildExportPayload('baseline-confirmed');
       const d = full.difficulty || {};
+      // Bundle the form this teacher filled on this device (if any) with the video
+      // settings, so one paste carries everything.
+      let formRecord = null;
+      try { formRecord = JSON.parse(localStorage.getItem('sense_teacherform_record_' + (state.participantId || '')) || 'null'); } catch (_) {}
       window.SENSECopy?.showCopyFallback(el.querySelector('#teacher-review-copy'), {
+        bundle: 'sense-teacher-v1',
+        form: formRecord,
+        video: {
         participantId: full.participantId, condition: 'teacher', exportStage: 'baseline-confirmed',
         sessionId: full.sessionId, timestamp: full.timestamp, eventType: full.eventType,
         difficulty: {
@@ -6695,6 +6702,7 @@ function showTeacherReview() {
           baseline_per_channel: d.baseline_per_channel,
           manual_adjustments: (d.manual_adjustments || []).slice(-40),
           manual_adjustments_total: (d.manual_adjustments || []).length,
+        },
         },
       });
       el.querySelector('.teacher-review-card').scrollTop = 0;
