@@ -309,7 +309,7 @@ function showDone(pid) {
   $('top').classList.add('hidden');
   $('nav').hidden = true;
   $('done').classList.add('active');
-  $('go').href = 'index.html?dev=video-dental&pid=' + encodeURIComponent(pid) + '&role=teacher&nocache=1';
+  $('go').href = 'index.html?dev=video-dental&pid=' + encodeURIComponent(pid) + '&role=teacher';
   window.scrollTo(0, 0);
 }
 
@@ -318,7 +318,7 @@ function showFinished(pid) {
   $('top').classList.add('hidden');
   $('nav').hidden = true;
   $('finished').classList.add('active');
-  if (pid) $('redo').href = 'index.html?dev=video-dental&pid=' + encodeURIComponent(pid) + '&role=teacher&nocache=1';
+  if (pid) $('redo').href = 'index.html?dev=video-dental&pid=' + encodeURIComponent(pid) + '&role=teacher';
   window.scrollTo(0, 0);
 }
 

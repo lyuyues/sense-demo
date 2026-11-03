@@ -15,9 +15,10 @@
  *    online, quietly re-downloads what is missing. Storage persistence is requested.
  *  - Home Screen vs Safari: on iPad they keep separate storage, so a warning shows
  *    when the page isn't opened from the Home Screen icon.
- *  - Development: off on localhost unless ?offline=1; ?nocache=1 turns it off on this
- *    device (removes the worker and the package, never the data backups), ?nocache=0
- *    turns it back on.
+ *  - Development: off on localhost unless ?offline=1.
+ *  - Teacher links (?role=teacher): skipped for that page only, so a teacher's own device
+ *    never downloads the 95 MB package. Nothing is remembered on the device (the old
+ *    sticky ?nocache=1/0 switch was removed 2026-11-02).
  *
  * Pages show the status in any element with [data-offline-status]; pages without one
  * get a small corner badge, shown only when something needs a grown-up's attention.
@@ -28,7 +29,7 @@ const META_CACHE = 'sense-meta';
 const META_KEY = new URL('offline-meta.json', ROOT).href;
 const PKG_PREFIX = 'sense-pkg-';
 const LS_VERSION = 'sense_offline_version';
-const LS_OFF = 'sense_offline_off';
+const LS_OFF = 'sense_offline_off'; // retired 2026-11-02 (old ?nocache=1 flag); cleared on start
 const LS_DEV = 'sense_offline_dev';
 const PARALLEL = 4;
 
@@ -46,7 +47,7 @@ export const isStandalone = navigator.standalone === true ||
   (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches);
 
 const state = {
-  mode: 'starting',   // off | dev | pages | unsupported | none | downloading | ready | incomplete | error
+  mode: 'starting',   // teacher | dev | pages | unsupported | none | downloading | ready | incomplete | error
   version: null, built: null, files: 0, missing: 0,
   server: null,       // { version, built } when the server answered
   updateAvailable: false,
@@ -155,7 +156,7 @@ function download(manifest, prev) {
 /* ---------- check / update ---------- */
 let lastManifest = null;
 export async function checkOffline({ repair = true } = {}) {
-  if (state.mode === 'off' || state.mode === 'unsupported') return offlineState();
+  if (state.mode === 'teacher' || state.mode === 'unsupported') return offlineState();
   const meta = await readMeta();
   const missing = meta ? (await missingFiles(meta)).length : 0;
   set({ version: meta && meta.version, built: meta && meta.built, files: meta ? Object.keys(meta.files).length : 0, missing,
@@ -196,7 +197,7 @@ const MB = (n) => `${(n / 1e6).toFixed(0)} MB`;
 function describe(s) {
   const v = s.version ? `v${s.version.slice(0, 6)}` : '';
   switch (s.mode) {
-    case 'off': return { cls: 'warn', text: '离线包已关闭（开发模式，?nocache=0 恢复）' };
+    case 'teacher': return { cls: 'ok', text: '老师设置：不需要离线包' };
     case 'dev': return { cls: 'warn', text: '本机开发：未启用离线包（?offline=1 启用）' };
     case 'pages': return { cls: 'warn', text: 'GitHub 演示版：不带离线包、记录只存本机（实验请用研究链接）' };
     case 'unsupported': return { cls: 'warn', text: '这个链接不支持离线包（需要 https 研究链接）' };
@@ -210,7 +211,7 @@ function describe(s) {
     default: return { cls: 'busy', text: '检查离线包…' };
   }
 }
-const needsAttention = (s) => !['ready', 'starting', 'off', 'dev', 'pages'].includes(s.mode) || s.updateAvailable;
+const needsAttention = (s) => !['ready', 'starting', 'teacher', 'dev', 'pages'].includes(s.mode) || s.updateAvailable;
 
 const STYLE = `
 .offline-status{font:600 13px/1.4 -apple-system,"PingFang SC",system-ui,sans-serif;display:inline-flex;flex-wrap:wrap;
@@ -228,7 +229,7 @@ function render() {
   }
   const d = describe(state);
   const extra = [];
-  if (isIOS && !isStandalone && state.mode !== 'off') extra.push('请从主屏幕图标打开（Safari 和图标的存储是分开的）');
+  if (isIOS && !isStandalone && state.mode !== 'teacher') extra.push('请从主屏幕图标打开（Safari 和图标的存储是分开的）');
   if (state.pending) extra.push(`⏳ ${state.pending} 份记录待上传`);
   let hosts = [...document.querySelectorAll('[data-offline-status]')];
   let float = document.getElementById('offline-float');
@@ -270,19 +271,15 @@ function refreshPending() {
 
 async function start() {
   const q = new URLSearchParams(location.search);
-  if (q.get('nocache') === '1') ls.set(LS_OFF, '1');
-  if (q.get('nocache') === '0') ls.set(LS_OFF, null);
+  ls.set(LS_OFF, null); // old sticky ?nocache=1 flag: no longer used, clear it on devices that still have it
+  if (q.get('role') === 'teacher') { set({ mode: 'teacher' }); return; } // this page only
   if (q.get('offline') === '1') ls.set(LS_DEV, '1');
   if (q.get('offline') === '0') ls.set(LS_DEV, null);
   const devHost = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
 
-  if (ls.get(LS_OFF) || (devHost && !ls.get(LS_DEV)) || location.hostname === 'lyuyues.github.io') {
+  if ((devHost && !ls.get(LS_DEV)) || location.hostname === 'lyuyues.github.io') {
     ls.set(LS_VERSION, null);
-    if (ls.get(LS_OFF) && 'serviceWorker' in navigator) {
-      for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
-      for (const k of await caches.keys()) if (k.startsWith('sense-')) await caches.delete(k);
-    }
-    set({ mode: ls.get(LS_OFF) ? 'off' : devHost ? 'dev' : 'pages' });
+    set({ mode: devHost ? 'dev' : 'pages' });
     return;
   }
   if (!('serviceWorker' in navigator) || !window.isSecureContext || !window.caches) {

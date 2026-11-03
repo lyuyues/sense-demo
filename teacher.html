@@ -87,8 +87,8 @@
     // Teacher reference setting (paper §Teacher-Rated Sensory Reference): same
     // slider panel as the caregiver Baseline, tagged role=teacher so app.js saves
     // it as condition "teacher". One fixed scene (?scene=grocery|dining to change)
-    // so teachers don't have to choose. nocache=1 keeps the 95 MB iPad offline
-    // package off the teacher's own device.
+    // so teachers don't have to choose. offline.js skips the 95 MB iPad offline
+    // package for role=teacher (this page only), so it stays off the teacher's device.
     const SCENES = ['dental', 'grocery', 'dining'];
     const q = new URLSearchParams(location.search);
     const scene = SCENES.includes(q.get('scene')) ? q.get('scene') : 'dental';
@@ -99,7 +99,7 @@
       const pid = pidEl.value.trim().replace(/\s+/g, '');
       if (!pid) { e.preventDefault(); pidEl.classList.add('missing'); pidEl.focus(); return; }
       try { localStorage.setItem('sense_teacher_pid', pid); } catch (_) {}
-      e.currentTarget.href = 'index.html?dev=video-' + scene + '&pid=' + encodeURIComponent(pid) + '&role=teacher&nocache=1';
+      e.currentTarget.href = 'index.html?dev=video-' + scene + '&pid=' + encodeURIComponent(pid) + '&role=teacher';
     });
   </script>
 </body>
