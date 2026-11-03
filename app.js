@@ -6559,22 +6559,8 @@ function setupSettingsPanel() {
       // Teacher reference setting is the last step of teacher_form.html: once the
       // server has the record, go back there for a "全部完成" screen instead of
       // leaving the teacher on a rewound video. On failure stay so they can retry.
-      if (state.condition === 'teacher') {
-        const label = confirmBtn.textContent;
-        confirmBtn.disabled = true;
-        confirmBtn.textContent = '正在保存…';
-        let ok = false;
-        try { ok = await exportData('baseline-confirmed'); } catch (e) { console.warn('Teacher confirm save failed:', e); }
-        if (ok) {
-          confirmBtn.textContent = '已保存 ✓';
-          setTimeout(() => { location.href = 'teacher_form.html?finished=1'; }, 700);
-        } else {
-          confirmBtn.textContent = '保存没成功，请检查网络再点一次';
-          confirmBtn.disabled = false;
-          setTimeout(() => { confirmBtn.textContent = label; }, 4000);
-        }
-        return;
-      }
+      // Teacher: 确认设置 → review page listing every choice → 确认提交 saves.
+      if (state.condition === 'teacher') { showTeacherReview(); return; }
       try { exportData('baseline-confirmed'); } catch (e) { console.warn('Baseline confirm save failed:', e); }
       // Whatever the caregiver watched while nudging sliders was mid-scrub, not a
       // real viewing — the child needs to see the confirmed settings play out from
@@ -6601,6 +6587,73 @@ function setupSettingsPanel() {
     });
   }
   _settingsPanelBound = true;
+}
+
+// Teacher review step: one page listing what the teacher chose on each slider,
+// read off the panel's own labels so it always matches what they saw.
+// 返回修改 closes it; 确认提交 saves, then teacher_form.html shows 全部完成.
+function showTeacherReview() {
+  const video = document.getElementById('sense-video');
+  if (video && !video.paused) video.pause();
+  document.getElementById('teacher-review')?.remove();
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const rows = [...document.querySelectorAll('#settings-rows .settings-row[data-channel]')].map(row => {
+    const ch = row.dataset.channel;
+    const name = row.querySelector('.settings-name')?.childNodes[0]?.textContent.trim() || ch;
+    const v = getEffectiveChannelValue(ch);
+    if (typeof v === 'number') {
+      const [lo, hi] = [...row.querySelectorAll('.settings-axis-labels span')].map(e => e.textContent.trim());
+      const word = v < 0.45 ? `偏${lo}` : v > 0.55 ? `偏${hi}` : '中间（默认）';
+      const pct = Math.round(v * 100);
+      return `<tr><th>${esc(name)}</th><td><div class="tr-val">${esc(word)}</div>
+        <div class="tr-bar"><span class="tr-mid"></span><i style="left:${pct}%"></i></div>
+        <div class="tr-ends"><span>${esc(lo || '')}</span><span>${esc(hi || '')}</span></div></td></tr>`;
+    }
+    const order = ch === 'spatial' ? ['close', 'mid', 'far'] : ['hyper', 'typical', 'hypo'];
+    const idx = Math.max(0, order.indexOf(v));
+    const word = [...row.querySelectorAll('.settings-bucket-labels span')][idx]?.textContent.trim() || String(v);
+    const crit = row.nextElementSibling?.classList.contains('settings-criteria')
+      ? row.nextElementSibling.querySelectorAll('.settings-criteria-grid span')[idx] : null;
+    const desc = crit ? crit.childNodes[crit.childNodes.length - 1].textContent.trim() : '';
+    return `<tr><th>${esc(name)}</th><td><div class="tr-val">${esc(word)}</div>${desc ? `<div class="tr-desc">${esc(desc)}</div>` : ''}</td></tr>`;
+  }).join('');
+  const el = document.createElement('div');
+  el.id = 'teacher-review';
+  el.className = 'teacher-review';
+  el.innerHTML = `<div class="teacher-review-card">
+      <h2>请确认您的设置</h2>
+      <p>下面是您为这个孩子调好的画面和声音。确认无误请点"确认提交"；想再改请点"返回修改"。</p>
+      <table>${rows}</table>
+      <div class="teacher-review-msg" id="teacher-review-msg"></div>
+      <div class="teacher-review-btns">
+        <button type="button" class="tr-back" id="tr-back">← 返回修改</button>
+        <button type="button" class="tr-submit" id="tr-submit">确认提交</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  document.getElementById('fab-panel')?.classList.add('hidden');
+  logEvent('teacher_review_shown', {});
+  el.querySelector('#tr-back').onclick = () => {
+    logEvent('teacher_review_back', {});
+    el.remove();
+    document.getElementById('fab-panel')?.classList.remove('hidden');
+  };
+  const submitBtn = el.querySelector('#tr-submit');
+  const msg = el.querySelector('#teacher-review-msg');
+  submitBtn.onclick = async () => {
+    submitBtn.disabled = true; el.querySelector('#tr-back').disabled = true;
+    submitBtn.textContent = '正在保存…'; msg.textContent = '';
+    let ok = false;
+    try { ok = await exportData('baseline-confirmed'); } catch (e) { console.warn('Teacher confirm save failed:', e); }
+    if (ok) {
+      submitBtn.textContent = '已保存 ✓';
+      setTimeout(() => { location.href = 'teacher_form.html?finished=1'; }, 700);
+    } else {
+      submitBtn.disabled = false; el.querySelector('#tr-back').disabled = false;
+      submitBtn.textContent = '确认提交';
+      msg.textContent = '保存没有成功，请检查网络后再点一次"确认提交"。';
+    }
+  };
 }
 
 function initVideoPlayer() {

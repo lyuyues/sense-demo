@@ -2761,3 +2761,50 @@ html, body {
   content: attr(data-pending); position: absolute; left: 12px; bottom: -3px;
   font-size: 10px; line-height: 1; color: #d9534f;
 }
+
+/* Teacher review step (app.js showTeacherReview) */
+.teacher-review {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.teacher-review-card {
+  background: #fbfaf6; color: #2b2b2b;
+  border-radius: 16px; padding: 1.4rem 1.5rem;
+  width: min(560px, 100%); max-height: 92vh; overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  font-family: system-ui, -apple-system, "PingFang SC", sans-serif;
+}
+.teacher-review-card h2 { font-size: 1.3rem; margin: 0 0 0.4rem; }
+.teacher-review-card p { font-size: 0.95rem; color: #555; margin: 0 0 1rem; line-height: 1.5; }
+.teacher-review-card table { width: 100%; border-collapse: collapse; }
+.teacher-review-card th {
+  text-align: left; font-weight: 600; font-size: 0.95rem;
+  padding: 0.5rem 0.8rem 0.5rem 0; width: 10.5em; vertical-align: top;
+  border-top: 1px solid #e6e2d8;
+}
+.teacher-review-card td { padding: 0.5rem 0; border-top: 1px solid #e6e2d8; }
+.tr-val { font-size: 1rem; font-weight: 600; color: #8a6a1f; }
+.tr-desc { font-size: 0.85rem; color: #666; margin-top: 2px; }
+.tr-bar { position: relative; height: 6px; border-radius: 3px; background: #e6e2d8; margin: 8px 6px 2px; }
+.tr-bar .tr-mid { position: absolute; left: 50%; top: -3px; width: 1px; height: 12px; background: #bbb; }
+.tr-bar i {
+  position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%;
+  background: #c9a24a; border: 2px solid #fff; box-shadow: 0 0 0 1px #c9a24a;
+  transform: translate(-50%, -50%);
+}
+.tr-ends { display: flex; justify-content: space-between; font-size: 0.78rem; color: #888; }
+.teacher-review-msg { color: #c0392b; font-size: 0.9rem; min-height: 1.2em; margin-top: 0.6rem; }
+.teacher-review-btns {
+  display: flex; gap: 0.8rem; justify-content: flex-end;
+  position: sticky; bottom: -1.4rem; background: #fbfaf6;
+  margin: 0.4rem -1.5rem -1.4rem; padding: 0.8rem 1.5rem 1.1rem;
+  border-top: 1px solid #e6e2d8;
+}
+.teacher-review-btns button {
+  font-size: 1rem; padding: 0.7rem 1.3rem; border-radius: 10px; cursor: pointer; border: 1px solid #ccc;
+  background: #fff; color: #333;
+}
+.teacher-review-btns .tr-submit { background: #c9a24a; border-color: #c9a24a; color: #fff; font-weight: 600; }
+.teacher-review-btns button:disabled { opacity: 0.6; cursor: default; }
