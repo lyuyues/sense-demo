@@ -2795,9 +2795,10 @@ html, body {
   transform: translate(-50%, -50%);
 }
 .tr-ends { display: flex; justify-content: space-between; font-size: 0.78rem; color: #888; }
-.teacher-review-msg { color: #c0392b; font-size: 0.9rem; min-height: 1.2em; margin-top: 0.6rem; }
+.teacher-review-msg { color: #c0392b; font-size: 0.9rem; flex: 1 1 100%; text-align: left; }
+.teacher-review-msg:empty { display: none; }
 .teacher-review-btns {
-  display: flex; gap: 0.8rem; justify-content: flex-end;
+  display: flex; flex-wrap: wrap; gap: 0.6rem 0.8rem; justify-content: flex-end;
   position: sticky; bottom: -1.4rem; background: #fbfaf6;
   margin: 0.4rem -1.5rem -1.4rem; padding: 0.8rem 1.5rem 1.1rem;
   border-top: 1px solid #e6e2d8;

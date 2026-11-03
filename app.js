@@ -5861,12 +5861,18 @@ function markSynced(key, timestamp) {
 }
 
 function postRecord(data) {
+  if (navigator.onLine === false) return Promise.resolve(false);
+  // A dead connection can leave fetch pending for a minute+ on iOS; give up after 15 s.
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = ctl ? setTimeout(() => ctl.abort(), 15000) : null;
   return fetch(API_BASE + '/api/save-session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+    signal: ctl ? ctl.signal : undefined,
   }).then(r => r.ok)
-    .catch(e => { console.warn('Session save failed:', e); return false; });
+    .catch(e => { console.warn('Session save failed:', e); return false; })
+    .finally(() => { if (timer) clearTimeout(timer); });
 }
 
 let retrying = false;
@@ -6657,11 +6663,11 @@ function showTeacherReview() {
   el.className = 'teacher-review';
   el.innerHTML = `<div class="teacher-review-card">
       <h2>请确认您的设置</h2>
+      <div id="teacher-review-copy"></div>
       <p>下面是您为这个孩子调好的画面和声音。确认无误请点"确认提交"；想再改请点"返回修改"。</p>
       <table>${rows}</table>
-      <div class="teacher-review-msg" id="teacher-review-msg"></div>
-      <div id="teacher-review-copy"></div>
       <div class="teacher-review-btns">
+        <div class="teacher-review-msg" id="teacher-review-msg"></div>
         <button type="button" class="tr-back" id="tr-back">← 返回修改</button>
         <button type="button" class="tr-submit" id="tr-submit">确认提交</button>
       </div>
@@ -6686,8 +6692,8 @@ function showTeacherReview() {
       setTimeout(() => { location.href = 'teacher_form.html?finished=1'; }, 700);
     } else {
       submitBtn.disabled = false; el.querySelector('#tr-back').disabled = false;
-      submitBtn.textContent = '确认提交';
-      msg.textContent = '保存没有成功，请检查网络后再点一次"确认提交"。';
+      submitBtn.textContent = '重新提交';
+      msg.textContent = '保存没有成功：请检查网络后点"重新提交"，或按上方黄色框复制数据发给研究员。';
       // Plan B: compact record the teacher can paste to the researcher.
       const full = buildExportPayload('baseline-confirmed');
       const d = full.difficulty || {};
@@ -6701,6 +6707,7 @@ function showTeacherReview() {
           manual_adjustments_total: (d.manual_adjustments || []).length,
         },
       });
+      el.querySelector('.teacher-review-card').scrollTop = 0;
     }
   };
 }
