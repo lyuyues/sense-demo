@@ -5802,7 +5802,13 @@ function buildExportPayload(stage) {
     subPhaseDurations: state.subPhaseDurations,
     // Phase 2 customization layer — populated once the difficulty modal closes.
     // Until then level_selected is null and manual_adjustments is empty.
-    difficulty: state.difficultyMeta,
+    // final_per_channel = what was actually on screen (slider overrides included);
+    // applied_per_channel is pre-override and stays at the baseline for slider-only
+    // conditions (baseline / teacher).
+    difficulty: {
+      ...state.difficultyMeta,
+      final_per_channel: Object.fromEntries(ALL_CHANNELS.map(ch => [ch, getEffectiveChannelValue(ch)])),
+    },
     condition_contaminated: state.condition_contaminated,
     // Priming video playback — populated once initVideoPlayer() has run.
     videoPlayback: {
@@ -6052,9 +6058,12 @@ let devOverrides = {
 // 3 anchor values from advisor meeting 2026-04-10 (Monier & Droit-Volet 2019;
 // Los & Van den Heuvel 2001).
 const PREP_BUCKETS = { hyper: 0.5, typical: 1.0, hypo: 1.5 };
-// SMT cutoffs (ms) centre the 'typical' bucket on the child norm: children's
-// spontaneous tapping is ~400–500 ms (ages 2–7), slowing to ~600 ms by early
-// adulthood (Drake, Jones & Baruch 2000; McAuley et al. 2006). The old 700/1100
+// SMT cutoffs (ms) span the child norm for the study's 5–12 age range: young
+// children tap at ~400–480 ms median (2.5–5 y; Provasi & Bobin-Bègue 2003, Table 3,
+// citing Jacquet et al. 1994 for 4.5–5.5 y), SMT slows with age (Drake, Jones &
+// Baruch 2000; McAuley et al. 2006 — abstracts only, numbers not checked), and
+// adults sit at 500–650 ms (Hammerschmidt et al. 2021 review). So < 400 = faster
+// than the youngest-child norm, >= 600 = adult-or-slower. The old 700/1100
 // cutoffs were adult-scale: both 2026-11 pilot children (SMT 277 / 683 ms) landed
 // in 'hyper', so the channel never varied.
 const PREP_SMT_FAST_MS = 400;   // below → faster than child norm → shortest pause

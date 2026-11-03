@@ -631,7 +631,7 @@ Return JSON only:
                 with open(base + '.json', 'w', encoding='utf-8') as f:
                     json.dump(body, f, indent=2, ensure_ascii=False)
                 diff = body.get('difficulty') or {}
-                applied = diff.get('applied_per_channel') or {}
+                applied = diff.get('final_per_channel') or diff.get('applied_per_channel') or {}
                 names = {'brightness': '亮度（视觉）', 'saturation': '饱和度（视觉）', 'pitch': '音调（听觉）',
                          'voice': '人声音量（听觉）', 'bgm': '背景音乐音量（听觉）', 'sfx': '音效音量（听觉）',
                          'spatial': '空间距离（空间）', 'prep': '情节节奏（时间）'}
