@@ -4,10 +4,12 @@
 import http.server
 import ssl
 import json
+import csv
 import base64
 import io
 import os
 import time
+from datetime import datetime, timedelta, timezone
 import hashlib
 import posixpath
 import re
@@ -599,8 +601,53 @@ Return JSON only:
             stage = ''.join(c for c in str(stage) if c.isalnum() or c in '-_')
             fname = f"sense-{pid}-{cond}-{session_id}-{stage}.json"
             path = os.path.join(session_dir, fname)
-            with open(path, 'w') as f:
-                json.dump(body, f, indent=2)
+            if cond == 'teacherform':
+                # Expert form: 孩子名_老师名_填写时间 (Beijing time — study runs in China),
+                # in its own folder so it's easy to hand over.
+                clean = lambda v, d: ''.join(c for c in str(v or '') if c.isalnum() or c in '-_') or d
+                teacher = clean((body.get('answers') or {}).get('teacher_name'), '未填老师')
+                when = datetime.now(timezone(timedelta(hours=8))).strftime('%Y%m%d-%H%M%S')
+                form_dir = os.path.join(session_dir, 'teacher_form')
+                os.makedirs(form_dir, exist_ok=True)
+                fname = f"{clean(body.get('participantId'), '未填孩子')}_{teacher}_{when}.json"
+                path = os.path.join(form_dir, fname)
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(body, f, indent=2, ensure_ascii=False)
+            if cond == 'teacherform':
+                # Same record as a CSV for people (opens in Excel: utf-8-sig BOM).
+                with open(path[:-5] + '.csv', 'w', newline='', encoding='utf-8-sig') as f:
+                    w = csv.writer(f)
+                    w.writerow(['部分', '题目', '回答', '字段'])
+                    w.writerow(['', '填写时间（北京时间）', when, ''])
+                    for r in body.get('readable') or []:
+                        w.writerow([r.get('section', ''), r.get('question', ''), r.get('answer', ''), r.get('key', '')])
+            if cond == 'teacher' and stage == 'baseline-confirmed':
+                # Teacher's confirmed video settings, next to their form, JSON + CSV.
+                clean = lambda v, d: ''.join(c for c in str(v or '') if c.isalnum() or c in '-_') or d
+                when = datetime.now(timezone(timedelta(hours=8))).strftime('%Y%m%d-%H%M%S')
+                form_dir = os.path.join(session_dir, 'teacher_form')
+                os.makedirs(form_dir, exist_ok=True)
+                base = os.path.join(form_dir, f"{clean(body.get('participantId'), '未填孩子')}_视频设置_{when}")
+                with open(base + '.json', 'w', encoding='utf-8') as f:
+                    json.dump(body, f, indent=2, ensure_ascii=False)
+                diff = body.get('difficulty') or {}
+                applied = diff.get('applied_per_channel') or {}
+                names = {'brightness': '亮度（视觉）', 'saturation': '饱和度（视觉）', 'pitch': '音调（听觉）',
+                         'voice': '人声音量（听觉）', 'bgm': '背景音乐音量（听觉）', 'sfx': '音效音量（听觉）',
+                         'spatial': '空间距离（空间）', 'prep': '情节节奏（时间）'}
+                buckets = {'close': '近', 'near': '近', 'mid': '中', 'far': '远',
+                           'hyper': '快', 'typical': '中', 'hypo': '慢'}
+                with open(base + '.csv', 'w', newline='', encoding='utf-8-sig') as f:
+                    w = csv.writer(f)
+                    w.writerow(['项目', '老师设定', '说明', '字段'])
+                    w.writerow(['确认时间（北京时间）', when, '', ''])
+                    for k, label in names.items():
+                        v = applied.get(k)
+                        if isinstance(v, (int, float)):
+                            w.writerow([label, round(v, 3), '0–1，0.5 = 默认中间', k])
+                        else:
+                            w.writerow([label, buckets.get(v, v), '三档', k])
+                    w.writerow(['手动调整次数', len(diff.get('manual_adjustments') or []), '', 'manual_adjustments'])
             print(f"Session data saved: {fname}")
 
             self.send_response(200)

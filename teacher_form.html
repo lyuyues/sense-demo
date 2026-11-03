@@ -334,11 +334,30 @@ async function submit() {
   SENSES.forEach(s => {
     if (answers[`${s.id}_stability`] !== 'varies') delete answers[`${s.id}_stability_note`];
     answers[`${s.id}_threshold`] = Number(answers[`${s.id}_threshold`]);
+    answers[`${s.id}_confidence`] = Number(answers[`${s.id}_confidence`]);
     answers[`${s.id}_strategy_na`] = answers[`${s.id}_strategy`] === 'NA';
     answers[`${s.id}_strategy`] = answers[`${s.id}_strategy_na`] ? null : Number(answers[`${s.id}_strategy`]);
   });
+  // Human-readable copy (section / question / answer as shown on screen) — the
+  // server writes it out as the CSV next to the JSON.
+  const readable = [];
+  SCREENS.forEach((sc, i) => {
+    if (!sc.key) return;
+    const el = screenEls[i];
+    const q = (el.querySelector('.q-label')?.childNodes[0]?.textContent || sc.key).trim();
+    const pick = name => {
+      const r = el.querySelector(`input[type=radio][name="${name}"]:checked`);
+      return r ? r.parentElement.textContent.trim() : (v[name] || '').trim();
+    };
+    readable.push({ section: sc.section || '', key: sc.key, question: q, answer: pick(sc.key) });
+    if (sc.extra && v[sc.key] === sc.extra.when && (v[sc.extra.key] || '').trim()) {
+      const ph = el.querySelector(`[name="${sc.extra.key}"]`)?.placeholder || '补充说明';
+      readable.push({ section: sc.section || '', key: sc.extra.key, question: ph, answer: v[sc.extra.key].trim() });
+    }
+  });
   const record = {
     sessionId: String(Date.now()),
+    readable,
     participantId: pid,
     condition: 'teacherform',
     exportStage: 'form',
