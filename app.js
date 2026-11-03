@@ -5913,10 +5913,13 @@ function exportData(stage = 'unknown') {
   // this is the actual data-collection path. The client-side download below
   // is a dev-only convenience for local inspection, not how study data leaves
   // the device.
+  // Returned so a caller can wait for the server (teacher confirm → back to form).
+  let saved = Promise.resolve(false);
   if (API_BASE) {
-    postRecord(data).then(ok => {
+    saved = postRecord(data).then(ok => {
       if (ok) markSynced(key, data.timestamp);
       showSaveStatus(ok);
+      return ok;
     });
   } else {
     showSaveStatus(false);
@@ -5933,7 +5936,7 @@ function exportData(stage = 'unknown') {
   // save-dialog from the 10s video-progress autosave. The POST above already
   // persists every autosave tick server-side; the local download here would
   // be redundant for real sessions, so skip it.
-  if (!IS_DEV_MODE || state.isBaselineMode) return;
+  if (!IS_DEV_MODE || state.isBaselineMode) return saved;
 
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -6552,7 +6555,26 @@ function setupSettingsPanel() {
   // (see exportData's isBaselineMode gate). Brief "已保存" state is just a
   // button-label swap — no toast component exists elsewhere in this app.
   if (confirmBtn) {
-    confirmBtn.addEventListener('click', () => {
+    confirmBtn.addEventListener('click', async () => {
+      // Teacher reference setting is the last step of teacher_form.html: once the
+      // server has the record, go back there for a "全部完成" screen instead of
+      // leaving the teacher on a rewound video. On failure stay so they can retry.
+      if (state.condition === 'teacher') {
+        const label = confirmBtn.textContent;
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = '正在保存…';
+        let ok = false;
+        try { ok = await exportData('baseline-confirmed'); } catch (e) { console.warn('Teacher confirm save failed:', e); }
+        if (ok) {
+          confirmBtn.textContent = '已保存 ✓';
+          setTimeout(() => { location.href = 'teacher_form.html?finished=1'; }, 700);
+        } else {
+          confirmBtn.textContent = '保存没成功，请检查网络再点一次';
+          confirmBtn.disabled = false;
+          setTimeout(() => { confirmBtn.textContent = label; }, 4000);
+        }
+        return;
+      }
       try { exportData('baseline-confirmed'); } catch (e) { console.warn('Baseline confirm save failed:', e); }
       // Whatever the caregiver watched while nudging sliders was mid-scrub, not a
       // real viewing — the child needs to see the confirmed settings play out from

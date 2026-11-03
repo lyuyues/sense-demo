@@ -86,6 +86,12 @@
   </div>
   <main>
     <form id="form" novalidate autocomplete="off"></form>
+    <div class="screen done" id="finished">
+      <h2>全部完成 ✓</h2>
+      <p>评定表和视频设置都已经保存好了。非常感谢您抽出时间参与 SENSE 研究！</p>
+      <p>现在可以直接关闭这个页面。</p>
+      <p class="small">如果还想再调整视频，可以 <a id="redo" href="teacher.html">回到视频重新调</a>，以最后一次点"确认设置"的结果为准。</p>
+    </div>
     <div class="screen done" id="done">
       <h2>评定表已提交 ✓</h2>
       <p>最后一步：边看一段准备视频，边把画面、声音、距离、节奏调到最适合这个孩子的样子。</p>
@@ -307,6 +313,15 @@ function showDone(pid) {
   window.scrollTo(0, 0);
 }
 
+function showFinished(pid) {
+  screenEls.forEach(el => el.classList.remove('active'));
+  $('top').classList.add('hidden');
+  $('nav').hidden = true;
+  $('finished').classList.add('active');
+  if (pid) $('redo').href = 'index.html?dev=video-dental&pid=' + encodeURIComponent(pid) + '&role=teacher&nocache=1';
+  window.scrollTo(0, 0);
+}
+
 async function submit() {
   const v = values();
   const gap = SCREENS.findIndex(sc => sc.key && !answered(sc, v));
@@ -357,7 +372,8 @@ const doneFor = ls.get(DONE);
 const urlPid = (urlQ.get('pid') || '').trim().replace(/\s+/g, '');
 if (urlQ.get('new') === '1' || (urlPid && urlPid !== doneFor)) ls.set(DONE, null);
 restore();
-if (ls.get(DONE) && doneFor) showDone(doneFor); else render();
+if (urlQ.get('finished') === '1') showFinished(doneFor);
+else if (ls.get(DONE) && doneFor) showDone(doneFor); else render();
 </script>
 </body>
 </html>
