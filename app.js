@@ -30,6 +30,7 @@ const state = {
   placedElements: [],
   colorStrokes: [],
   colorSelections: [],  // hexes the child tapped in the swatch carousel — the *preference* signal (selection ≠ stroke)
+  satAxisUsed: false,   // true once the child taps a step on the saturation axis (see selectColor)
   animatedElements: new Set(),
   interactionLog: [],
   selectedColor: '#FF6B6B',
@@ -2314,11 +2315,6 @@ function getTimeOfDay(t) {
   return 'afternoon';
 }
 
-// Normalize light brightness (range 0.4–1.15) into 0–1 preference score
-function normalizeLightBrightness(b) {
-  if (typeof b !== 'number') return null;
-  return Math.max(0, Math.min(1, (b - 0.4) / 0.75));
-}
 
 // Light-stage brightness -> video brightness channel, what-you-see-is-what-you-get.
 // Piecewise-linear so channel 0.5 stays CSS brightness 1.0 (original video — Baseline
@@ -3975,6 +3971,20 @@ function getHueSwatches(hueDef) {
 let currentHueKey = 'red';
 let currentSatIndex = DEFAULT_SAT_INDEX;
 
+// Palette position of a swatch hex: {hue, step} with step = index / 5 on the
+// saturation axis (SAT_LEVELS 15..100 %) → 0..1. Black/gray rows are lightness
+// gradients with no hue → step null. Unknown hex (e.g. legacy palette) → both null.
+function paletteStepOf(hex) {
+  const h = (hex || '').toLowerCase();
+  for (const def of HUE_PALETTE) {
+    const i = getHueSwatches(def).findIndex(s => s.toLowerCase() === h);
+    if (i < 0) continue;
+    if (def.gray || def.black) return { hue: def.key, step: null };
+    return { hue: def.key, step: i / (SAT_LEVELS.length - 1) };
+  }
+  return { hue: null, step: null };
+}
+
 function getHueDef(key) {
   return HUE_PALETTE.find(h => h.key === key) || HUE_PALETTE[0];
 }
@@ -3993,7 +4003,7 @@ function renderSatCarousel() {
     btn.style.background = hex;
     btn.addEventListener('click', () => {
       currentSatIndex = i;
-      selectColor(hex);
+      selectColor(hex, 'sat_swatch');
       // refresh selected highlight
       container.querySelectorAll('.sat-swatch').forEach((el, idx) => {
         el.classList.toggle('selected', idx === i);
@@ -4028,7 +4038,7 @@ function renderHueDropdownMenu() {
       });
       // pick the current sat's color
       const hex = getHueSwatches(getHueDef(currentHueKey))[currentSatIndex];
-      selectColor(hex);
+      selectColor(hex, 'hue_menu');
       closeHueDropdown();
     });
     menu.appendChild(tile);
@@ -4044,14 +4054,20 @@ function updateHueDropdownButton() {
   if (label) label.textContent = hueDef.name;
 }
 
-function selectColor(hex) {
+// source: 'sat_swatch' = child tapped a step on the saturation axis (an active
+// saturation choice); 'hue_menu' = picked a hue, step carried over (default step 3
+// unless the child moved it). Logged so analysis can tell chosen vs default steps.
+function selectColor(hex, source) {
   state.selectedColor = hex;
   state.isEraser = false;
-  // Selection is the preference signal (per ASD color literature: saturation aversion
-  // shows up in *what they pick*, not in how big the strokes are). Stroke area is
-  // execution, not intent — so we record the chosen hex here.
+  // Selection is the preference signal; stroke area is execution, not intent.
   state.colorSelections.push(hex);
-  logEvent('color_selection', { hex, saturation: getColorSaturation(hex) });
+  if (source === 'sat_swatch') state.satAxisUsed = true;
+  const pos = paletteStepOf(hex);
+  logEvent('color_selection', {
+    hex, source: source || null, hue: pos.hue, satStep: pos.step,
+    chroma: getColorSaturation(hex),
+  });
   const eraserBtn = document.getElementById('btn-eraser');
   if (eraserBtn) eraserBtn.classList.remove('active');
   updateCrayonCursor();
@@ -5480,7 +5496,6 @@ function extractPreferences() {
   }
   const staffSettings = Object.values(staffByType);
   const audioElems = state.placedElements.filter(e => e.dimension === 'auditory');
-  let auditoryScore = 0.5;
   let staffPitchAvg = null, staffVolumeAvg = null;
   // Final volume per stem (voice / bgm / sfx), so each stem's GainNode gets the child's
   // own setting for that layer instead of the 3-layer average. A stem the child never
@@ -5494,63 +5509,39 @@ function extractPreferences() {
   if (auditoryLayerCount > 0) {
     staffPitchAvg = staffSettings.reduce((s, e) => s + (e.pitch ?? 0), 0) / auditoryLayerCount / 100;
     staffVolumeAvg = staffSettings.reduce((s, e) => s + (e.volume ?? 0), 0) / auditoryLayerCount / 100;
-    // Composite: volume drives felt loudness; pitch and layering add complexity
-    auditoryScore = 0.5 * staffVolumeAvg + 0.3 * staffPitchAvg + 0.2 * (auditoryLayerCount / 3);
-    auditoryScore = Math.max(0, Math.min(1, auditoryScore));
-  } else if (audioElems.length > 0) {
-    const avgNotes = audioElems.reduce((sum, e) => {
-      return sum + ((e.volumeLevel !== undefined ? e.volumeLevel : 2) / MAX_NOTES);
-    }, 0) / audioElems.length;
-    auditoryScore = avgNotes;
   }
+  // No composite auditory/visual/temporal "score" any more (removed 2026-11-02): each
+  // video channel is read only from its own stage, so nothing blends channels.
 
-  // VISUAL: blend of color saturation (Color stage) and brightness (Light stage)
-  // Both signal "how much visual stimulation child wants"; equal weight when both available.
+  // VISUAL — two independent channels: saturation (Color stage), brightness (Light stage).
   const realStrokes = state.colorStrokes.filter(s => s.color !== 'eraser');
-  const haveColor = realStrokes.length > 0;
   const lightBrightness = state.lightData?.brightness ?? null;
   const lightArc = state.lightData?.arcPosition ?? null;
-  const normBright = normalizeLightBrightness(lightBrightness);
-  const haveLight = normBright !== null;
 
-  // avgSaturation: normalized perceptual chroma (CIE Lab C*), averaged over the
-  // child's *swatch selections* — not stroke area. Rationale: selection moment is
-  // the preference signal (ASD color-aversion lit shows up in choice, not stroke
-  // size); stroke area mostly reflects motor execution. Falls back to strokes
-  // when no selection history exists.
-  let avgSaturation = null;
-  const selections = state.colorSelections.filter(h => h && h !== 'eraser');
-  if (selections.length > 0) {
-    const cVals = selections.map(getColorSaturation);
-    avgSaturation = cVals.reduce((a, b) => a + b, 0) / cVals.length;
-  } else if (haveColor) {
-    // Backward-compat: if no selection events captured (legacy session / external draw),
-    // fall back to stroke-averaged chroma.
-    const satValues = realStrokes.map(s => getColorSaturation(s.color));
-    avgSaturation = satValues.reduce((a, b) => a + b, 0) / satValues.length;
-  }
-  const haveChroma = avgSaturation !== null;
-
-  let visualScore = 0.5;
-  if (haveChroma && haveLight) {
-    visualScore = 0.5 * avgSaturation + 0.5 * normBright;
-  } else if (haveChroma) {
-    visualScore = avgSaturation;
-  } else if (haveLight) {
-    visualScore = normBright;
-  }
-
-  // TEMPORAL: from drum rhythm — faster tapping = higher score
-  let temporalScore = 0.5;
-  if (state.drumAvgInterval) {
-    // Map: 200ms (very fast) → 1.0, 1000ms (very slow) → 0.0
-    temporalScore = Math.max(0, Math.min(1, (1000 - state.drumAvgInterval) / 800));
-  }
+  // Saturation preference = the step the child chose on the palette's saturation axis
+  // (SAT_LEVELS 15..100 % of the hue's gamut maximum → 0..1). Relative to the chosen
+  // hue's own maximum, so it is hue-independent; absolute chroma isn't (sRGB cyan
+  // tops out at C*/120 ≈ 0.36, violet at 1.0). Each colour counts once, and only if
+  // the child both selected it and drew with it (repeat taps / try-outs don't count).
+  // Black and gray rows have no hue — they are lightness choices, not saturation — and
+  // are excluded. null when no chromatic colour was used → channel default.
+  const drawnColors = new Set(realStrokes.map(s => s.color));
+  const selectedColors = [...new Set(state.colorSelections.filter(h => h && h !== 'eraser'))];
+  const colorsUsed = selectedColors
+    .filter(hex => drawnColors.has(hex))
+    .map(hex => ({ hex, ...paletteStepOf(hex), chroma: getColorSaturation(hex) }));
+  const chromaticUsed = colorsUsed.filter(c => c.step !== null);
+  const saturationStep = chromaticUsed.length > 0
+    ? chromaticUsed.reduce((a, c) => a + c.step, 0) / chromaticUsed.length
+    : null;
+  // Descriptive only (not used for the video): mean CIE Lab chroma of the colours used.
+  const avgChroma = colorsUsed.length > 0
+    ? colorsUsed.reduce((a, c) => a + c.chroma, 0) / colorsUsed.length
+    : null;
 
   return {
     spatial: { score: spatialScore, friendCount: spatialElems.length, distancesPx, avgDistancePx },
     auditory: {
-      score: auditoryScore,
       staffPitch: staffPitchAvg,
       staffVolume: staffVolumeAvg,       // 3-layer mean, kept for older analysis scripts
       staffVolumeByStem,                 // what the stem gains actually use
@@ -5558,15 +5549,16 @@ function extractPreferences() {
       elementCount: audioElems.length,
     },
     visual: {
-      score: visualScore,
-      avgSaturation,
+      saturationStep,                    // what the saturation channel uses (0..1)
+      colorsUsed,                        // [{hex, hue, step, chroma}] — step null for black/gray
+      satAxisUsed: !!state.satAxisUsed,  // false → every step came from the default (step 3)
+      avgChroma,                         // descriptive only
       strokeCount: realStrokes.length,
       lightBrightness,
       lightArcPosition: lightArc,
       timeOfDay: getTimeOfDay(lightArc),
     },
     temporal: {
-      score: temporalScore,
       smt: state.drumAvgInterval ?? null,   // median ISI in ms (alias for spec field "drumSMT")
       fastMedianInterval: state.drumFastMedianInterval ?? null,  // motor ceiling (fast round)
       motorCeilingFlag: state.drumMotorCeilingFlag ?? null,     // preferred tempo near motor ceiling
@@ -6241,27 +6233,25 @@ function spatialBucketFromScore(score) {
 }
 
 // Populate state.baselinePerChannel from canvas-derived preferences.
+// Each channel comes only from its own stage; a stage the child skipped (or left
+// untouched) gives CHANNEL_DEFAULT. Never fall back to the composite visual/auditory
+// .score: it blends channels (visual.score = saturation when Light was skipped, i.e.
+// brightness would silently take the saturation value, and vice versa).
+const CHANNEL_DEFAULT = 0.5;
 function computeBaselinesFromPreferences(prefs) {
   if (!prefs) return;
+  const own = v => (typeof v === 'number' ? v : CHANNEL_DEFAULT);
   const lightB = prefs.visual.lightBrightness;
   const brightnessBase = (typeof lightB === 'number')
-    ? (lightBrightnessToChannel(lightB) ?? 0.5)
-    : (prefs.visual.score ?? 0.5);
-  const saturationBase = (typeof prefs.visual.avgSaturation === 'number')
-    ? prefs.visual.avgSaturation
-    : (prefs.visual.score ?? 0.5);
-  const pitchBase = (typeof prefs.auditory.staffPitch === 'number')
-    ? prefs.auditory.staffPitch
-    : (prefs.auditory.score ?? 0.5);
-  const volBase = (typeof prefs.auditory.staffVolume === 'number')
-    ? prefs.auditory.staffVolume
-    : (prefs.auditory.score ?? 0.5);
-  // Per-stem final volume; a stem the child didn't place → 0.5 default (not the mean of
+    ? (lightBrightnessToChannel(lightB) ?? CHANNEL_DEFAULT)
+    : CHANNEL_DEFAULT;
+  const saturationBase = own(prefs.visual.saturationStep);
+  const pitchBase = own(prefs.auditory.staffPitch);
+  const volBase = own(prefs.auditory.staffVolume);
+  // Per-stem final volume; a stem the child didn't place → default (not the mean of
   // the others). Sessions recorded before staffVolumeByStem existed fall back to volBase.
   const byStem = prefs.auditory.staffVolumeByStem;
-  const stemVol = k => byStem
-    ? (typeof byStem[k] === 'number' ? byStem[k] : 0.5)
-    : volBase;
+  const stemVol = k => byStem ? own(byStem[k]) : volBase;
 
   state.baselinePerChannel = {
     brightness: clamp01(brightnessBase),
@@ -6779,9 +6769,6 @@ function initVideoPlayer() {
   // Caregiver settings panel — populate rows + bind handlers
   setupSettingsPanel();
 
-  // Populate profile bars (legacy element, may be absent after Phase C refactor)
-  populateProfile();
-
   // Play/Pause
   function togglePlay() {
     if (video.paused) {
@@ -7205,19 +7192,6 @@ function triggerTemporalFreeze(video, playPauseBtn, videoWrap) {
   logEvent('prep_freeze', { seconds: +freezeSec.toFixed(2) });
 }
 
-function populateProfile() {
-  if (!videoPreferences) return;
-  const dims = ['auditory', 'visual', 'spatial', 'temporal'];
-  dims.forEach(dim => {
-    const bar = document.getElementById(`bar-${dim}`);
-    const label = document.getElementById(`label-${dim}`);
-    if (bar && videoPreferences[dim]) {
-      const pct = Math.round(videoPreferences[dim].score * 100);
-      bar.style.width = pct + '%';
-      if (label) label.textContent = pct + '%';
-    }
-  });
-}
 
 function formatTime(s) {
   if (!s || isNaN(s)) return '0:00';

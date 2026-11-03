@@ -82,10 +82,14 @@ def build_summary_df(sessions: list[dict]) -> pd.DataFrame:
             "element_count": len(s.get("placedElements") or []),
             "stroke_count": len(s.get("colorStrokes") or []),
         }
-        # Flatten top-level preference scores: pref_visual, pref_auditory, ...
-        for dim, val in prefs.items():
-            if isinstance(val, dict) and "score" in val:
-                row[f"pref_{dim}"] = val["score"]
+        # Per-channel values the video actually used. base_* = derived from the child's
+        # stages (default for a skipped stage); final_* = on screen at export, caregiver
+        # slider overrides included. The old composite pref_<dim> "score" columns were
+        # removed 2026-11-02: they blended channels and never drove the video.
+        # Caution: base_brightness before 2026-11-02 used the old b-0.5 scale.
+        for prefix, key in (("base", "baseline_per_channel"), ("final", "final_per_channel")):
+            for ch, v in (difficulty.get(key) or {}).items():
+                row[f"{prefix}_{ch}"] = v
         # Flatten phase durations: phase_photo_s, phase_canvas_s, ...
         for phase, ms in phase_durations.items():
             row[f"phase_{phase}_s"] = ms / 1000
@@ -197,10 +201,11 @@ def print_report(summary_df: pd.DataFrame, events_df: pd.DataFrame, visits_df: p
             "video_play_count", "video_pause_count", "video_seek_count",
         ]].describe().to_string())
 
-    pref_cols = [c for c in summary_df.columns if c.startswith("pref_")]
-    if pref_cols:
-        print("\n-- Elicited preference scores --")
-        print(summary_df[pref_cols].describe().to_string())
+    base_cols = [c for c in summary_df.columns
+                 if c.startswith("base_") and pd.api.types.is_numeric_dtype(summary_df[c])]
+    if base_cols:
+        print("\n-- Elicited channel values (continuous channels) --")
+        print(summary_df[base_cols].describe().to_string())
 
     if not events_df.empty:
         print("\n-- Event frequency across all sessions --")
