@@ -6326,6 +6326,32 @@ function logManualAdjustment(channel, from, to, trigger) {
     trigger: trigger || 'caregiver_settings',
   });
   state.condition_contaminated = true;
+  saveTeacherSettings();
+}
+
+// Teacher: remember the slider values on this device (per child) so reopening the
+// video — 回到视频重新调, a reload, coming back later — continues from them instead
+// of the defaults.
+const teacherSettingsKey = () => `sense_teacher_settings_${state.participantId || ''}`;
+function saveTeacherSettings() {
+  if (state.condition !== 'teacher') return;
+  try {
+    localStorage.setItem(teacherSettingsKey(),
+      JSON.stringify(Object.fromEntries(ALL_CHANNELS.map(ch => [ch, getEffectiveChannelValue(ch)]))));
+  } catch (_) {}
+}
+function restoreTeacherSettings() {
+  if (state.condition !== 'teacher') return;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(teacherSettingsKey()) || 'null'); } catch (_) {}
+  if (!saved) return;
+  ALL_CHANNELS.forEach(ch => {
+    const v = saved[ch];
+    const ok = CONTINUOUS_CHANNELS.includes(ch) ? typeof v === 'number' : BUCKET_ORDER[ch]?.includes(v);
+    if (ok) devOverrides[ch] = v;
+  });
+  logEvent('teacher_settings_restored', { values: saved });
+  refreshAllSettingsRows();
 }
 
 // Expose a tiny test surface so we can poke from the console while Phase B/C UI is being built.
@@ -6670,6 +6696,7 @@ function initVideoPlayer() {
   computeBaselinesFromPreferences(videoPreferences);
   // applied = baseline until the difficulty modal sets a level (Phase B)
   if (state.difficultyLevel) recomputeAppliedFromDifficulty(state.difficultyLevel);
+  restoreTeacherSettings();
   s2PauseTriggered = false;
   temporalMarkersFired = new Set();
   if (freezeCountdownTimer) { clearInterval(freezeCountdownTimer); freezeCountdownTimer = null; }
