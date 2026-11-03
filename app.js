@@ -6660,6 +6660,7 @@ function showTeacherReview() {
       <p>下面是您为这个孩子调好的画面和声音。确认无误请点"确认提交"；想再改请点"返回修改"。</p>
       <table>${rows}</table>
       <div class="teacher-review-msg" id="teacher-review-msg"></div>
+      <div id="teacher-review-copy"></div>
       <div class="teacher-review-btns">
         <button type="button" class="tr-back" id="tr-back">← 返回修改</button>
         <button type="button" class="tr-submit" id="tr-submit">确认提交</button>
@@ -6687,6 +6688,19 @@ function showTeacherReview() {
       submitBtn.disabled = false; el.querySelector('#tr-back').disabled = false;
       submitBtn.textContent = '确认提交';
       msg.textContent = '保存没有成功，请检查网络后再点一次"确认提交"。';
+      // Plan B: compact record the teacher can paste to the researcher.
+      const full = buildExportPayload('baseline-confirmed');
+      const d = full.difficulty || {};
+      window.SENSECopy?.showCopyFallback(el.querySelector('#teacher-review-copy'), {
+        participantId: full.participantId, condition: 'teacher', exportStage: 'baseline-confirmed',
+        sessionId: full.sessionId, timestamp: full.timestamp, eventType: full.eventType,
+        difficulty: {
+          final_per_channel: d.final_per_channel,
+          baseline_per_channel: d.baseline_per_channel,
+          manual_adjustments: (d.manual_adjustments || []).slice(-40),
+          manual_adjustments_total: (d.manual_adjustments || []).length,
+        },
+      });
     }
   };
 }

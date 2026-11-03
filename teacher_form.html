@@ -111,8 +111,10 @@
     <button type="button" class="next" id="next">下一题</button>
   </div>
   <div class="msg" id="msg"></div>
+  <div id="copybox"></div>
 </div>
 
+<script src="teacher_copy.js?v=1"></script>
 <script>
 // ---- Content (v2 scale, plain-language wording for teachers) -------------
 const SENSES = [
@@ -373,6 +375,7 @@ async function submit() {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(record),
     });
     if (!r.ok) throw new Error('HTTP ' + r.status);
+    $('copybox').innerHTML = '';
     ls.set(DRAFT, null);
     ls.set(DONE, pid);
     showDone(pid);
@@ -380,6 +383,7 @@ async function submit() {
     btn.disabled = false;
     msg.className = 'msg err';
     msg.textContent = '提交没有成功（' + err.message + '），请检查网络后再点一次。您填的内容已保存在本机，不会丢。';
+    window.SENSECopy?.showCopyFallback($('copybox'), record);
   }
 }
 

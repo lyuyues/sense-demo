@@ -223,11 +223,11 @@ def _write_teacher_csv(path, rec):
         w.writerow(['视频设置', '手动调整次数', len(diff.get('manual_adjustments') or []), 'manual_adjustments'])
 
 
-def save_teacher_record(session_dir, cond, body):
+def save_teacher_record(session_dir, cond, body, when=None):
     out_dir = os.path.join(session_dir, 'teacher_form')
     os.makedirs(out_dir, exist_ok=True)
     child = _clean_name(body.get('participantId'), '未填孩子')
-    now = _beijing_now()
+    now = when or _beijing_now()
     base = None
     rec = None
     if cond == 'teacher':
